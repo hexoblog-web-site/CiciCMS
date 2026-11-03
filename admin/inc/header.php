@@ -6,19 +6,34 @@ if (!defined('CMS_ADMIN')) {
 }
 
 $user = auth_user();
-$NAV  = array(
-    'dashboard' => array('仪表盘', '◫'),
-    'article'   => array('文章管理', '▤'),
-    'category'  => array('栏目管理', '▦'),
-    'page'      => array('单页管理', '▭'),
-    'media'     => array('媒体库', '▣'),
-    'flink'     => array('友情链接', '⇄'),
-    'build'     => array('生成静态', '↻'),
-    'clean'     => array('系统清理', '♻'),
-    'theme'     => array('模板管理', '✎'),
-    'setting'   => array('系统设置', '⚙'),
+
+/* 图标统一 24 视图框、线性描边，由 CSS 控制尺寸与颜色 */
+$NAV = array(
+    'dashboard' => array('仪表盘', '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>'),
+    'article'   => array('文章管理', '<path d="M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z"/><path d="M14 3.5V8h4.5"/><path d="M9 12.5h6M9 16.5h4"/>'),
+    'category'  => array('栏目管理', '<path d="M3.5 7.5a2 2 0 0 1 2-2h3.6l2 2h7.4a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2z"/>'),
+    'page'      => array('单页管理', '<rect x="8.5" y="3.5" width="11" height="13" rx="2"/><path d="M16 20.5H6.5a2 2 0 0 1-2-2V7.5"/>'),
+    'media'     => array('媒体库', '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17l5-4.2 3.8 3 2.8-2 4.4 3.4"/>'),
+    'flink'     => array('友情链接', '<path d="M10.5 13.5a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.5 1.5"/><path d="M13.5 10.5a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.5-1.5"/>'),
+    'build'     => array('生成静态', '<path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4v4.8h-4.8"/>'),
+    'clean'     => array('系统清理', '<path d="M4.5 7h15"/><path d="M9.5 7V5.5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.5 7l.8 11.4a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9L17.5 7"/>'),
+    'theme'     => array('模板管理', '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M3.5 9.8h17"/><path d="M9.8 9.8v9.7"/>'),
+    'setting'   => array('系统设置', '<path d="M4 7.5h7M15.5 7.5h4.5M4 16.5h4M12.5 16.5h7.5"/><circle cx="13" cy="7.5" r="2.2"/><circle cx="10" cy="16.5" r="2.2"/>'),
+);
+$SUBTITLE = array(
+    'dashboard' => '内容概览与系统状态',
+    'article'   => '发布、编辑与检索全部文章',
+    'category'  => '栏目结构与静态目录',
+    'page'      => '关于、联系等独立页面',
+    'media'     => '已上传的图片与附件',
+    'flink'     => '首页友情链接位',
+    'build'     => '把内容渲染为静态 HTML',
+    'clean'     => '清理无用附件与缓存',
+    'theme'     => '模板文件与代码块样式',
+    'setting'   => '站点、账号与安全选项',
 );
 $pageTitle = isset($NAV[$p]) ? $NAV[$p][0] : '管理后台';
+$pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : '';
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -41,14 +56,15 @@ $pageTitle = isset($NAV[$p]) ? $NAV[$p][0] : '管理后台';
         <nav class="nav">
             <?php foreach ($NAV as $key => $item): ?>
                 <a class="<?php echo $p === $key ? 'on' : ''; ?>" href="<?php echo e(admin_url($key)); ?>">
-                    <span class="ico"><?php echo $item[1]; ?></span><?php echo e($item[0]); ?>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><?php echo $item[1]; ?></svg>
+                    <span><?php echo e($item[0]); ?></span>
                 </a>
             <?php endforeach; ?>
         </nav>
         <div class="sidebar-foot">
             <div class="build-hint">
                 已生成 <b><?php echo (int) static_files_count(); ?></b> 个静态文件
-                <a href="<?php echo e(admin_url('build')); ?>">去生成</a>
+                <a href="<?php echo e(admin_url('build')); ?>">去生成 →</a>
             </div>
             <form method="post" action="index.php" onsubmit="return true;">
                 <?php echo csrf_field(); ?>
@@ -61,7 +77,10 @@ $pageTitle = isset($NAV[$p]) ? $NAV[$p][0] : '管理后台';
     <div class="main">
         <header class="topbar">
             <button class="menu-btn" type="button" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
-            <h1><?php echo e($pageTitle); ?></h1>
+            <div>
+                <h1><?php echo e($pageTitle); ?></h1>
+                <?php if ($pageSub !== ''): ?><div class="page-sub"><?php echo e($pageSub); ?></div><?php endif; ?>
+            </div>
             <div class="top-actions">
                 <a class="link" href="<?php echo e(site_url()); ?>" target="_blank">访问站点 ↗</a>
                 <span class="user-chip"><?php echo e($user['username']); ?></span>

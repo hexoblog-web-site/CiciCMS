@@ -279,7 +279,7 @@ if ($action === 'new' || $action === 'edit') {
                                         $flagsOn = array_filter(array_map('trim', explode(',', (string) (isset($row['flag']) ? $row['flag'] : ''))));
                                         foreach (cms_flag_map() as $fk => $fv):
                                             ?>
-                                            <label class="inline" style="font-weight:400;margin:0 10px 6px 0">
+                                            <label class="inline" style="font-weight:400;margin:0 0 6px">
                                                 <input class="check" type="checkbox" name="flag_<?php echo e($fk); ?>" value="1" <?php echo in_array($fk, $flagsOn, true) ? 'checked' : ''; ?>>
                                                 <?php echo e($fv); ?>
                                             </label>

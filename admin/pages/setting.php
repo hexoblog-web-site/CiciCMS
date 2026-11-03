@@ -137,7 +137,7 @@ $backups = db_backup_list();
             </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="backup">
             <div class="card-head"><h2>数据库备份</h2></div>
             <div class="card-body">
                 <p class="hint" style="margin-top:0">备份文件保存在 content/data/backup 目录，包含全部内容表，可用于迁移或恢复。</p>

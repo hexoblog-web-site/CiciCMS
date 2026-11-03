@@ -64,8 +64,8 @@ $lastBuild = (int) setting('last_build', 0);
                 </div>
                 <div id="build-progress" style="display:none;margin-top:14px">
                     <div class="kv"><span id="bp-text">准备中…</span><span id="bp-pct">0%</span></div>
-                    <div style="height:8px;background:#e9edf5;border-radius:5px;margin-top:8px;overflow:hidden">
-                        <div id="bp-bar" style="height:100%;width:0;background:#2f7cf6;transition:width .25s"></div>
+                    <div style="height:8px;background:var(--card-soft);border-radius:999px;margin-top:8px;overflow:hidden">
+                        <div id="bp-bar" style="height:100%;width:0;background:var(--brand);border-radius:999px;transition:width .25s"></div>
                     </div>
                     <div class="hint" style="margin-top:8px">内容较多时会自动分批执行，请保持本页面打开，不要关闭。</div>
                 </div>
@@ -132,7 +132,7 @@ $lastBuild = (int) setting('last_build', 0);
                     Apache 下 <code>content/data</code> 等目录由 .htaccess 保护；<b>Nginx 不读 .htaccess</b>，
                     必须在站点配置里手动禁止访问，否则备份文件和日志可能被直接下载。
                 </p>
-                <pre style="background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;overflow:auto;font-size:12px;line-height:1.7"># 系统目录与内容区里的私有目录，一律拒绝直连
+                <pre style="background:#161A22;color:#DDE1E8;padding:14px 16px;border-radius:14px;overflow:auto;font-size:12px;line-height:1.7"># 系统目录与内容区里的私有目录，一律拒绝直连
 location ~ ^/(includes|admin/inc|install)/ {
     deny all;
     return 404;

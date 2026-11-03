@@ -119,7 +119,7 @@ $content = $editFile !== '' ? (string) @file_get_contents(theme_path($editFile))
             <div class="card-head"><h2>可用模板</h2></div>
             <div class="card-body">
                 <?php foreach ($themes as $t): ?>
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #f1f5f9">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line)">
                         <span>
                             <?php echo e($t); ?>
                             <?php if (is_file($themesDir . '/' . $t . '/index.html')): ?>
