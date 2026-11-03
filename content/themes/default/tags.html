@@ -1,0 +1,14 @@
+{cici:include file="header"}
+<section class="page-head">
+    <h1>标签云</h1>
+</section>
+
+{cici:if $tags}
+<div class="tag-cloud">
+    {cici:tags limit="100"}<a href="{cici:item.url}">{cici:item.name}<span>{cici:item.count}</span></a>{/cici:tags}
+</div>
+{cici:else}
+<div class="empty">还没有任何标签</div>
+{/cici:if}
+
+{cici:include file="footer"}

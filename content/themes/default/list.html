@@ -1,0 +1,15 @@
+{cici:include file="header"}
+{cici:if $cat}
+<section class="page-head{cici:if $cat.banner_url} has-banner{/cici:if}"{cici:if $cat.banner_url} style="background-image:url('{cici:cat.banner_url}')"{/cici:if}>
+    <h1>{cici:cat.name}</h1>
+    {cici:if $cat.description}<p>{cici:cat.description}</p>{/cici:if}
+    <span class="page-count">共 {cici:pager.total} 篇文章</span>
+</section>
+{cici:else}
+<section class="page-head">
+    <h1>标签：{cici:tag_name}</h1>
+    <span class="page-count">共 {cici:pager.total} 篇文章</span>
+</section>
+{/cici:if}
+{cici:include file="loop"}
+{cici:include file="footer"}

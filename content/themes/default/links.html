@@ -1,0 +1,47 @@
+{cici:include file="header"}
+<section class="page-head">
+    <h1>友情链接</h1>
+    <p>欢迎交换链接，请通过「关于」页面联系站长</p>
+</section>
+
+<section class="link-sec">
+    <h2 class="link-title">图片链接</h2>
+    <div class="link-grid">
+        {cici:flink type="logo" limit="60"}
+        <a class="link-card logo" href="{cici:item.url}" target="_blank" rel="noopener" title="{cici:item.name}">
+            <img src="{cici:item.logo}" alt="{cici:item.name}" loading="lazy">
+            <span>{cici:item.name}</span>
+        </a>
+        {cici:empty}
+        <p class="link-empty">暂无图片链接</p>
+        {/cici:flink}
+    </div>
+</section>
+
+<section class="link-sec">
+    <h2 class="link-title">文字链接</h2>
+    <div class="link-grid text-grid">
+        {cici:flink type="text" limit="80"}
+        <a class="link-card text" href="{cici:item.url}" target="_blank" rel="noopener" title="{cici:item.desc}">
+            {cici:item.name}
+        </a>
+        {cici:empty}
+        <p class="link-empty">暂无文字链接</p>
+        {/cici:flink}
+    </div>
+</section>
+
+<section class="link-sec">
+    <h2 class="link-title">申请友链</h2>
+    <div class="link-note">
+        <p>本站信息：</p>
+        <ul>
+            <li>名称：{cici:site.name}</li>
+            <li>地址：<a href="{cici:url}">{cici:url}</a></li>
+            {cici:if $site.desc}<li>简介：{cici:site.desc}</li>{/cici:if}
+        </ul>
+        <p>请先做好本站链接，再到后台「友情链接」或留言告知，审核后上线。</p>
+    </div>
+</section>
+
+{cici:include file="footer"}

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{cici:title}</title>
+<meta name="description" content="{cici:desc}">
+<meta name="keywords" content="{cici:keywords}">
+{cici:if $canonical}<link rel="canonical" href="{cici:canonical}">{/cici:if}
+{cici:if $noindex}<meta name="robots" content="noindex,follow">{/cici:if}
+<meta property="og:site_name" content="{cici:site.name}">
+<meta property="og:title" content="{cici:title}">
+<meta property="og:description" content="{cici:desc}">
+{cici:if $body_class == "single"}<meta property="og:type" content="article">{cici:else}<meta property="og:type" content="website">{/cici:if}
+<link rel="stylesheet" href="{cici:theme}style.css">
+<link rel="stylesheet" href="{cici:theme}assets/code.css">
+<link rel="alternate" type="application/rss+xml" title="{cici:site.name}" href="{cici:url}/rss.xml">
+</head>
+<body class="{cici:body_class}">
+<header class="site-head">
+    <div class="wrap head-inner">
+        <a class="logo" href="{cici:url}/index.html">{cici:site.name}</a>
+        <nav class="site-nav">
+            <a class="{cici:if $body_class == "home"}on{/cici:if}" href="{cici:url}/index.html">首页</a>
+            {cici:nav currentstyle="on"}
+            <a class="{cici:item.currentstyle}" href="{cici:item.url}">{cici:item.name}</a>
+            {/cici:nav}
+            <a class="{cici:if $body_class == "archive"}on{/cici:if}" href="{cici:url}/archive.html">归档</a>
+            <a class="{cici:if $body_class == "tags"}on{/cici:if}" href="{cici:url}/tags.html">标签</a>
+            <a class="{cici:if $body_class == "links"}on{/cici:if}" href="{cici:url}/links.html">友链</a>
+        </nav>
+        <form class="head-search" action="{cici:url}/index.php" method="get" role="search">
+            <input type="search" name="s" value="{cici:kw}" placeholder="搜索文章…" aria-label="搜索">
+            <button type="submit">搜索</button>
+        </form>
+    </div>
+</header>
+<main class="wrap main">

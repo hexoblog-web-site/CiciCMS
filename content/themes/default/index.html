@@ -1,0 +1,39 @@
+{cici:include file="header"}
+<section class="hero">
+    <h1>{cici:site.name}</h1>
+    {cici:if $site.desc}<p>{cici:site.desc}</p>{/cici:if}
+</section>
+
+{cici:channelartlist row="4"}
+<section class="home-cat">
+    <div class="sec-head">
+        <h2><a href="{cici:item.url}">{cici:item.name}</a></h2>
+        {cici:if $item.description}<span class="sec-desc">{cici:item.description}</span>{/cici:if}
+        <a class="sec-more" href="{cici:item.url}">共 {cici:item.count} 篇 &rarr;</a>
+    </div>
+    <ul class="mini-list">
+        {cici:list catid="$item.id" limit="5" order="new"}
+        <li>
+            <time>{cici:item.date}</time>
+            <a href="{cici:item.url}">{cici:item.title}</a>
+        </li>
+        {cici:empty}
+        <li class="mini-empty">该栏目还没有文章</li>
+        {/cici:list}
+    </ul>
+</section>
+{/cici:channelartlist}
+
+{cici:if $posts}
+<section class="home-latest">
+    <div class="sec-head">
+        <h2>最新文章</h2>
+        <a class="sec-more" href="{cici:url}/archive.html">全部归档 &rarr;</a>
+    </div>
+    {cici:include file="loop"}
+</section>
+{cici:else}
+<div class="empty">站点还没有文章，去后台写第一篇吧</div>
+{/cici:if}
+
+{cici:include file="footer"}

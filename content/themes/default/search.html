@@ -1,0 +1,17 @@
+{cici:include file="header"}
+<section class="page-head">
+    <h1>站内搜索</h1>
+    <form class="search-form" action="{cici:url}/index.php" method="get" role="search">
+        <input type="search" name="s" value="{cici:kw}" placeholder="输入关键词后回车">
+        <button type="submit">搜索</button>
+    </form>
+    {cici:if $kw}<span class="page-count">关键词「{cici:kw}」，找到 {cici:pager.total} 篇文章</span>{/cici:if}
+</section>
+
+{cici:if $kw}
+{cici:include file="loop"}
+{cici:else}
+<div class="empty">请输入关键词开始搜索</div>
+{/cici:if}
+
+{cici:include file="footer"}

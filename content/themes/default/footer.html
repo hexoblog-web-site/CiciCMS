@@ -1,0 +1,36 @@
+</main>
+<footer class="site-foot">
+    <div class="wrap foot-inner">
+        <div class="foot-main">
+            <p class="copy">&copy; {cici:year} {cici:site.name}</p>
+            {cici:if $site.desc}<p class="foot-desc">{cici:site.desc}</p>{/cici:if}
+            {cici:if $site.footer}<div class="foot-html">{cici:site.footer}</div>{/cici:if}
+            <nav class="foot-nav">
+                <a href="{cici:url}/index.html">首页</a>
+                <a href="{cici:url}/archive.html">归档</a>
+                <a href="{cici:url}/tags.html">标签</a>
+                <a href="{cici:url}/links.html">友情链接</a>
+                {cici:page limit="8"}<a href="{cici:item.url}">{cici:item.title}</a>{/cici:page}
+                <a href="{cici:url}/rss.xml">RSS</a>
+            </nav>
+        </div>
+        <div class="foot-side">
+            {cici:if $site.icp}<a href="https://beian.miit.gov.cn/" target="_blank" rel="nofollow noopener">{cici:site.icp}</a>{/cici:if}
+            <span>Powered by <a href="https://www.htmlcms.local/" rel="nofollow">HtmlCms</a></span>
+        </div>
+    </div>
+</footer>
+{cici:if $body_class == "single"}
+<script>
+(function () {
+    var img = new Image();
+    img.src = '{cici:url}/api.php?act=view&id={cici:post.id}&t=' + Date.now();
+    img.style.display = 'none';
+    img.onload = img.onerror = function () { if (img.parentNode) { img.parentNode.removeChild(img); } };
+    document.body.appendChild(img);
+})();
+</script>
+{/cici:if}
+<script src="{cici:theme}assets/prism.bundle.js"></script>
+</body>
+</html>

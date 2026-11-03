@@ -1,0 +1,9 @@
+# 系统代码目录：只允许 PHP 由入口文件 require，禁止浏览器直接访问
+# （直接访问这些文件没有任何意义，只会泄露源码或路径）
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

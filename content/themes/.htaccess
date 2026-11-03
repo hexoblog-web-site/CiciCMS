@@ -1,0 +1,22 @@
+# 主题目录：样式、脚本、图片要能被浏览器访问，但模板本身不能被直接请求。
+# 主题里的 .php 是"代码"，只能由 index.php 引导后 include 执行；
+# 直接访问会绕开引导，既跑不起来，也可能泄露路径。
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>
+
+<FilesMatch "\.(php|php3|php4|php5|php7|phtml|phar|inc)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+</IfModule>

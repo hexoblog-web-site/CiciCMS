@@ -1,0 +1,49 @@
+{cici:include file="header"}
+<article class="entry">
+    <div class="entry-head">
+        <nav class="crumb">{cici:position sep="/"}</nav>
+        <h1>{cici:post.title}</h1>
+        <div class="entry-meta">
+            <time datetime="{cici:post.date}">{cici:post.date}</time>
+            <span>{cici:post.views} 次浏览</span>
+            {cici:if $post.flag_list}<span class="entry-flag">{cici:each in="post.flag_list"}<em>{cici:item.title}</em>{/cici:each}</span>{/cici:if}
+        </div>
+    </div>
+
+    {cici:if $post.cover}
+    <div class="entry-cover"><img src="{cici:post.cover}" alt="{cici:post.title}"></div>
+    {/cici:if}
+
+    <div class="entry-content">{cici:post.content}</div>
+
+    {cici:if $post.tag_list}
+    <div class="entry-tags">
+        <span>标签</span>
+        {cici:each in="post.tag_list"}<a href="{cici:item.url}">#{cici:item.name}</a>{/cici:each}
+    </div>
+    {/cici:if}
+</article>
+
+<nav class="entry-nav">
+    {cici:prev samecat="0"}
+    <a class="pn prev" href="{cici:item.url}"><span>上一篇</span>{cici:item.title}</a>
+    {cici:empty}
+    <span class="pn dis"><span>上一篇</span>已经是第一篇</span>
+    {/cici:prev}
+    {cici:next samecat="0"}
+    <a class="pn next" href="{cici:item.url}"><span>下一篇</span>{cici:item.title}</a>
+    {cici:empty}
+    <span class="pn dis"><span>下一篇</span>已经是最后一篇</span>
+    {/cici:next}
+</nav>
+
+{cici:if $related}
+<aside class="related">
+    <h2>相关文章</h2>
+    <ul class="related-list">
+        {cici:related limit="5"}<li><a href="{cici:item.url}">{cici:item.title}</a><time>{cici:item.date}</time></li>{/cici:related}
+    </ul>
+</aside>
+{/cici:if}
+
+{cici:include file="footer"}

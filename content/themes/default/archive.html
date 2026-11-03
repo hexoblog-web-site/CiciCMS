@@ -1,0 +1,29 @@
+{cici:include file="header"}
+<section class="page-head">
+    <h1>文章归档</h1>
+    <p>按时间顺序浏览本站的全部文章</p>
+</section>
+
+{cici:archive}
+<section class="arc-year">
+    <h2 class="arc-year-title">{cici:item.label}<small>{cici:item.count} 篇</small></h2>
+    {cici:each in="item.months"}
+    <div class="arc-month">
+        <h3>{cici:item.label}<small>{cici:item.count} 篇</small></h3>
+        <ul class="arc-list">
+            {cici:each in="item.posts"}
+            <li>
+                <time datetime="{cici:item.date}">{cici:item.month}-{cici:item.day}</time>
+                <a href="{cici:item.url}">{cici:item.title}</a>
+                {cici:if $item.cat_name}<em>{cici:item.cat_name}</em>{/cici:if}
+            </li>
+            {/cici:each}
+        </ul>
+    </div>
+    {/cici:each}
+</section>
+{cici:empty}
+<div class="empty">还没有文章可归档</div>
+{/cici:archive}
+
+{cici:include file="footer"}

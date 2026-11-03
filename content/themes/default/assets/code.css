@@ -1,0 +1,151 @@
+/* ===========================================================
+   代码块样式（配合 prism.bundle.js 使用）
+   要点：等宽字体带中文回退、横向滚动不换行、语言标签、复制按钮
+   =========================================================== */
+
+.code-block {
+  position: relative;
+  margin: 1.5em 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px;
+  background: #eef2f7;
+  border-bottom: 1px solid #e2e8f0;
+  line-height: 1;
+}
+
+.code-lang {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .06em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.code-copy {
+  padding: 4px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+
+.code-copy:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #1e293b;
+}
+
+.code-copy.is-done {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+/* 代码区：绝不自动换行，长命令靠横向滚动 */
+.code-block pre {
+  margin: 0;
+  padding: 14px 16px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Microsoft YaHei", monospace;
+  font-size: 13.5px;
+  line-height: 1.65;
+  tab-size: 4;
+  -moz-tab-size: 4;
+  white-space: pre;
+  word-break: normal;
+  word-wrap: normal;
+}
+
+.code-block code {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre;
+  text-shadow: none;
+}
+
+/* 正文里的行内代码 */
+.entry-content code,
+.post-content code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Microsoft YaHei", monospace;
+  font-size: .9em;
+  color: #be123c;
+}
+
+.entry-content .code-block code,
+.post-content .code-block code {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* Prism token 配色（浅色） */
+.code-block .token.comment,
+.code-block .token.prolog,
+.code-block .token.doctype,
+.code-block .token.cdata { color: #94a3b8; font-style: italic; }
+.code-block .token.punctuation { color: #64748b; }
+.code-block .token.namespace { opacity: .7; }
+.code-block .token.property,
+.code-block .token.tag,
+.code-block .token.boolean,
+.code-block .token.number,
+.code-block .token.constant,
+.code-block .token.symbol { color: #b45309; }
+.code-block .token.selector,
+.code-block .token.attr-name,
+.code-block .token.string,
+.code-block .token.char,
+.code-block .token.builtin,
+.code-block .token.inserted { color: #15803d; }
+.code-block .token.operator,
+.code-block .token.entity,
+.code-block .token.url { color: #0f766e; }
+.code-block .token.atrule,
+.code-block .token.attr-value,
+.code-block .token.keyword { color: #7c3aed; }
+.code-block .token.function,
+.code-block .token.class-name { color: #2563eb; }
+.code-block .token.regex,
+.code-block .token.important,
+.code-block .token.variable { color: #c2410c; }
+.code-block .token.bold { font-weight: 600; }
+.code-block .token.italic { font-style: italic; }
+.code-block .token.deleted { color: #dc2626; }
+
+/* 滚动条 */
+.code-block pre::-webkit-scrollbar { height: 8px; }
+.code-block pre::-webkit-scrollbar-track { background: transparent; }
+.code-block pre::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.code-block pre::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+@media (max-width: 640px) {
+  .code-block pre { font-size: 12.5px; padding: 12px; }
+}

@@ -1,0 +1,38 @@
+# ---- 本地配置（含数据库账号密码，绝不入库）----
+/config.php
+/includes/config.php
+
+# ---- 运行时数据 ----
+/content/data/cache/
+/content/data/logs/
+/content/data/backup/
+/content/data/*.json
+/content/data/*.lock
+
+# ---- 上传附件 ----
+/content/uploads/**
+!/content/uploads/.htaccess
+
+# ---- 静态生成产物（每次发布都会重写）----
+/index.html
+/tags.html
+/archive.html
+/links.html
+/404.html
+/sitemap.xml
+/rss.xml
+/page/
+/tag/
+/uncategorized/
+
+# ---- 依赖与构建产物 ----
+/docs/node_modules/
+/docs/.vitepress/dist/
+/docs/.vitepress/cache/
+node_modules/
+
+# ---- 编辑器与系统文件 ----
+.DS_Store
+Thumbs.db
+*.log
+*.tmp

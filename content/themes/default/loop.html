@@ -1,0 +1,29 @@
+{cici:if $posts}
+<div class="post-list">
+    {cici:each in="posts"}
+    <article class="post-card">
+        {cici:if $item.cover}
+        <a class="post-cover" href="{cici:item.url}"><img src="{cici:item.cover}" alt="{cici:item.title}" loading="lazy"></a>
+        {/cici:if}
+        <div class="post-body">
+            <div class="post-meta">
+                {cici:if $item.cat_name}<a class="cat" href="{cici:item.cat_url}">{cici:item.cat_name}</a>{/cici:if}
+                <time datetime="{cici:item.date}">{cici:item.date}</time>
+                {cici:if $item.is_top == 1}<span class="pin">置顶</span>{/cici:if}
+            </div>
+            <h2 class="post-title"><a href="{cici:item.url}">{cici:item.title}</a></h2>
+            <p class="post-excerpt">{cici:item.summary}</p>
+            <div class="post-foot">
+                <a class="more" href="{cici:item.url}">阅读全文 &rarr;</a>
+                {cici:if $item.tag_list}
+                <span class="tags-mini">{cici:each in="item.tag_list"}<a href="{cici:item.url}">#{cici:item.name}</a>{/cici:each}</span>
+                {/cici:if}
+            </div>
+        </div>
+    </article>
+    {/cici:each}
+</div>
+{cici:pager}
+{cici:else}
+<div class="empty">暂无内容</div>
+{/cici:if}

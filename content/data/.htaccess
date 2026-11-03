@@ -1,0 +1,8 @@
+# 数据目录禁止外部访问（配置、日志、备份、缓存）
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

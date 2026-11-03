@@ -1,0 +1,18 @@
+# 内容区：主题样式与上传附件需要能被浏览器访问，这里只关掉目录列表。
+# data/ 与 uploads/ 各自有更严格的规则，见对应子目录的 .htaccess。
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>
+
+AddDefaultCharset UTF-8
+
+# 静态资源缓存
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/webp "access plus 30 days"
+    ExpiresByType image/gif "access plus 30 days"
+</IfModule>

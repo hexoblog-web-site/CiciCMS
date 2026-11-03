@@ -1,0 +1,15 @@
+# 文档源码目录，不属于站点内容，禁止通过 Web 访问。
+# 里面有 node_modules（243MB）与大量第三方 demo 页面，暴露只会给攻击者提供素材。
+# 更彻底的做法是把 docs/ 移出站点根目录，这份规则只兜住 Apache。
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
+
+# 兜底：即使上面的授权模块都没启用，也不要让目录被列出来
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>
