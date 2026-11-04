@@ -224,6 +224,58 @@ if ($action === 'new' || $action === 'edit') {
                     <label for="title">标题</label>
                     <input class="input" type="text" id="title" name="title" value="<?php echo e($row['title']); ?>" placeholder="请输入文章标题" required>
                 </div>
+
+                <?php
+                $flagsOn = array_filter(array_map('trim', explode(',', (string) (isset($row['flag']) ? $row['flag'] : ''))));
+                ?>
+                <div class="card card-inset">
+                    <div class="card-head">
+                        <h2>属性</h2>
+                        <span class="hint" style="margin:0">选好分类与推荐位，再往下写正文</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid3">
+                            <div class="form-row">
+                                <label for="cat_id">分类</label>
+                                <select class="input" id="cat_id" name="cat_id">
+                                    <option value="0">未分类</option>
+                                    <?php foreach ($cats as $c): ?>
+                                        <option value="<?php echo (int) $c['id']; ?>" <?php echo (int) $row['cat_id'] === (int) $c['id'] ? 'selected' : ''; ?>><?php echo e($c['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <?php if (empty($cats)): ?>
+                                    <div class="hint">还没有分类，<a href="<?php echo e(admin_url('category')); ?>">先建一个</a></div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="form-row">
+                                <label for="tags">标签</label>
+                                <input class="input" type="text" id="tags" name="tags" value="<?php echo e($row['tags']); ?>" placeholder="用逗号分隔，最多 8 个">
+                            </div>
+                            <div class="form-row">
+                                <label for="slug">自定义路径（可选）</label>
+                                <input class="input" type="text" id="slug" name="slug" value="<?php echo e($row['slug']); ?>" placeholder="留空自动生成">
+                                <div class="hint">仅英文/数字，输出 /post/xxx.html</div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label>推荐位 <span class="hint" style="display:inline;margin:0">（勾选后可在模板中用 <code>flag="c"</code> 调取）</span></label>
+                            <div class="flag-pick">
+                                <?php foreach (cms_flag_map() as $fk => $fv): ?>
+                                    <label class="flag-chip">
+                                        <input type="checkbox" name="flag_<?php echo e($fk); ?>" value="1" <?php echo in_array($fk, $flagsOn, true) ? 'checked' : ''; ?>>
+                                        <span><?php echo e($fv); ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-bottom:0">
+                            <label for="cover">封面图地址</label>
+                            <input class="input" type="text" id="cover" name="cover" value="<?php echo e($row['cover']); ?>" placeholder="https://... 或 /content/uploads/...">
+                            <div class="hint">可先在<a href="<?php echo e(admin_url('media')); ?>">媒体信息</a>上传后复制地址</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-row">
                     <label for="content">正文（支持 HTML）</label>
                     <div class="editor-tools">
@@ -246,76 +298,30 @@ if ($action === 'new' || $action === 'edit') {
                     <textarea class="input" id="excerpt" name="excerpt" style="min-height:74px" placeholder="留空则自动截取正文前 150 字"><?php echo e($row['excerpt']); ?></textarea>
                 </div>
 
-                <div class="grid2 cards">
-                <div class="card">
+                <div class="card card-inset">
                     <div class="card-head"><h2>发布</h2></div>
                     <div class="card-body">
                         <div class="form-row">
-                            <label for="status">状态</label>
-                            <select class="input" id="status" name="status">
-                                <option value="1" <?php echo (int) $row['status'] === 1 ? 'selected' : ''; ?>>已发布</option>
-                                <option value="0" <?php echo (int) $row['status'] === 0 ? 'selected' : ''; ?>>草稿</option>
-                            </select>
-                        </div>
-                        <div class="form-row">
-                            <label class="inline" style="font-weight:400">
-                                <input class="check" type="checkbox" name="is_top" value="1" <?php echo (int) $row['is_top'] === 1 ? 'checked' : ''; ?>>
-                                置顶（列表优先展示）
-                            </label>
-                        </div>
-                        <button class="btn btn-primary btn-block" type="submit">保存并生成</button>
-                        <?php if ($row['id']): ?>
-                            <a class="btn btn-block" style="margin-top:8px" target="_blank" href="<?php echo e(site_url('index.php?p=' . rawurlencode($row['slug']))); ?>">预览</a>
-                        <?php endif; ?>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-head"><h2>属性</h2></div>
-                    <div class="card-body">
-                        <div class="form-row">
-                            <label>推荐位（模板用 flag 调取）</label>
-                            <div class="flag-pick">
-                                <?php
-                                $flagsOn = array_filter(array_map('trim', explode(',', (string) (isset($row['flag']) ? $row['flag'] : ''))));
-                                foreach (cms_flag_map() as $fk => $fv):
-                                    ?>
-                                    <label class="inline" style="font-weight:400;margin:0 0 6px">
-                                        <input class="check" type="checkbox" name="flag_<?php echo e($fk); ?>" value="1" <?php echo in_array($fk, $flagsOn, true) ? 'checked' : ''; ?>>
-                                        <?php echo e($fv); ?>
-                                    </label>
-                                <?php endforeach; ?>
+                            <label for="status">发布状态</label>
+                            <div class="inline">
+                                <select class="input" id="status" name="status" style="width:180px">
+                                    <option value="1" <?php echo (int) $row['status'] === 1 ? 'selected' : ''; ?>>已发布</option>
+                                    <option value="0" <?php echo (int) $row['status'] === 0 ? 'selected' : ''; ?>>草稿</option>
+                                </select>
+                                <label style="font-weight:400">
+                                    <input class="check" type="checkbox" name="is_top" value="1" <?php echo (int) $row['is_top'] === 1 ? 'checked' : ''; ?>>
+                                    置顶（列表优先展示）
+                                </label>
                             </div>
-                            <div class="hint">勾选后可用 <code>flag="c"</code> 在模板里调取</div>
                         </div>
-                        <div class="form-row">
-                            <label for="cat_id">分类</label>
-                            <select class="input" id="cat_id" name="cat_id">
-                                <option value="0">未分类</option>
-                                <?php foreach ($cats as $c): ?>
-                                    <option value="<?php echo (int) $c['id']; ?>" <?php echo (int) $row['cat_id'] === (int) $c['id'] ? 'selected' : ''; ?>><?php echo e($c['name']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <?php if (empty($cats)): ?>
-                                <div class="hint">还没有分类，<a href="<?php echo e(admin_url('category')); ?>">先建一个</a></div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" type="submit">保存并生成</button>
+                            <?php if ($row['id']): ?>
+                                <a class="btn" target="_blank" href="<?php echo e(site_url('index.php?p=' . rawurlencode($row['slug']))); ?>">预览</a>
                             <?php endif; ?>
-                        </div>
-                        <div class="form-row">
-                            <label for="slug">自定义路径（可选）</label>
-                            <input class="input" type="text" id="slug" name="slug" value="<?php echo e($row['slug']); ?>" placeholder="留空自动生成">
-                            <div class="hint">仅支持英文/数字，输出为 /post/xxx.html</div>
-                        </div>
-                        <div class="form-row">
-                            <label for="tags">标签</label>
-                            <input class="input" type="text" id="tags" name="tags" value="<?php echo e($row['tags']); ?>" placeholder="用逗号分隔，最多 8 个">
-                        </div>
-                        <div class="form-row">
-                            <label for="cover">封面图地址</label>
-                            <input class="input" type="text" id="cover" name="cover" value="<?php echo e($row['cover']); ?>" placeholder="https://... 或 /content/uploads/...">
-                            <div class="hint">可先在<a href="<?php echo e(admin_url('media')); ?>">媒体信息</a>上传后复制地址</div>
+                            <a class="btn" href="<?php echo e(admin_url('article')); ?>">取消</a>
                         </div>
                     </div>
-                </div>
                 </div>
             </form>
         </div>

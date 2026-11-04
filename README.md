@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v2.1.5-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
+[![Release](https://img.shields.io/badge/release-v2.1.6-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -361,6 +361,16 @@ rm -rf install                       # 装完删掉安装目录
 6. 数据系统：备份 / 恢复 / 导入依次通栏，底部「数据概况」与说明并排。
 7. 模板管理：「可用模板」「模板文件」并排在上，编辑器通栏在下，代码框更宽。
 8. 内嵌小卡片改用浅灰底（`.card-inset`），和外层白卡分得开；`.edit-cols` / `.edit-side` 的旧样式已删除。
+
+### 3.22 从 2.1.5 升级到 2.1.6（文章编辑页：属性上移、发布收尾）
+
+纯排版调整，没有数据库与接口变化。本条取代 3.21 的第 2 条。
+
+1. 文章编辑页改为「标题 → 属性 → 正文 → 摘要 → 发布」一条线走完，写作时先选分类和推荐位，再往下写正文。
+2. 属性区一行三列：分类 / 标签 / 自定义路径；下一行是推荐位，再下一行是封面图地址。
+3. 推荐位由勾选框列表改成横向标签，点一下即选中，选中项蓝底高亮（`.flag-chip`），手机上自动换行。
+4. 「发布」挪到页面最底部：状态、置顶、保存并生成 / 预览 / 取消 收在同一条操作行，不再占一张并排卡片。
+5. 「属性」「发布」都用内嵌小节样式（`.card-inset`），标题与内边距比主卡小一号；单页编辑页的「发布」块同步这个样式。
 
 ---
 
@@ -989,4 +999,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：2.1.5
+版本：2.1.6
