@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v2.1.4-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
+[![Release](https://img.shields.io/badge/release-v2.1.5-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -348,6 +348,19 @@ rm -rf install                       # 装完删掉安装目录
 2. 授权码留空表示沿用已保存的值，不会明文回显在页面源码里；填错了点「发一封测试邮件」会直接给出服务器的原文响应。
 3. 未勾选「校验证书」时才允许自签证书，默认保持勾选。
 4. 友情链接页由左右两栏改成上下结构：列表在上、新增/编辑表单在下（两列字段），窄屏自动变单列。
+
+### 3.21 从 2.1.4 升级到 2.1.5（后台页面统一改成上下结构）
+
+纯排版调整，没有数据库与接口变化，覆盖系统区即可。
+
+1. 后台不再有「左边主内容 + 右边 300px 侧栏」的页面。原来放右栏的卡片统一挪到主内容下方，需要的两两并排。
+2. 文章 / 单页编辑页：标题、正文、摘要全宽；「发布」「属性」并排在下，窄屏自动堆叠。
+3. 系统设置：站点信息、目录权限自检通栏；「修改密码」「系统信息」并排；安全建议单独一行。
+4. 系统更新：版本状态、更新记录、更新设置依次通栏（设置内部字段两列），「无人值守」与「更新了哪些东西」并排，「备份与回滚」通栏收尾。
+5. 静态发布：发布信息与文件列表通栏，「维护」「部署提示」并排，Nginx 配置通栏。
+6. 数据系统：备份 / 恢复 / 导入依次通栏，底部「数据概况」与说明并排。
+7. 模板管理：「可用模板」「模板文件」并排在上，编辑器通栏在下，代码框更宽。
+8. 内嵌小卡片改用浅灰底（`.card-inset`），和外层白卡分得开；`.edit-cols` / `.edit-side` 的旧样式已删除。
 
 ---
 
@@ -976,4 +989,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：2.1.4
+版本：2.1.5

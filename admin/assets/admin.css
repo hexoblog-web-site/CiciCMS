@@ -174,6 +174,15 @@ textarea.input {
 .hint { font-size: 12px; color: var(--text-3); margin-top: 4px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 16px; }
+/* 两张卡片并排（原右栏内容改到下方时用），带垂直间距 */
+.grid2.cards { gap: var(--gap); align-items: start; }
+.grid2.cards > .card { margin-bottom: 0; }
+.grid2.cards > .card > .card-body { padding-bottom: 16px; }
+/* 内嵌卡片：卡片里的小节，浅底 + 细线，和外层白卡分得开 */
+.card-inset, .grid2.cards > .card {
+  background: var(--card-soft); border: 1px solid var(--line); box-shadow: none;
+}
+.card-inset > .card-foot, .grid2.cards > .card > .card-foot { background: transparent; }
 .inline { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--text-2); }
 .inline label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .check { width: 15px; height: 15px; accent-color: var(--brand); }
@@ -346,11 +355,6 @@ input[type="file"].input { padding: 7px 9px; font-size: 12.5px; background: var(
   .quick-item { padding: 14px 4px 12px; font-size: 11px; }
   .quick-item svg { width: 22px; height: 22px; }
 }
-
-/* ---------- 编辑页两栏 ---------- */
-.edit-cols { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--gap); align-items: start; }
-.edit-side .card { margin-bottom: var(--gap); }
-@media (max-width: 1000px) { .edit-cols { grid-template-columns: 1fr; } }
 
 /* ---------- 图片插入弹窗 ---------- */
 body.cms-modal-open { overflow: hidden; }

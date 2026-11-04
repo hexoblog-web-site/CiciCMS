@@ -120,50 +120,45 @@ if ($action === 'new' || $action === 'edit') {
                 <?php echo csrf_field(); ?>
                 <input type="hidden" name="do" value="save">
                 <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
-                <div class="edit-cols">
-                    <div>
-                        <div class="form-row">
-                            <label for="title">页面标题</label>
-                            <input class="input" type="text" id="title" name="title" value="<?php echo e($row['title']); ?>" required>
-                        </div>
-                        <div class="form-row">
-                            <label for="content">内容（支持 HTML 与 ``` 代码块）</label>
-                            <div class="editor-tools">
-                                <button type="button" data-insert="p">段落</button>
-                                <button type="button" data-insert="h2">标题</button>
-                                <button type="button" data-insert="bold">加粗</button>
-                                <button type="button" data-insert="ul">列表</button>
-                                <button type="button" data-insert="link">链接</button>
-                                <button type="button" data-insert="img">图片</button>
-                                <button type="button" data-insert="codeblock">代码块</button>
-                            </div>
-                            <textarea class="input" id="content" name="content" style="min-height:380px"><?php echo e(content_source($row)); ?></textarea>
-                            <div class="hint">图片：点工具栏的「图片」，可以上传本地文件（也能直接拖进去），或粘贴网址让程序抓回本站。</div>
-                        </div>
+                <div class="form-row">
+                    <label for="title">页面标题</label>
+                    <input class="input" type="text" id="title" name="title" value="<?php echo e($row['title']); ?>" required>
+                </div>
+                <div class="form-row">
+                    <label for="content">内容（支持 HTML 与 ``` 代码块）</label>
+                    <div class="editor-tools">
+                        <button type="button" data-insert="p">段落</button>
+                        <button type="button" data-insert="h2">标题</button>
+                        <button type="button" data-insert="bold">加粗</button>
+                        <button type="button" data-insert="ul">列表</button>
+                        <button type="button" data-insert="link">链接</button>
+                        <button type="button" data-insert="img">图片</button>
+                        <button type="button" data-insert="codeblock">代码块</button>
                     </div>
-                    <div class="edit-side">
-                        <div class="card">
-                            <div class="card-head"><h2>发布</h2></div>
-                            <div class="card-body">
-                                <div class="form-row">
-                                    <label for="status">状态</label>
-                                    <select class="input" id="status" name="status">
-                                        <option value="1" <?php echo (int) $row['status'] === 1 ? 'selected' : ''; ?>>已发布</option>
-                                        <option value="0" <?php echo (int) $row['status'] === 0 ? 'selected' : ''; ?>>草稿</option>
-                                    </select>
-                                </div>
-                                <div class="form-row">
-                                    <label for="slug">访问路径</label>
-                                    <input class="input" type="text" id="slug" name="slug" value="<?php echo e($row['slug']); ?>" placeholder="about">
-                                    <div class="hint">生成 /about.html；留空使用 ID</div>
-                                </div>
-                                <div class="form-row">
-                                    <label for="sort">排序</label>
-                                    <input class="input" type="number" id="sort" name="sort" value="<?php echo (int) $row['sort']; ?>">
-                                </div>
-                                <button class="btn btn-primary btn-block" type="submit">保存并生成</button>
-                            </div>
+                    <textarea class="input" id="content" name="content" style="min-height:380px"><?php echo e(content_source($row)); ?></textarea>
+                    <div class="hint">图片：点工具栏的「图片」，可以上传本地文件（也能直接拖进去），或粘贴网址让程序抓回本站。</div>
+                </div>
+
+                <div class="card card-inset">
+                    <div class="card-head"><h2>发布</h2></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <label for="status">状态</label>
+                            <select class="input" id="status" name="status">
+                                <option value="1" <?php echo (int) $row['status'] === 1 ? 'selected' : ''; ?>>已发布</option>
+                                <option value="0" <?php echo (int) $row['status'] === 0 ? 'selected' : ''; ?>>草稿</option>
+                            </select>
                         </div>
+                        <div class="form-row">
+                            <label for="slug">访问路径</label>
+                            <input class="input" type="text" id="slug" name="slug" value="<?php echo e($row['slug']); ?>" placeholder="about">
+                            <div class="hint">生成 /about.html；留空使用 ID</div>
+                        </div>
+                        <div class="form-row">
+                            <label for="sort">排序</label>
+                            <input class="input" type="number" id="sort" name="sort" value="<?php echo (int) $row['sort']; ?>">
+                        </div>
+                        <button class="btn btn-primary btn-block" type="submit">保存并生成</button>
                     </div>
                 </div>
             </form>

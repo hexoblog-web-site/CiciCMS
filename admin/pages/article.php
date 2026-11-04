@@ -220,106 +220,102 @@ if ($action === 'new' || $action === 'edit') {
                 <?php echo csrf_field(); ?>
                 <input type="hidden" name="do" value="save">
                 <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
-                <div class="edit-cols">
-                    <div>
-                        <div class="form-row">
-                            <label for="title">标题</label>
-                            <input class="input" type="text" id="title" name="title" value="<?php echo e($row['title']); ?>" placeholder="请输入文章标题" required>
-                        </div>
-                        <div class="form-row">
-                            <label for="content">正文（支持 HTML）</label>
-                            <div class="editor-tools">
-                                <button type="button" data-insert="p">段落</button>
-                                <button type="button" data-insert="h2">标题</button>
-                                <button type="button" data-insert="bold">加粗</button>
-                                <button type="button" data-insert="ul">列表</button>
-                                <button type="button" data-insert="quote">引用</button>
-                                <button type="button" data-insert="code">代码块</button>
-                                <button type="button" data-insert="link">链接</button>
-                                <button type="button" data-insert="img">图片</button>
-                            </div>
-                            <textarea class="input" id="content" name="content" style="min-height:430px" placeholder="<p>开始写点什么…</p>"><?php echo e(content_source($row)); ?></textarea>
-                            <div class="hint">图片：点工具栏的「图片」，可以上传本地文件（也能直接拖进去），或粘贴网址让程序抓回本站。</div>
-                            <div class="hint">代码块写法：<code>```php</code> 开头，写好代码后另起一行 <code>```</code> 收尾。支持 php / sql / bash / js / html / css / json 等，保存后前台自动高亮并可一键复制。</div>
-                            <div class="hint">出于安全考虑，保存时会移除 script / iframe 标签与 onclick 等事件属性。</div>
-                        </div>
-                        <div class="form-row">
-                            <label for="excerpt">摘要</label>
-                            <textarea class="input" id="excerpt" name="excerpt" style="min-height:74px" placeholder="留空则自动截取正文前 150 字"><?php echo e($row['excerpt']); ?></textarea>
-                        </div>
+                <div class="form-row">
+                    <label for="title">标题</label>
+                    <input class="input" type="text" id="title" name="title" value="<?php echo e($row['title']); ?>" placeholder="请输入文章标题" required>
+                </div>
+                <div class="form-row">
+                    <label for="content">正文（支持 HTML）</label>
+                    <div class="editor-tools">
+                        <button type="button" data-insert="p">段落</button>
+                        <button type="button" data-insert="h2">标题</button>
+                        <button type="button" data-insert="bold">加粗</button>
+                        <button type="button" data-insert="ul">列表</button>
+                        <button type="button" data-insert="quote">引用</button>
+                        <button type="button" data-insert="code">代码块</button>
+                        <button type="button" data-insert="link">链接</button>
+                        <button type="button" data-insert="img">图片</button>
                     </div>
+                    <textarea class="input" id="content" name="content" style="min-height:430px" placeholder="<p>开始写点什么…</p>"><?php echo e(content_source($row)); ?></textarea>
+                    <div class="hint">图片：点工具栏的「图片」，可以上传本地文件（也能直接拖进去），或粘贴网址让程序抓回本站。</div>
+                    <div class="hint">代码块写法：<code>```php</code> 开头，写好代码后另起一行 <code>```</code> 收尾。支持 php / sql / bash / js / html / css / json 等，保存后前台自动高亮并可一键复制。</div>
+                    <div class="hint">出于安全考虑，保存时会移除 script / iframe 标签与 onclick 等事件属性。</div>
+                </div>
+                <div class="form-row">
+                    <label for="excerpt">摘要</label>
+                    <textarea class="input" id="excerpt" name="excerpt" style="min-height:74px" placeholder="留空则自动截取正文前 150 字"><?php echo e($row['excerpt']); ?></textarea>
+                </div>
 
-                    <div class="edit-side">
-                        <div class="card">
-                            <div class="card-head"><h2>发布</h2></div>
-                            <div class="card-body">
-                                <div class="form-row">
-                                    <label for="status">状态</label>
-                                    <select class="input" id="status" name="status">
-                                        <option value="1" <?php echo (int) $row['status'] === 1 ? 'selected' : ''; ?>>已发布</option>
-                                        <option value="0" <?php echo (int) $row['status'] === 0 ? 'selected' : ''; ?>>草稿</option>
-                                    </select>
-                                </div>
-                                <div class="form-row">
-                                    <label class="inline" style="font-weight:400">
-                                        <input class="check" type="checkbox" name="is_top" value="1" <?php echo (int) $row['is_top'] === 1 ? 'checked' : ''; ?>>
-                                        置顶（列表优先展示）
+                <div class="grid2 cards">
+                <div class="card">
+                    <div class="card-head"><h2>发布</h2></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <label for="status">状态</label>
+                            <select class="input" id="status" name="status">
+                                <option value="1" <?php echo (int) $row['status'] === 1 ? 'selected' : ''; ?>>已发布</option>
+                                <option value="0" <?php echo (int) $row['status'] === 0 ? 'selected' : ''; ?>>草稿</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label class="inline" style="font-weight:400">
+                                <input class="check" type="checkbox" name="is_top" value="1" <?php echo (int) $row['is_top'] === 1 ? 'checked' : ''; ?>>
+                                置顶（列表优先展示）
+                            </label>
+                        </div>
+                        <button class="btn btn-primary btn-block" type="submit">保存并生成</button>
+                        <?php if ($row['id']): ?>
+                            <a class="btn btn-block" style="margin-top:8px" target="_blank" href="<?php echo e(site_url('index.php?p=' . rawurlencode($row['slug']))); ?>">预览</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head"><h2>属性</h2></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <label>推荐位（模板用 flag 调取）</label>
+                            <div class="flag-pick">
+                                <?php
+                                $flagsOn = array_filter(array_map('trim', explode(',', (string) (isset($row['flag']) ? $row['flag'] : ''))));
+                                foreach (cms_flag_map() as $fk => $fv):
+                                    ?>
+                                    <label class="inline" style="font-weight:400;margin:0 0 6px">
+                                        <input class="check" type="checkbox" name="flag_<?php echo e($fk); ?>" value="1" <?php echo in_array($fk, $flagsOn, true) ? 'checked' : ''; ?>>
+                                        <?php echo e($fv); ?>
                                     </label>
-                                </div>
-                                <button class="btn btn-primary btn-block" type="submit">保存并生成</button>
-                                <?php if ($row['id']): ?>
-                                    <a class="btn btn-block" style="margin-top:8px" target="_blank" href="<?php echo e(site_url('index.php?p=' . rawurlencode($row['slug']))); ?>">预览</a>
-                                <?php endif; ?>
+                                <?php endforeach; ?>
                             </div>
+                            <div class="hint">勾选后可用 <code>flag="c"</code> 在模板里调取</div>
                         </div>
-
-                        <div class="card">
-                            <div class="card-head"><h2>属性</h2></div>
-                            <div class="card-body">
-                                <div class="form-row">
-                                    <label>推荐位（模板用 flag 调取）</label>
-                                    <div class="flag-pick">
-                                        <?php
-                                        $flagsOn = array_filter(array_map('trim', explode(',', (string) (isset($row['flag']) ? $row['flag'] : ''))));
-                                        foreach (cms_flag_map() as $fk => $fv):
-                                            ?>
-                                            <label class="inline" style="font-weight:400;margin:0 0 6px">
-                                                <input class="check" type="checkbox" name="flag_<?php echo e($fk); ?>" value="1" <?php echo in_array($fk, $flagsOn, true) ? 'checked' : ''; ?>>
-                                                <?php echo e($fv); ?>
-                                            </label>
-                                        <?php endforeach; ?>
-                                    </div>
-                                    <div class="hint">勾选后可用 <code>flag="c"</code> 在模板里调取</div>
-                                </div>
-                                <div class="form-row">
-                                    <label for="cat_id">分类</label>
-                                    <select class="input" id="cat_id" name="cat_id">
-                                        <option value="0">未分类</option>
-                                        <?php foreach ($cats as $c): ?>
-                                            <option value="<?php echo (int) $c['id']; ?>" <?php echo (int) $row['cat_id'] === (int) $c['id'] ? 'selected' : ''; ?>><?php echo e($c['name']); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <?php if (empty($cats)): ?>
-                                        <div class="hint">还没有分类，<a href="<?php echo e(admin_url('category')); ?>">先建一个</a></div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="form-row">
-                                    <label for="slug">自定义路径（可选）</label>
-                                    <input class="input" type="text" id="slug" name="slug" value="<?php echo e($row['slug']); ?>" placeholder="留空自动生成">
-                                    <div class="hint">仅支持英文/数字，输出为 /post/xxx.html</div>
-                                </div>
-                                <div class="form-row">
-                                    <label for="tags">标签</label>
-                                    <input class="input" type="text" id="tags" name="tags" value="<?php echo e($row['tags']); ?>" placeholder="用逗号分隔，最多 8 个">
-                                </div>
-                                <div class="form-row">
-                                    <label for="cover">封面图地址</label>
-                                    <input class="input" type="text" id="cover" name="cover" value="<?php echo e($row['cover']); ?>" placeholder="https://... 或 /content/uploads/...">
-                                    <div class="hint">可先在<a href="<?php echo e(admin_url('media')); ?>">媒体信息</a>上传后复制地址</div>
-                                </div>
-                            </div>
+                        <div class="form-row">
+                            <label for="cat_id">分类</label>
+                            <select class="input" id="cat_id" name="cat_id">
+                                <option value="0">未分类</option>
+                                <?php foreach ($cats as $c): ?>
+                                    <option value="<?php echo (int) $c['id']; ?>" <?php echo (int) $row['cat_id'] === (int) $c['id'] ? 'selected' : ''; ?>><?php echo e($c['name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (empty($cats)): ?>
+                                <div class="hint">还没有分类，<a href="<?php echo e(admin_url('category')); ?>">先建一个</a></div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="form-row">
+                            <label for="slug">自定义路径（可选）</label>
+                            <input class="input" type="text" id="slug" name="slug" value="<?php echo e($row['slug']); ?>" placeholder="留空自动生成">
+                            <div class="hint">仅支持英文/数字，输出为 /post/xxx.html</div>
+                        </div>
+                        <div class="form-row">
+                            <label for="tags">标签</label>
+                            <input class="input" type="text" id="tags" name="tags" value="<?php echo e($row['tags']); ?>" placeholder="用逗号分隔，最多 8 个">
+                        </div>
+                        <div class="form-row">
+                            <label for="cover">封面图地址</label>
+                            <input class="input" type="text" id="cover" name="cover" value="<?php echo e($row['cover']); ?>" placeholder="https://... 或 /content/uploads/...">
+                            <div class="hint">可先在<a href="<?php echo e(admin_url('media')); ?>">媒体信息</a>上传后复制地址</div>
                         </div>
                     </div>
+                </div>
                 </div>
             </form>
         </div>
