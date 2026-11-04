@@ -11,7 +11,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
-define('INS_VERSION', '1.9.3');
+define('INS_VERSION', '1.9.4');
 define('INS_ROOT', dirname(__DIR__));
 define('INS_CONTENT', INS_ROOT . '/content');
 define('INS_LOCK', INS_CONTENT . '/data/install.lock');

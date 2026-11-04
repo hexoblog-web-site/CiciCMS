@@ -10,8 +10,8 @@
  */
 
 /**
- * 语言标识归一化表：把 js / sh / py 这类简写映射成 Prism 认识的规范名。
- * 键一律小写；值为 Prism 的语言名，none 表示不做高亮。
+ * 语言标识归一化表：把 js / sh / py 这类简写映射成规范的语言名。
+ * 键一律小写；值为规范语言名，none 表示不加 language 标识。
  */
 function code_lang_map()
 {
@@ -97,7 +97,7 @@ function code_lang_label($norm)
 /**
  * 生成一个代码块的完整 HTML。
  * $code 是围栏内的原始文本，这里统一转义成实体，浏览器渲染时还原，
- * Prism 读 textContent 拿到的是原文，复制出来也是原文。
+ * 浏览器读 textContent 拿到的是原文，复制出来也是原文。
  */
 function code_block_html($langRaw, $code)
 {

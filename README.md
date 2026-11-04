@@ -3,13 +3,13 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v1.9.3-2563EB.svg)](https://github.com/hexoblog-web-site/HtmlCms/releases)
+[![Release](https://img.shields.io/badge/release-v1.9.4-2563EB.svg)](https://github.com/hexoblog-web-site/HtmlCms/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台交互参考 Z-Blog PHP，程序健壮性按 DedeCMS 的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
 发布内容后一键生成纯静态 HTML（首页、分类、文章、单页、标签、归档、友链、404、sitemap、RSS），可直接跑在普通虚拟主机上，无需伪静态、无需 Composer、无需命令行。
 
-正文支持代码块围栏（```php），保存时自动转成带语法高亮的 HTML，适合写技术教程；编辑器保持纯 textarea，不引入富文本，不做任何字符替换。
+正文支持代码块围栏（```php），保存时自动转成深色代码面板，适合写技术教程；编辑器保持纯 textarea，不引入富文本，不做任何字符替换。
 
 ![后台仪表盘](docs/public/images/admin-dashboard.png)
 
@@ -252,6 +252,17 @@ rm -rf install                       # 装完删掉安装目录
 3. 默认主题页脚「Powered by」链接由不存在的 `htmlcms.local` 改为项目仓库地址。
 4. 已生成的静态页需重新生成一次，页脚链接才会更新。
 
+### 3.13 从 1.9.3 升级到 1.9.4（移除代码高亮）
+
+没有数据库变更。
+
+1. 删除 `content/themes/default/assets/prism.bundle.js` 与 `assets/code.css`。
+2. 从 `header.html` 移除 `code.css` 引用，从 `footer.html` 移除 `prism.bundle.js` 脚本。
+3. 代码块改为纯文本呈现，外观由 `style.css` 的 `.entry-content pre` 提供（深色面板、等宽字体、横向滚动）。
+4. `class="language-xx"` 仍保留在 `<pre><code>` 上，将来接入任何高亮库时内容无需改动。
+5. 已生成的静态页需重新生成一次，页面里不再有那两个资源标签。
+6. 自 1.9.4 起，程序不含任何第三方运行时代码。
+
 ---
 
 ## 四、URL 规则
@@ -371,7 +382,7 @@ location ~ ^/docs/ { deny all; }
 3. 直接改里面的 `.html`：文字、图片、排版随你，`{cici:}` 开头的标签**保留原样**别删；
 4. 改坏了？`content/data/backup/theme/` 里有每次保存前的自动备份，拷回来即可。
 
-一个主题必须齐全的文件（缺一个该页面就会 500）：`header.html` `footer.html` `index.html` `list.html` `loop.html` `article.html` `page.html` `tags.html` `archive.html` `search.html` `links.html` `404.html`，外加 `style.css`。`assets/` 放代码高亮等静态资源。
+一个主题必须齐全的文件（缺一个该页面就会 500）：`header.html` `footer.html` `index.html` `list.html` `loop.html` `article.html` `page.html` `tags.html` `archive.html` `search.html` `links.html` `404.html`，外加 `style.css`。`assets/` 可选，用于主题自带的图片、字体或脚本（默认主题当前不使用）。
 
 ### 7.2 九种页面与模板对应关系
 
@@ -555,9 +566,9 @@ location ~ ^/docs/ { deny all; }
 
 新增主题：复制 `content/themes/cici`（标签写法）或 `content/themes/default`（PHP 写法）改名即可。
 
-### 7.9 代码块与语法高亮
+### 7.9 代码块处理
 
-后台正文框保持纯文本，代码块用三反引号围栏书写，**保存时**由 `render_content()` 转成带高亮的 HTML，前台由 Prism 上色。
+后台正文框保持纯文本，代码块用三反引号围栏书写，**保存时**由 `render_content()` 转成 `<pre><code>` 结构，前台以深色面板呈现，不加载任何高亮脚本。
 
 **写法**（第一行是语言名，末行单独三个反引号收尾）：
 
@@ -568,7 +579,7 @@ echo 'hello';
 ```
 ````
 
-**支持的语言**：php、sql、bash（sh/shell）、js（javascript）、html（xml）、css、json、yaml、python（py）、go、nginx、ini（conf）、diff、text。
+**支持的语言标识**：php、sql、bash（sh/shell）、js（javascript）、html（xml）、css、json、yaml、python（py）、go、nginx、ini（conf）、diff、text。标识仍写入 `class="language-xx"`，供将来接入高亮或按语言定制样式。
 
 **关键约定**：
 
@@ -583,7 +594,7 @@ echo 'hello';
 
 **数据存储**：`content` 存渲染后的 HTML（前台直接用），`content_src` 存原始围栏文本（二次编辑用）。模板层无需改动，`{cici:field name="content"}` 拿到的仍是 HTML。
 
-**前台资源**：`content/themes/{主题}/assets/prism.bundle.js`（约 42KB，含 15 种语言与复制逻辑）、`assets/code.css`。两者都已本地化，不依赖 CDN。想裁剪语言，编辑 `prism.bundle.js` 的拼接来源后重新合并即可。
+**前台样式**：代码块外观由主题自带 `style.css` 的 `.entry-content pre` 规则提供（深色面板、等宽字体、圆角 12px、横向滚动），无额外 JS、无外部资源、不依赖 CDN。
 
 **摘要**：自动排除代码块，`content_plain()` 先摘掉代码再取文字，列表页的简介不会变成一堆代码。
 
@@ -616,7 +627,7 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 - 归档页按年份单页输出，不分页；文章量过万时建议改成分页版。
 - 正文分页（dedecms 的 `pagebreak`）尚未实现。
 - 搜索为动态查询，静态站点如需纯静态搜索可接入第三方搜索服务。
-- 代码块高亮由前台 Prism 完成，关闭 JS 时仍保留背景与等宽字体但无颜色；若需纯静态着色，可改用 PHP 端高亮库在生成阶段完成。
+- 代码块为纯文本呈现（深色面板 + 等宽字体），不含语法着色。如需高亮，可在主题里自行挂载 Prism 等库，或改由 PHP 端在生成阶段着色；`class="language-xx"` 已写入，接入时内容无需改动。
 - 正文支持代码块围栏，但不支持完整 Markdown（标题、表格、列表仍需写 HTML）。
 - **站点根目录必然是"可写 + 可执行"**：静态页要写进根目录，入口 `index.php` 又必须可执行，这是纯静态方案的固有矛盾。程序已用 `build_allowed_ext()` 限制只写 `.html/.xml/.txt/.json`，但根目录本身的可写权限仍是风险点。彻底解法是"输出目录与代码目录分离"（静态页生成到 `public/`，PHP 入口放在其外层），这需要改 URL 结构与部署方式，留作 2.x 的方向。
 
@@ -632,16 +643,15 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ### 随程序分发的第三方组件
 
-| 组件 | 位置 | 许可证 |
-| --- | --- | --- |
-| PrismJS（代码高亮，含 17 种语言） | `content/themes/default/assets/prism.bundle.js` | MIT，Copyright (c) 2012 Lea Verou |
+**无。** 程序运行时不含任何第三方代码、脚本、样式或字体文件，全部为本项目原创，因此可以自由地与闭源或商业项目组合分发。
 
-许可证全文见 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)。二次分发时请勿删除 `prism.bundle.js` 顶部的声明注释。
+> 1.9.3 及更早版本内置过 PrismJS（MIT，Copyright (c) 2012 Lea Verou）用于代码高亮，已于 1.9.4 移除。详见 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)。
 
 ### 没有引入的东西
 
 - **无前端框架**：不依赖 jQuery、Bootstrap、Vue、React，前后台均为原生 HTML/CSS/JS。
 - **无图标库**：后台图标为手写 24px 线性 SVG。
+- **无高亮库**：代码块纯文本呈现，不加载 Prism、highlight.js 等任何高亮库。
 - **无打包字体**：只用系统字体栈，不涉及字体嵌入授权。
 - **无 Composer 依赖**：`vendor/` 目录不存在，部署只需 PHP + MySQL。
 - **无 GPL 代码**：全部代码为本项目原创，不含任何 GPL/LGPL 授权代码，因此可以合法地与闭源或商业项目组合分发。
@@ -652,4 +662,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：1.9.3
+版本：1.9.4

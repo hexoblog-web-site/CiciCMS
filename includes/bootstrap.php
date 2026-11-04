@@ -23,7 +23,7 @@ define('CMS_THEMES', CMS_CONTENT . '/themes');
 define('CMS_UPLOADS', CMS_CONTENT . '/uploads');
 define('CMS_DATA', CMS_CONTENT . '/data');
 
-define('CMS_VERSION', '1.9.3');
+define('CMS_VERSION', '1.9.4');
 
 if (!is_file(CMS_ROOT . '/config.php')) {
     $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
