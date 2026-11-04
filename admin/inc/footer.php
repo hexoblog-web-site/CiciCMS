@@ -6,13 +6,23 @@
 <?php
 /* 自动更新检查：到点才发一次请求；发现新版且开了「自动更新」，就在那次请求里装完 */
 $upPage = isset($_GET['p']) ? (string) $_GET['p'] : 'dashboard';
-/* 只在后台首页触发：检查一次要访问 GitHub，别把每个页面都拖上 */
-$upDue = $upPage === 'dashboard' && update_auto_due();
+/* 后台任意页面都检查：只读状态文件判断是否到点，真正联网还是在后台异步请求里做，
+   所以不会拖慢任何一个页面的打开速度 */
+$upDue = update_auto_due();
 if ($upDue):
 ?>
 <script>
 (function () {
-    if (!window.cmsToast) { return; }
+    function showBadge(text) {
+        var bar = document.querySelector('.top-actions');
+        if (!bar || bar.querySelector('.top-ver')) { return; }
+        var a = document.createElement('a');
+        a.className = 'top-ver';
+        a.href = <?php echo json_encode(admin_url('update')); ?>;
+        a.textContent = text;
+        bar.insertBefore(a, bar.firstChild);
+    }
+
     var fd = new FormData();
     fd.append('_token', <?php echo json_encode(csrf_token()); ?>);
     fetch(<?php echo json_encode(admin_url('update', array('action' => 'tick'))); ?>, {
@@ -24,14 +34,19 @@ if ($upDue):
     }).then(function (d) {
         if (!d || !d.ok) { return; }
         if (d.applied) {
-            cmsToast('已自动更新到 ' + d.version + '，刷新页面后生效', { sticky: true });
+            if (window.cmsToast) {
+                cmsToast('已自动更新到 ' + d.version + '，刷新页面后生效', { sticky: true });
+            }
             return;
         }
         if (d.has_update) {
-            cmsToast('发现新版本' + (d.version ? ' ' + d.version : '') + '，点击去更新', {
-                sticky: true,
-                href: <?php echo json_encode(admin_url('update')); ?>
-            });
+            showBadge('发现新版本' + (d.version ? ' ' + d.version : ''));
+            if (window.cmsToast) {
+                cmsToast('发现新版本' + (d.version ? ' ' + d.version : '') + '，点击去更新', {
+                    sticky: true,
+                    href: <?php echo json_encode(admin_url('update')); ?>
+                });
+            }
         }
     }).catch(function () { /* 网络不通就安静收场，下次到点再试 */ });
 })();

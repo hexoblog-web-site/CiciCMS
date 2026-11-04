@@ -105,6 +105,14 @@ svg { display: block; }
 .top-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
 .top-actions .link { color: var(--text-2); font-size: 12.5px; }
 .top-actions .link:hover { color: var(--brand); }
+.top-ver {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--amber-soft); color: var(--amber);
+  border-radius: var(--r-pill); padding: 5px 12px;
+  font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.top-ver::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+.top-ver:hover { background: #FBEACB; }
 .user-chip { background: var(--card); border-radius: var(--r-pill); padding: 5px 13px; color: var(--text-2); font-size: 12.5px; box-shadow: var(--shadow-card); }
 .menu-btn {
   display: none; border: 0; background: var(--card); border-radius: var(--r-sm);
@@ -225,6 +233,12 @@ input[type="file"].input { padding: 7px 9px; font-size: 12.5px; background: var(
 .alert-ok { background: var(--green-soft); color: var(--green); }
 .alert-err { background: var(--red-soft); color: var(--red); }
 .alert-warn { background: var(--amber-soft); color: var(--amber); }
+/* 发现新版本时的横幅：一句话 + 一个按钮，别做成大卡片 */
+.update-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.update-banner-sub { margin-left: 8px; font-size: 12px; opacity: .8; }
+@media (max-width: 560px) {
+  .update-banner-sub { display: block; margin: 3px 0 0; }
+}
 
 /* ---------- 仪表盘 ---------- */
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); margin-bottom: var(--gap); }

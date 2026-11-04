@@ -12,6 +12,29 @@
     }
   });
 
+  /* 复制：<button data-copy="#cron-url">，取输入框的 value 或元素文本 */
+  document.addEventListener('click', function (ev) {
+    var el = ev.target.closest('[data-copy]');
+    if (!el) return;
+    var src = document.querySelector(el.getAttribute('data-copy'));
+    if (!src) return;
+    var text = src.value !== undefined ? src.value : src.textContent;
+    function done() {
+      if (window.cmsToast) { window.cmsToast('已复制到剪贴板'); }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () {
+        src.select();
+        document.execCommand('copy');
+        done();
+      });
+    } else {
+      src.select();
+      document.execCommand('copy');
+      done();
+    }
+  });
+
   /* 简易编辑器工具栏：在 textarea#content 光标处插入标记 */
   function insertAtCursor(el, before, after) {
     var start = el.selectionStart, end = el.selectionEnd;

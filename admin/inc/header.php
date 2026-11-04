@@ -46,6 +46,11 @@ $PLUGIN_PAGE = isset($PLUGIN_PAGE) ? $PLUGIN_PAGE : null;
 
 /* 有新版时菜单上打个点；只读本地状态文件，不联网 */
 $updateDot = function_exists('update_available_cached') ? update_available_cached() : false;
+$updateVer = '';
+if ($updateDot) {
+    $updateState = update_state_read();
+    $updateVer   = isset($updateState['remote']['version']) ? (string) $updateState['remote']['version'] : '';
+}
 
 $pageTitle = isset($NAV[$p][0]) ? (string) $NAV[$p][0] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['title'] : '管理后台');
 $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['sub'] : '');
@@ -105,6 +110,11 @@ $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : ($PLUGIN_PAGE !== null ? $PL
                 <?php if ($pageSub !== ''): ?><div class="page-sub"><?php echo e($pageSub); ?></div><?php endif; ?>
             </div>
             <div class="top-actions">
+                <?php if ($updateDot): ?>
+                    <a class="top-ver" href="<?php echo e(admin_url('update')); ?>" title="有新版本，去系统更新查看">
+                        发现新版本<?php echo $updateVer !== '' ? ' ' . e($updateVer) : ''; ?>
+                    </a>
+                <?php endif; ?>
                 <a class="link" href="<?php echo e(site_url()); ?>" target="_blank">访问站点 ↗</a>
                 <span class="user-chip"><?php echo e($user['username']); ?></span>
             </div>

@@ -41,6 +41,20 @@ $QUICK = array(
 );
 ?>
 
+<?php if (update_available_cached()):
+    $uState = update_state_read();
+    $uVer   = isset($uState['remote']['version']) ? (string) $uState['remote']['version'] : '';
+    $uMsg   = isset($uState['remote']['msg']) ? (string) $uState['remote']['msg'] : '';
+?>
+<div class="alert alert-warn update-banner">
+    <div>
+        <b>发现新版本<?php echo $uVer !== '' ? ' ' . e($uVer) : ''; ?></b>
+        <span class="update-banner-sub">当前 <?php echo e(CMS_VERSION); ?><?php echo $uMsg !== '' ? ' · ' . e(str_limit($uMsg, 40)) : ''; ?></span>
+    </div>
+    <a class="btn btn-sm btn-primary" href="<?php echo e(admin_url('update')); ?>">查看并更新</a>
+</div>
+<?php endif; ?>
+
 <div class="stats">
     <div class="stat accent">
         <div class="stat-top">

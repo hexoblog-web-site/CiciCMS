@@ -94,6 +94,222 @@ function update_auto_due()
     return empty($s['checked_at']) || (time() - (int) $s['checked_at']) >= update_interval();
 }
 
+/** 下次自动检查的时间戳；从没查过或已关闭返回 0 */
+function update_next_check_at()
+{
+    if (!update_auto_check()) {
+        return 0;
+    }
+    $s = update_state_read();
+    return empty($s['checked_at']) ? 0 : (int) $s['checked_at'] + update_interval();
+}
+
+/* ---------------- 通知 ---------------- */
+
+/** 通知邮箱；留空表示不发邮件 */
+function update_notify_email()
+{
+    $m = trim((string) setting('update_notify_email', ''));
+    return ($m !== '' && filter_var($m, FILTER_VALIDATE_EMAIL)) ? $m : '';
+}
+
+/** 计划任务入口的令牌，没有就生成一个 */
+function update_cron_token()
+{
+    $t = (string) setting('update_cron_token', '');
+    if (!preg_match('#^[a-f0-9]{32}$#', $t)) {
+        try {
+            $t = bin2hex(random_bytes(16));
+        } catch (Exception $e) {
+            $t = md5(uniqid('cicicms', true));
+        }
+        set_setting('update_cron_token', $t);
+    }
+    return $t;
+}
+
+/** 定时检查地址：交给服务器计划任务，不登录后台也能查 */
+function update_cron_url()
+{
+    return site_url('admin/cron.php') . '?token=' . update_cron_token();
+}
+
+/** 站点主机名，用于邮件标题与发件人 */
+function update_mail_host()
+{
+    $host = (string) parse_url(site_url(), PHP_URL_HOST);
+    if ($host === '') {
+        $host = 'localhost';
+    }
+    return preg_replace('#^www\.#i', '', $host);
+}
+
+/**
+ * 发一封纯文本邮件
+ *
+ * 只用 PHP 自带的 mail()，不引入 SMTP 依赖；虚拟主机上一般可用，
+ * 禁用了就返回失败并把原因写进日志与状态，界面上会明确显示。
+ */
+function update_mail($to, $subject, $body, &$err = '')
+{
+    $err = '';
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        $err = '收件地址不合法';
+        return false;
+    }
+    if (!function_exists('mail')) {
+        $err = '服务器禁用了 mail() 函数';
+        return false;
+    }
+    $headers = "MIME-Version: 1.0\r\n"
+        . "Content-Type: text/plain; charset=UTF-8\r\n"
+        . "Content-Transfer-Encoding: base64\r\n"
+        . 'From: =?UTF-8?B?' . base64_encode('CiciCMS') . '?= <no-reply@' . update_mail_host() . ">\r\n";
+
+    $ok = @mail(
+        $to,
+        '=?UTF-8?B?' . base64_encode((string) $subject) . '?=',
+        chunk_split(base64_encode((string) $body), 76, "\r\n"),
+        $headers
+    );
+    if (!$ok) {
+        $err = 'mail() 返回失败，检查服务器的发信配置';
+    }
+    return (bool) $ok;
+}
+
+/**
+ * 发现新版本时通知一次
+ *
+ * 同一个提交只发一封：状态里记下 notified_sha，之后重复检查直接跳过。
+ * 发信失败不记 notified_sha，下次到点会再试一次。
+ */
+function update_notify($state, &$err = '')
+{
+    $err = '';
+    $to  = update_notify_email();
+    $sha = isset($state['remote']['sha']) ? (string) $state['remote']['sha'] : '';
+    if ($to === '' || $sha === '') {
+        return false;
+    }
+    if (!empty($state['notified_sha']) && (string) $state['notified_sha'] === $sha) {
+        return true;
+    }
+
+    $ver = isset($state['remote']['version']) ? (string) $state['remote']['version'] : '';
+    $msg = isset($state['remote']['msg']) ? (string) $state['remote']['msg'] : '';
+    $subject = '[' . update_mail_host() . '] 有新版本 ' . ($ver !== '' ? $ver : substr($sha, 0, 7));
+    $body = "自动检查发现新版本。\n\n"
+          . "站点：     " . site_url() . "\n"
+          . "当前版本： " . CMS_VERSION . "\n"
+          . "最新版本： " . ($ver !== '' ? $ver : '未读到版本号') . "\n"
+          . "最新提交： " . substr($sha, 0, 7) . ($msg !== '' ? '  ' . $msg : '') . "\n"
+          . "发现时间： " . date('Y-m-d H:i') . "\n\n"
+          . "去后台处理： " . admin_url('update') . "\n\n"
+          . "--\n"
+          . "这封邮件由 CiciCMS 自动发出，同一版本只发一次。\n"
+          . "可在「后台 → 系统更新」里关闭自动检查或修改收件邮箱。\n";
+
+    $ok = update_mail($to, $subject, $body, $merr);
+
+    if ($ok) {
+        $state['notified_sha'] = $sha;
+        $state['notified_at']  = time();
+        $state['notified_to']  = $to;
+        $state['notify_error'] = '';
+        log_msg('update notify sent: ' . $to . ' (' . substr($sha, 0, 7) . ')');
+    } else {
+        $state['notify_error']    = $merr;
+        $state['notify_error_at'] = time();
+        $err = $merr;
+        log_msg('update notify failed: ' . $merr);
+    }
+    update_state_write($state);
+    return $ok;
+}
+
+/** 自动更新完成后回一封，让「自己报告」这件事有始有终 */
+function update_notify_applied($version, $files, &$err = '')
+{
+    $err = '';
+    $to  = update_notify_email();
+    if ($to === '') {
+        return false;
+    }
+    $body = "站点已完成自动更新。\n\n"
+          . "站点：     " . site_url() . "\n"
+          . "更新到：   " . $version . "\n"
+          . "覆盖文件： " . (int) $files . " 个\n"
+          . "完成时间： " . date('Y-m-d H:i') . "\n\n"
+          . "如果页面有异常，可在「系统更新」页回滚到更新前的备份。\n"
+          . admin_url('update') . "\n";
+    return update_mail($to, '[' . update_mail_host() . '] 已自动更新到 ' . $version, $body, $err);
+}
+
+/**
+ * 自动检查的公共入口：后台静默请求、计划任务都走这里
+ *
+ * 到点才动、全程持锁；发现新版时按设置自动安装，并尽力发一封通知。
+ *
+ * @return array|false false = 这次没跑（开关关着 / 没到点 / 别的进程正在跑）
+ */
+function update_auto_run($timeout = 20, &$err = '')
+{
+    $err = '';
+    if (!update_auto_check() || !update_auto_due()) {
+        return false;
+    }
+
+    $lock = update_lock();
+    if ($lock === false) {
+        return false;
+    }
+    /* 拿到锁后再确认一次：另一个进程可能刚检查完 */
+    if (!update_auto_due()) {
+        update_unlock($lock);
+        return false;
+    }
+
+    $r   = update_check(false, $cerr, $timeout);
+    $err = $cerr;
+    $out = array(
+        'ok'         => !empty($r['ok']),
+        'has_update' => !empty($r['has_update']),
+        'applied'    => false,
+        'notified'   => false,
+        'version'    => '',
+        'files'      => 0,
+    );
+    if (!empty($r['state']['remote']['version'])) {
+        $out['version'] = (string) $r['state']['remote']['version'];
+    }
+
+    if ($out['ok'] && $out['has_update']) {
+        if (update_auto_apply()) {
+            $a = update_apply_locked($aerr);
+            if ($a === false) {
+                $err = $aerr;
+            } else {
+                $out['applied']  = true;
+                $out['version']  = $a['version'];
+                $out['files']    = (int) $a['files'];
+                $out['notified'] = update_notify_applied($a['version'], $a['files'], $nerr);
+                if ($nerr !== '') {
+                    $err = trim($err . ' ' . $nerr);
+                }
+            }
+        } else {
+            $out['notified'] = update_notify($r['state'], $nerr);
+            if ($nerr !== '') {
+                $err = trim($err . ' ' . $nerr);
+            }
+        }
+    }
+
+    update_unlock($lock);
+    return $out;
+}
+
 /* ---------------- HTTP ---------------- */
 
 /**

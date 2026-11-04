@@ -80,29 +80,24 @@ if ($p === 'update' && get_str('action') === 'tick') {
         exit;
     }
 
-    $r   = update_check(false, $cerr, 20);
+    $r   = update_auto_run(20, $cerr);
     $out = array(
-        'ok'         => (bool) $r['ok'],
-        'has_update' => !empty($r['has_update']),
+        'ok'         => true,
+        'has_update' => update_available_cached(),
         'applied'    => false,
+        'notified'   => false,
         'current'    => CMS_VERSION,
         'version'    => '',
         'msg'        => (string) $cerr,
     );
-    if (!empty($r['state']['remote']['version'])) {
-        $out['version'] = (string) $r['state']['remote']['version'];
-    }
 
-    if ($r['ok'] && $r['has_update'] && update_auto_apply()) {
-        $a = update_apply($aerr);
-        if ($a === false) {
-            $out['msg'] = $aerr;
-        } else {
-            $out['applied'] = true;
-            $out['version'] = $a['version'];
-            $out['files']   = (int) $a['files'];
-            log_msg('auto update applied: ' . $a['version']);
-        }
+    if ($r !== false) {
+        $out['ok']         = !empty($r['ok']);
+        $out['has_update'] = !empty($r['has_update']);
+        $out['applied']    = !empty($r['applied']);
+        $out['notified']   = !empty($r['notified']);
+        $out['version']    = (string) $r['version'];
+        $out['files']      = (int) $r['files'];
     }
 
     echo json_encode($out, JSON_UNESCAPED_UNICODE);
