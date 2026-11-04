@@ -234,6 +234,17 @@ if ($action === 'new' || $action === 'edit') {
                         <span class="hint" style="margin:0">选好分类与推荐位，再往下写正文</span>
                     </div>
                     <div class="card-body">
+                        <div class="form-row">
+                            <label>推荐位 <span class="hint" style="display:inline;margin:0">（勾选后可在模板中用 <code>flag="c"</code> 调取）</span></label>
+                            <div class="flag-pick">
+                                <?php foreach (cms_flag_map() as $fk => $fv): ?>
+                                    <label class="flag-chip">
+                                        <input type="checkbox" name="flag_<?php echo e($fk); ?>" value="1" <?php echo in_array($fk, $flagsOn, true) ? 'checked' : ''; ?>>
+                                        <span><?php echo e($fv); ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
                         <div class="grid3">
                             <div class="form-row">
                                 <label for="cat_id">分类</label>
@@ -255,17 +266,6 @@ if ($action === 'new' || $action === 'edit') {
                                 <label for="slug">自定义路径（可选）</label>
                                 <input class="input" type="text" id="slug" name="slug" value="<?php echo e($row['slug']); ?>" placeholder="留空自动生成">
                                 <div class="hint">仅英文/数字，输出 /post/xxx.html</div>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <label>推荐位 <span class="hint" style="display:inline;margin:0">（勾选后可在模板中用 <code>flag="c"</code> 调取）</span></label>
-                            <div class="flag-pick">
-                                <?php foreach (cms_flag_map() as $fk => $fv): ?>
-                                    <label class="flag-chip">
-                                        <input type="checkbox" name="flag_<?php echo e($fk); ?>" value="1" <?php echo in_array($fk, $flagsOn, true) ? 'checked' : ''; ?>>
-                                        <span><?php echo e($fv); ?></span>
-                                    </label>
-                                <?php endforeach; ?>
                             </div>
                         </div>
                         <div class="form-row" style="margin-bottom:0">
