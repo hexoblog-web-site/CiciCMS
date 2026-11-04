@@ -1,0 +1,21 @@
+# 统一换行符：仓库内一律 LF，避免 Windows 检出后 CRLF 混入 PHP 与模板
+* text=auto eol=lf
+
+# 明确声明二进制，防止被当作文本处理
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.zip binary
+*.gz binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+
+# 导出归档时排除开发相关文件
+/.github    export-ignore
+/docs       export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore

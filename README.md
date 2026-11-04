@@ -1,10 +1,17 @@
 # HtmlCms
 
+[![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
+[![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v1.9.2-2563EB.svg)](https://github.com/hexoblog-web-site/HtmlCms/releases)
+
 PHP + MySQL 的**静态化内容管理系统**。后台交互参考 Z-Blog PHP，程序健壮性按 DedeCMS 的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
 发布内容后一键生成纯静态 HTML（首页、分类、文章、单页、标签、归档、友链、404、sitemap、RSS），可直接跑在普通虚拟主机上，无需伪静态、无需 Composer、无需命令行。
 
 正文支持代码块围栏（```php），保存时自动转成带语法高亮的 HTML，适合写技术教程；编辑器保持纯 textarea，不引入富文本，不做任何字符替换。
+
+![后台仪表盘](docs/public/images/admin-dashboard.png)
 
 ---
 

@@ -1,0 +1,38 @@
+name: PHP Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: 检查全部 PHP 文件语法
+        run: |
+          status=0
+          count=0
+          while IFS= read -r -d '' f; do
+            count=$((count + 1))
+            if ! php -l "$f" > /dev/null 2>&1; then
+              echo "::error file=$f::语法错误"
+              php -l "$f" || true
+              status=1
+            fi
+          done < <(find . -name '*.php' -not -path './docs/*' -not -path './.git/*' -print0)
+          echo "共检查 $count 个 PHP 文件"
+          exit $status
