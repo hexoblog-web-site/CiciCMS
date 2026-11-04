@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v2.1.0-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
+[![Release](https://img.shields.io/badge/release-v2.1.1-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -312,6 +312,14 @@ rm -rf install                       # 装完删掉安装目录
 9. 编辑器插图统一走 `includes/uploader.php` 的 `Cms_Image_Uploader`：本地文件与远程地址共用一套类型校验，文件名按「8 位日期 + 16 位微秒」生成，SVG、BMP 与伪装成图片的文件一律拒收。
 10. 数据库备份 / 恢复 / 导入从「系统设置」独立为「数据系统」页，备份列表带大小与生成时间，导入与恢复前都会自动再备份一次。
 11. 仪表盘改为四张统计卡（第四张是运行状态），快捷入口改为通栏 5×2；目录权限自检与系统信息移入「系统设置」。
+
+### 3.17 从 2.1.0 升级到 2.1.1
+
+只有版本号变化，没有数据库与文件结构变更，直接覆盖即可。
+
+1. 更新检查判定「有新版本」的条件是：远程版本号 **大于** 本地 `CMS_VERSION`，或本地记录过已应用的 commit 且远程 commit 变了。同版本号、又没走过自动更新的站点不会收到提示。
+2. 所以每次发版都必须递增 `CMS_VERSION`：本次从 2.1.0 提到 2.1.1，手动覆盖过 2.1.0 的站点这才能收到「有新版」。
+3. 自动更新只覆盖系统区，`content/` 不动；Hexo 导入插件等插件改动需单独覆盖 `content/plugins/<id>/`。
 
 ---
 
@@ -909,4 +917,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：2.1.0
+版本：2.1.1
