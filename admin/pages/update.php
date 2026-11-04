@@ -29,13 +29,58 @@ if (is_post()) {
             redirect(admin_url('update'));
         }
 
+        /* 发信方式：mail() 或 SMTP */
+        $driver = post_str('mail_driver', 'mail') === 'smtp' ? 'smtp' : 'mail';
+        $mhost  = trim(post_str('mail_host'));
+        $mport  = (int) post_str('mail_port', '0');
+        $msec   = post_str('mail_secure', 'ssl');
+        $muser  = trim(post_str('mail_user'));
+        $mfrom  = trim(post_str('mail_from'));
+        $mpass  = (string) post_str('mail_pass');
+
+        if (!in_array($msec, array('ssl', 'tls', 'none'), true)) {
+            $msec = 'ssl';
+        }
+        if ($mport !== 0 && ($mport < 1 || $mport > 65535)) {
+            flash('SMTP 端口应在 1–65535 之间', 'err');
+            redirect(admin_url('update'));
+        }
+        if ($mfrom !== '' && !filter_var($mfrom, FILTER_VALIDATE_EMAIL)) {
+            flash('发件邮箱格式不对，应形如 no-reply@example.com', 'err');
+            redirect(admin_url('update'));
+        }
+        if ($driver === 'smtp') {
+            if ($mhost === '' || $muser === '') {
+                flash('选了 SMTP 发信，服务器地址和账号都要填', 'err');
+                redirect(admin_url('update'));
+            }
+            if ($mpass === '' && (string) setting('mail_pass', '') === '') {
+                flash('选了 SMTP 发信，授权码（或密码）不能为空', 'err');
+                redirect(admin_url('update'));
+            }
+        }
+
         set_setting('update_repo', $repo);
         set_setting('update_branch', $branch);
         set_setting('update_interval', (string) max(1, min(168, $interval)));
         set_setting('update_auto_check', post_str('update_auto_check', '0') === '1' ? '1' : '0');
         set_setting('update_auto_apply', post_str('update_auto_apply', '0') === '1' ? '1' : '0');
         set_setting('update_notify_email', $email);
-        log_msg('update settings saved: ' . $repo . '@' . $branch);
+
+        set_setting('mail_driver', $driver);
+        set_setting('mail_host', $mhost);
+        set_setting('mail_port', (string) max(0, $mport));
+        set_setting('mail_secure', $msec);
+        set_setting('mail_user', $muser);
+        set_setting('mail_from', $mfrom);
+        set_setting('mail_from_name', trim(post_str('mail_from_name', 'CiciCMS')));
+        set_setting('mail_verify', post_str('mail_verify', '0') === '1' ? '1' : '0');
+        /* 授权码留空表示不改，避免每次保存都要重填，也避免明文回显在页面源码里 */
+        if ($mpass !== '') {
+            set_setting('mail_pass', $mpass);
+        }
+
+        log_msg('update settings saved: ' . $repo . '@' . $branch . ' / mail=' . $driver);
 
         flash('更新设置已保存');
         redirect(admin_url('update'));
@@ -56,9 +101,9 @@ if (is_post()) {
                 $merr
             );
             if ($ok) {
-                flash('测试邮件已发送到 ' . $to . '，去收件箱看一下（也可能在垃圾箱）');
+                flash('测试邮件已发送到 ' . $to . '（发信方式：' . (cms_mail_config()['driver'] === 'smtp' ? 'SMTP' : 'PHP mail()') . '），去收件箱看一下，也可能在垃圾箱');
             } else {
-                flash('发送失败：' . $merr . '。可以让主机商开通 mail()，或改用 SMTP 插件', 'err');
+                flash('发送失败：' . $merr, 'err');
             }
         }
         redirect(admin_url('update'));
@@ -150,6 +195,10 @@ $notifiedAt = isset($state['notified_at']) ? (int) $state['notified_at'] : 0;
 $notifiedTo = isset($state['notified_to']) ? (string) $state['notified_to'] : '';
 $notifyErr  = isset($state['notify_error']) ? (string) $state['notify_error'] : '';
 $cronUrl    = update_cron_url();
+
+/* 发信配置 */
+$mailCfg  = cms_mail_config();
+$hasPass  = (string) setting('mail_pass', '') !== '';
 ?>
 <?php if ($hasNew): ?>
     <div class="alert alert-warn">
@@ -282,6 +331,76 @@ $cronUrl    = update_cron_url();
                         <div class="hint">发现新版本时发一封邮件，同一版本只发一次。留空就只在后台提示。</div>
                     </div>
 
+                    <div class="form-row" style="border-top:1px solid var(--line);padding-top:14px;margin-top:14px">
+                        <label for="mail_driver">发信方式</label>
+                        <select class="input" id="mail_driver" name="mail_driver">
+                            <option value="mail" <?php echo $mailCfg['driver'] === 'mail' ? 'selected' : ''; ?>>PHP mail()（服务器自带）</option>
+                            <option value="smtp" <?php echo $mailCfg['driver'] === 'smtp' ? 'selected' : ''; ?>>SMTP（推荐）</option>
+                        </select>
+                        <div class="hint">主机禁用了 <code>mail()</code>，或收不到信，就换成 SMTP。下面几项只在 SMTP 时用得上。</div>
+                    </div>
+
+                    <div id="smtp-box">
+                    <div class="form-row">
+                        <label for="mail_host">SMTP 服务器</label>
+                        <input class="input" type="text" id="mail_host" name="mail_host" value="<?php echo e($mailCfg['host']); ?>" placeholder="smtp.qq.com">
+                    </div>
+                    <div class="form-row" style="display:flex;gap:10px">
+                        <div style="flex:1">
+                            <label for="mail_port">端口</label>
+                            <input class="input" type="number" id="mail_port" name="mail_port" min="0" max="65535" value="<?php echo (int) $mailCfg['port']; ?>">
+                        </div>
+                        <div style="flex:1">
+                            <label for="mail_secure">加密</label>
+                            <select class="input" id="mail_secure" name="mail_secure">
+                                <option value="ssl" <?php echo $mailCfg['secure'] === 'ssl' ? 'selected' : ''; ?>>SSL（465）</option>
+                                <option value="tls" <?php echo $mailCfg['secure'] === 'tls' ? 'selected' : ''; ?>>STARTTLS（587）</option>
+                                <option value="none" <?php echo $mailCfg['secure'] === 'none' ? 'selected' : ''; ?>>不加密（25）</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label for="mail_user">SMTP 账号</label>
+                        <input class="input" type="text" id="mail_user" name="mail_user" value="<?php echo e($mailCfg['user']); ?>" placeholder="you@qq.com" autocomplete="off">
+                        <div class="hint">通常是完整邮箱地址。</div>
+                    </div>
+                    <div class="form-row">
+                        <label for="mail_pass">授权码 / 密码</label>
+                        <input class="input" type="password" id="mail_pass" name="mail_pass" value="" autocomplete="new-password"
+                               placeholder="<?php echo $hasPass ? '已设置，留空表示不修改' : '邮箱的 SMTP 授权码'; ?>">
+                        <div class="hint">QQ / 163 要的是「授权码」，不是登录密码，在邮箱设置里开启 SMTP 后生成。留空表示沿用已保存的值。</div>
+                    </div>
+                    <div class="form-row">
+                        <label for="mail_from">发件邮箱</label>
+                        <input class="input" type="email" id="mail_from" name="mail_from" value="<?php echo e($mailCfg['from']); ?>" placeholder="留空就用 SMTP 账号">
+                        <div class="hint">多数邮箱要求发件人和登录账号一致，不确定就留空。</div>
+                    </div>
+                    <div class="form-row">
+                        <label for="mail_from_name">发件人名称</label>
+                        <input class="input" type="text" id="mail_from_name" name="mail_from_name" value="<?php echo e((string) setting('mail_from_name', 'CiciCMS')); ?>" placeholder="CiciCMS">
+                    </div>
+                    <label class="check-row" style="display:flex;gap:8px;align-items:flex-start;margin:10px 0">
+                        <input type="checkbox" name="mail_verify" value="1" <?php echo $mailCfg['verify'] ? 'checked' : ''; ?> style="margin-top:3px">
+                        <span>
+                            <b style="font-weight:600">校验证书</b>
+                            <span class="hint" style="display:block">服务器证书过期或自签时才取消勾选，平时保持勾选。</span>
+                        </span>
+                    </label>
+
+                    <details style="margin:10px 0">
+                        <summary class="hint" style="cursor:pointer">常用邮箱参数（点开）</summary>
+                        <table class="table" style="margin-top:8px;font-size:12px">
+                            <tr><th>邮箱</th><th>服务器</th><th>端口</th><th>加密</th></tr>
+                            <tr><td>QQ / 腾讯企业邮</td><td><code>smtp.qq.com</code></td><td>465</td><td>SSL</td></tr>
+                            <tr><td>163 / 126</td><td><code>smtp.163.com</code></td><td>465</td><td>SSL</td></tr>
+                            <tr><td>阿里企业邮</td><td><code>smtp.qiye.aliyun.com</code></td><td>465</td><td>SSL</td></tr>
+                            <tr><td>Gmail</td><td><code>smtp.gmail.com</code></td><td>587</td><td>STARTTLS</td></tr>
+                            <tr><td>Outlook</td><td><code>smtp.office365.com</code></td><td>587</td><td>STARTTLS</td></tr>
+                        </table>
+                        <div class="hint" style="margin-top:6px">账号填完整邮箱；密码一栏填授权码。QQ 邮箱在「设置 → 账号 → POP3/IMAP/SMTP 服务」里生成。</div>
+                    </details>
+                    </div>
+
                     <label class="check-row" style="display:flex;gap:8px;align-items:flex-start;margin:10px 0">
                         <input type="checkbox" name="update_auto_check" value="1" <?php echo update_auto_check() ? 'checked' : ''; ?> style="margin-top:3px">
                         <span>
@@ -306,7 +425,23 @@ $cronUrl    = update_cron_url();
                     <input type="hidden" name="do" value="testmail">
                     <button class="btn btn-sm btn-block" type="submit" <?php echo $notifyTo === '' ? 'disabled' : ''; ?>>发一封测试邮件</button>
                 </form>
-                <div class="hint" style="margin-top:8px">用的是 PHP 自带的 mail()，虚拟主机大多可用；收不到先看垃圾箱，主机禁用了会明确报错。</div>
+                <div class="hint" style="margin-top:8px">
+                    当前发信方式：<b><?php echo $mailCfg['driver'] === 'smtp' ? 'SMTP' : 'PHP mail()'; ?></b><?php
+                    echo $mailCfg['driver'] === 'smtp' && $mailCfg['host'] !== ''
+                        ? '（' . e($mailCfg['host']) . ':' . (int) $mailCfg['port'] . '）'
+                        : ''; ?>。
+                    改完设置先点这里试一封，成功再去等自动通知。
+                </div>
+                <script>
+                (function () {
+                    var sel = document.getElementById('mail_driver');
+                    var box = document.getElementById('smtp-box');
+                    if (!sel || !box) { return; }
+                    function sync() { box.style.display = sel.value === 'smtp' ? '' : 'none'; }
+                    sel.addEventListener('change', sync);
+                    sync();
+                })();
+                </script>
             </div>
         </div>
 

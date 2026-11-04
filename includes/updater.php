@@ -147,35 +147,11 @@ function update_mail_host()
 /**
  * 发一封纯文本邮件
  *
- * 只用 PHP 自带的 mail()，不引入 SMTP 依赖；虚拟主机上一般可用，
- * 禁用了就返回失败并把原因写进日志与状态，界面上会明确显示。
+ * 具体走 mail() 还是 SMTP，由「系统更新 → 发信方式」决定，实现见 includes/mailer.php。
  */
 function update_mail($to, $subject, $body, &$err = '')
 {
-    $err = '';
-    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
-        $err = '收件地址不合法';
-        return false;
-    }
-    if (!function_exists('mail')) {
-        $err = '服务器禁用了 mail() 函数';
-        return false;
-    }
-    $headers = "MIME-Version: 1.0\r\n"
-        . "Content-Type: text/plain; charset=UTF-8\r\n"
-        . "Content-Transfer-Encoding: base64\r\n"
-        . 'From: =?UTF-8?B?' . base64_encode('CiciCMS') . '?= <no-reply@' . update_mail_host() . ">\r\n";
-
-    $ok = @mail(
-        $to,
-        '=?UTF-8?B?' . base64_encode((string) $subject) . '?=',
-        chunk_split(base64_encode((string) $body), 76, "\r\n"),
-        $headers
-    );
-    if (!$ok) {
-        $err = 'mail() 返回失败，检查服务器的发信配置';
-    }
-    return (bool) $ok;
+    return cms_mail_send($to, $subject, $body, $err);
 }
 
 /**
