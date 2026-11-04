@@ -63,7 +63,67 @@ if (is_post()) {
         } else {
             flash('备份失败，请检查 content/data/backup 目录权限', 'err');
         }
-        redirect(admin_url('setting'));
+        redirect(admin_url('setting') . '#backup');
+    }
+
+    if ($do === 'backup_delete') {
+        $name = post_str('file');
+        if (db_backup_delete($name)) {
+            flash('已删除备份：' . $name);
+        } else {
+            flash('删除失败，文件可能已经不存在', 'err');
+        }
+        redirect(admin_url('setting') . '#backup');
+    }
+
+    /* 从已有备份恢复：必须手打 RESTORE，防止误点 */
+    if ($do === 'restore') {
+        if (post_str('confirm') !== 'RESTORE') {
+            flash('请输入 RESTORE 确认恢复，本次未执行', 'err');
+            redirect(admin_url('setting') . '#backup');
+        }
+        $path = db_backup_find(post_str('file'));
+        if ($path === '') {
+            flash('备份文件不存在', 'err');
+            redirect(admin_url('setting') . '#backup');
+        }
+        $info = array();
+        $ok   = db_restore_file($path, $info);
+        if ($ok) {
+            flash('恢复完成：执行 ' . (int) $info['executed'] . ' 条语句'
+                . ($info['skipped'] ? '，忽略 ' . (int) $info['skipped'] . ' 条非备份语句' : '')
+                . ($info['backup'] !== '' ? '；恢复前的数据已备份为 ' . $info['backup'] : ''));
+        } else {
+            flash($info['error'] !== '' ? $info['error'] : '恢复失败', 'err');
+        }
+        redirect(admin_url('setting') . '#backup');
+    }
+
+    /* 上传 .sql 恢复 */
+    if ($do === 'restore_upload') {
+        if (post_str('confirm') !== 'RESTORE') {
+            flash('请输入 RESTORE 确认恢复，本次未执行', 'err');
+            redirect(admin_url('setting') . '#backup');
+        }
+        $f = isset($_FILES['sql']) ? $_FILES['sql'] : null;
+        if (!$f || (int) $f['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($f['tmp_name'])) {
+            flash('没有收到 SQL 文件', 'err');
+            redirect(admin_url('setting') . '#backup');
+        }
+        if (strtolower(pathinfo($f['name'], PATHINFO_EXTENSION)) !== 'sql') {
+            flash('只接受 .sql 备份文件', 'err');
+            redirect(admin_url('setting') . '#backup');
+        }
+        $info = array();
+        $ok   = db_restore_file($f['tmp_name'], $info);
+        @unlink($f['tmp_name']);
+        if ($ok) {
+            flash('恢复完成：执行 ' . (int) $info['executed'] . ' 条语句'
+                . ($info['backup'] !== '' ? '；恢复前的数据已备份为 ' . $info['backup'] : ''));
+        } else {
+            flash($info['error'] !== '' ? $info['error'] : '恢复失败', 'err');
+        }
+        redirect(admin_url('setting') . '#backup');
     }
 }
 
@@ -152,12 +212,57 @@ $backups = db_backup_list();
                     <table class="table">
                         <?php foreach (array_slice($backups, 0, 10) as $b): ?>
                             <tr>
-                                <td><?php echo e($b); ?></td>
-                                <td class="actions-cell"><a class="btn btn-sm" href="download.php?f=<?php echo e(urlencode($b)); ?>">下载</a></td>
+                                <td>
+                                    <?php echo e($b); ?>
+                                    <div class="hint" style="font-size:11px"><?php echo e(db_backup_size($b) > 1048576
+                                        ? round(db_backup_size($b) / 1048576, 1) . ' MB'
+                                        : round(db_backup_size($b) / 1024) . ' KB'); ?></div>
+                                </td>
+                                <td class="actions-cell" style="white-space:nowrap">
+                                    <a class="btn btn-sm" href="download.php?f=<?php echo e(urlencode($b)); ?>">下载</a>
+                                    <form method="post" action="<?php echo e(admin_url('setting')); ?>" style="display:inline"
+                                          onsubmit="return confirm('确定删除这个备份文件？');">
+                                        <?php echo csrf_field(); ?>
+                                        <input type="hidden" name="do" value="backup_delete">
+                                        <input type="hidden" name="file" value="<?php echo e($b); ?>">
+                                        <button class="btn btn-sm" type="submit">删除</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </table>
+
+                    <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px">
+                        <h3 style="margin:0 0 8px;font-size:13px">从备份恢复</h3>
+                        <p class="hint" style="margin:0 0 10px;line-height:1.8">
+                            恢复会用备份内容<strong>覆盖现有全部内容表</strong>，执行前会自动再备份一次当前数据。
+                            输入 <code>RESTORE</code> 后才能执行。
+                        </p>
+                        <form method="post" action="<?php echo e(admin_url('setting')); ?>" class="form-row">
+                            <?php echo csrf_field(); ?>
+                            <input type="hidden" name="do" value="restore">
+                            <select class="input" name="file">
+                                <?php foreach (array_slice($backups, 0, 30) as $b): ?>
+                                    <option value="<?php echo e($b); ?>"><?php echo e($b); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input class="input" name="confirm" placeholder="输入 RESTORE 确认" style="margin-top:8px">
+                            <button class="btn" type="submit" style="margin-top:10px">恢复这个备份</button>
+                        </form>
+                    </div>
                 <?php endif; ?>
+
+                <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px">
+                    <h3 style="margin:0 0 8px;font-size:13px">上传 SQL 恢复</h3>
+                    <form method="post" action="<?php echo e(admin_url('setting')); ?>" enctype="multipart/form-data" class="form-row">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="do" value="restore_upload">
+                        <input class="input" type="file" name="sql" accept=".sql">
+                        <input class="input" name="confirm" placeholder="输入 RESTORE 确认" style="margin-top:8px">
+                        <div class="hint">只接受本程序生成的备份（文件头必须是 CiciCMS 数据备份），上限 64MB。</div>
+                        <button class="btn" type="submit" style="margin-top:10px">上传并恢复</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>

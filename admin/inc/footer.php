@@ -54,5 +54,6 @@ if (!empty($bpPending)):
 })();
 </script>
 <?php endif; ?>
+<?php cms_do_action('admin_foot'); ?>
 </body>
 </html>

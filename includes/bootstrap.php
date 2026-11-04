@@ -22,8 +22,10 @@ define('CMS_CONTENT_REL', 'content');
 define('CMS_THEMES', CMS_CONTENT . '/themes');
 define('CMS_UPLOADS', CMS_CONTENT . '/uploads');
 define('CMS_DATA', CMS_CONTENT . '/data');
+/** 插件目录：content/plugins/<id>/，每个插件一个文件夹，升级不覆盖 */
+define('CMS_PLUGINS', CMS_CONTENT . '/plugins');
 
-define('CMS_VERSION', '1.9.5');
+define('CMS_VERSION', '2.0.0');
 
 if (!is_file(CMS_ROOT . '/config.php')) {
     $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
@@ -112,6 +114,7 @@ require CMS_INC . '/auth.php';
 require CMS_INC . '/frontend.php';
 require CMS_INC . '/builder.php';
 require CMS_INC . '/backup.php';
+require CMS_INC . '/plugin.php';
 require CMS_INC . '/upload.php';
 require CMS_INC . '/clean.php';
 require CMS_INC . '/tags.php';
@@ -125,6 +128,12 @@ date_default_timezone_set(setting('timezone', 'Asia/Shanghai'));
 
 // 数据库结构自动升级（有锁文件时只做一次文件检查）
 cms_upgrade();
+
+/*
+ * 插件加载必须在数据库就绪之后：插件开关存在 config 表里。
+ * 停用的插件不会被 include，性能与安全上都不留负担。
+ */
+cms_plugin_load();
 
 error_reporting(E_ALL);
 ini_set('display_errors', CMS_DEBUG ? '1' : '0');
@@ -158,4 +167,26 @@ if (!isset($GLOBALS['cms_static_mode'])) {
     $GLOBALS['cms_static_mode'] = false;
 }
 
-ob_start();
+/*
+ * 输出缓冲回调：前台页面统一走这里收尾，给插件留出插入 CSS / JS 的位置。
+ * 后台与安装器不参与（它们的资源由 admin_head / admin_foot 单独处理），
+ * 以免前台插件把脚本注入到后台页面里。
+ */
+ob_start(function ($html) {
+    $script = isset($_SERVER['SCRIPT_NAME']) ? str_replace('\\', '/', (string) $_SERVER['SCRIPT_NAME']) : '';
+    if (defined('CMS_ADMIN') || defined('CMS_INSTALL')
+        || strpos($script, '/admin/') !== false || strpos($script, '/install/') !== false) {
+        return $html;
+    }
+    if (!is_string($html) || $html === '') {
+        return $html;
+    }
+    // 只处理 HTML 文档；静态文件下载、JSON 接口、图片一律原样返回
+    if (stripos($html, '</body>') === false) {
+        return $html;
+    }
+    if (!empty($GLOBALS['cms_no_plugin_output'])) {
+        return $html;
+    }
+    return cms_finalize_html($html, 'dynamic');
+});

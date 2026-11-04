@@ -1,0 +1,12 @@
+{
+  "id": "highlight",
+  "name": "代码高亮",
+  "version": "1.0.0",
+  "description": "为正文代码块加上语法着色与一键复制。只在页面真的出现代码块时加载资源，没有代码的页面零开销。",
+  "author": "CiciCMS",
+  "admin": {
+    "file": "admin.php",
+    "title": "代码高亮",
+    "sub": "支持的语言与主题说明"
+  }
+}

@@ -57,6 +57,9 @@ function build_put($rel, $html, &$files, &$errors)
         log_msg('build empty output: ' . $rel);
         return false;
     }
+    // 插件最后一道：插入 CSS / JS、改链接、加统计代码都在这时生效
+    $html = cms_finalize_html($html, 'static');
+
     if (write_file_atomic(CMS_ROOT . '/' . $rel, $html)) {
         if (!isset($GLOBALS['build_file_seen'][$rel])) {
             $GLOBALS['build_file_seen'][$rel] = 1;
@@ -426,6 +429,11 @@ function build_tick($budgetSec = 8.0)
     $total  = count($state['plan']);
     $t0     = microtime(true);
 
+    // 只在队列开头触发一次，tick 会被重复调用，不能每批都算开始
+    if ($pos === 0) {
+        cms_do_action('build_start', $total);
+    }
+
     try {
         while ($pos < $total) {
             try {
@@ -501,6 +509,8 @@ function build_finish($state)
     }
 
     build_clear_state();
+
+    cms_do_action('build_done', $files, $errors);
 }
 
 /**

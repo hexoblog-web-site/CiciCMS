@@ -6,6 +6,7 @@
 /content/data/cache/
 /content/data/logs/
 /content/data/backup/
+/content/data/tmp/
 /content/data/*.json
 /content/data/*.lock
 

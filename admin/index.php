@@ -17,7 +17,7 @@ require_login();
 define('CMS_ADMIN', true);
 
 $p     = get_str('p', 'dashboard');
-$allow = array('dashboard', 'article', 'category', 'page', 'media', 'flink', 'build', 'clean', 'theme', 'setting');
+$allow = array('dashboard', 'article', 'category', 'page', 'media', 'flink', 'build', 'clean', 'theme', 'setting', 'plugin');
 if (!in_array($p, $allow, true)) {
     $p = 'dashboard';
 }

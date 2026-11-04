@@ -11,7 +11,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
-define('INS_VERSION', '1.9.5');
+define('INS_VERSION', '2.0.0');
 define('INS_ROOT', dirname(__DIR__));
 define('INS_CONTENT', INS_ROOT . '/content');
 define('INS_LOCK', INS_CONTENT . '/data/install.lock');
@@ -324,6 +324,8 @@ if ($step === 3 && !$blocked) {
                     'per_page'      => '10',
                     'theme'         => 'default',
                     'auto_build'    => '1',
+                    // 默认启用代码高亮插件：装上就有代码样式，不需要用户先去点一下
+                    'plugins_active' => '["highlight"]',
                     'timezone'      => 'Asia/Shanghai',
                     'last_build'    => '0',
                 );

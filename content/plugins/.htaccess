@@ -1,0 +1,15 @@
+# 插件目录：PHP 文件只能被程序 include，不允许直接访问
+# 资源文件（css / js / 图片）仍然可以正常加载
+<FilesMatch "\.(php|json|md)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>

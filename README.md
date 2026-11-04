@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v1.9.5-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
+[![Release](https://img.shields.io/badge/release-v2.0.0-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -98,6 +98,10 @@ PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的�
 │   ├── themes/              主题：一套纯 HTML 模板 + 样式
 │   │   └── default/         默认主题（.html + {cici:} 标签，不含 PHP）
 │   ├── uploads/             上传图片，按年/月分目录，禁止执行脚本
+│   ├── plugins/             插件，一个插件一个目录，升级不覆盖
+│   │   ├── .htaccess        禁止直接访问 .php/.json，只放行资源文件
+│   │   ├── highlight/       代码高亮（默认启用）
+│   │   └── hexo-import/     Hexo Markdown 批量导入
 │   └── data/                运行数据，禁止外部访问
 │       ├── cache/tpl/       标签模板编译缓存（会被 include，属例外）
 │       ├── logs/            错误日志
@@ -273,6 +277,18 @@ rm -rf install                       # 装完删掉安装目录
 4. 标签页 slug 的哈希盐值随改名变化，**所有标签页 URL 会变**；升级后请重新生成一次静态页，并让生成器清理旧文件（后台「系统清理 → 清理无主静态文件」）。
 5. 数据库备份文件名前缀改为 `cicicms-`；数据库名、表名、字段名**未改动**，老库可直连。
 6. 部署目录名可继续沿用旧名，不影响运行；想统一的话，整目录改名后仅需确认 `config.php` 中的站点路径设置。
+
+### 3.15 从 1.9.5 升级到 2.0.0（插件系统）
+
+没有数据库表结构变更，新增一个配置项与一个目录。
+
+1. 新增 `content/plugins/` 插件目录，内含 `highlight`（代码高亮）与 `hexo-import`（Hexo 导入）两个插件。
+2. 新增插件内核 `includes/plugin.php`：过滤器 / 动作两类钩子，13 个钩子点，见第八节。
+3. 后台新增「插件管理」页，可启用、停用、进入插件自带页面。
+4. 新装站点默认启用代码高亮；老站点第一次进「插件管理」手动启用即可。
+5. 系统设置 → 数据库备份新增**恢复**：可从已有备份或上传 `.sql` 恢复，需输入 `RESTORE` 确认，执行前自动再备份一次。
+6. 恢复只执行备份文件本身会产生的语句（`SET` / `INSERT` / `TRUNCATE`），其余一律拒绝；全程在事务内，出错整体回滚。
+7. 启用插件后请重新生成一次静态页，插件注入的资源才会出现在已生成的 HTML 里。
 
 ---
 
@@ -611,7 +627,107 @@ echo 'hello';
 
 ---
 
-## 八、常见问题
+## 八、插件开发
+
+插件不是"换个样式"的开关，它可以介入渲染、保存、生成的每一个环节。核心只有两件事：**钩子**和**目录**。
+
+### 8.1 目录与元信息
+
+```
+content/plugins/<id>/
+├── plugin.json    元信息，只用来展示，不会被执行
+├── plugin.php     逻辑入口，被启用时才 include
+├── admin.php      可选，后台页面
+└── assets/        可选，css / js / 图片
+```
+
+`plugin.json`：
+
+```json
+{
+  "id": "highlight",
+  "name": "代码高亮",
+  "version": "1.0.0",
+  "description": "给正文代码块加上着色与复制按钮",
+  "author": "CiciCMS",
+  "admin": { "file": "admin.php", "title": "代码高亮", "sub": "说明文字" }
+}
+```
+
+id 只允许小写字母、数字、下划线、连字符，且必须与目录名一致。
+
+### 8.2 注册钩子
+
+```php
+<?php
+// content/plugins/demo/plugin.php
+if (!defined('CMS_ROOT')) { exit; }
+
+// 过滤器：接管一个值，必须 return
+cms_add_filter('html_foot', function ($html) {
+    return $html . '<script src="' . cms_plugin_url('demo', 'assets/demo.js') . '" defer></script>';
+});
+
+// 动作：到点做事，不关心返回值
+cms_add_action('article_saved', function ($id, $data, $isNew) {
+    log_msg('文章已保存：' . $id . ($isNew ? '（新建）' : '（更新）'));
+});
+```
+
+第三个参数是优先级，数字小的先执行，默认 10。回调抛异常只写日志并跳过，不会把整站渲染搞挂。
+
+### 8.3 钩子一览
+
+| 钩子 | 类型 | 时机 | 参数 |
+| --- | --- | --- | --- |
+| `html_head` | filter | `</head>` 之前 | `html` |
+| `html_foot` | filter | `</body>` 之前 | `html` |
+| `html_final` | filter | 整页 HTML 写盘前 | `html, context` |
+| `content_html` | filter | 正文渲染完成、入库前 | `html, src` |
+| `article_render` | filter | 内容页渲染前 | `post` |
+| `article_saved` | action | 文章新增或更新后 | `id, data, isNew` |
+| `build_start` | action | 静态生成开始 | `total` |
+| `build_done` | action | 静态生成结束 | `files, errors` |
+| `admin_menu` | filter | 后台左侧菜单 | `nav` |
+| `admin_head` | action | 后台 `</head>` 之前 | — |
+| `admin_foot` | action | 后台 `</body>` 之前 | — |
+| `setting_saved` | action | 系统设置保存后 | `keys` |
+| `search_query` | filter | 前台搜索词 | `keyword` |
+
+`html_head` / `html_foot` / `html_final` 在**静态生成**与**动态预览**两条链路上都会执行，所以插件只需要写一次，生成出来的 HTML 和临时预览完全一致。
+
+### 8.4 后台页面
+
+`plugin.json` 里声明 `admin.file` 后，「插件管理」列表会出现「打开」按钮，点进去就是你的页面。该文件在后台布局内部被 include，可以直接用 `.card` `.table` `.btn` 这些现成样式，也能调用全部核心函数（`all()` `one()` `insert_row()` `csrf_field()` …）。
+
+```php
+<?php
+if (!defined('CMS_ADMIN')) { http_response_code(404); exit; }
+if (is_post()) { csrf_verify(); /* 处理表单 */ }
+?>
+<div class="card">
+    <div class="card-head"><h2>我的插件</h2></div>
+    <div class="card-body">内容</div>
+</div>
+```
+
+### 8.5 启用与安全
+
+- 启用状态存在 `config` 表的 `plugins_active`，随数据库备份一起迁移，换服务器不用重新点。
+- **停用即不加载**：未启用的插件不会被 `include`，文件留在原处，随时恢复。
+- 插件以 PHP 运行，权限与程序相同。后台「插件管理」页也这么写着——**只装你信得过的插件**，这与 WordPress、Z-Blog 的模型一致，不是本程序特有的风险。
+- `content/plugins/.htaccess` 拒绝直接请求 `.php` 与 `.json`，插件代码只能被程序内部 include。
+- 插件可能改动前台输出，**启用或停用后要重新生成静态页**，否则已经生成的 HTML 还是旧样子。
+
+### 8.6 随程序附带的两个插件
+
+**代码高亮 `highlight`**：检测到页面里有 `class="language-"` 才加载 Prism（约 43KB），没代码的页面零请求。新建站点默认启用。
+
+**Hexo 导入 `hexo-import`**：在「插件管理 → Hexo 导入」里上传 `.md` 或 `_posts.zip`，解析 front-matter 后先预览再入库。字段映射、忽略规则都写在那页上。
+
+---
+
+## 九、常见问题
 
 **Q：生成提示“写入失败”？**
 A：站点根目录不可写。虚拟主机在文件管理里把目录权限改为 755（属主为 PHP 运行用户），Windows 环境给 IIS_IUSRS 写权限。
@@ -630,7 +746,7 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-## 九、已知限制
+## 十、已知限制
 
 - 评论、会员、多管理员权限分级未包含（当前为单管理员模型，可扩展 `cms_user` 表）。
 - 标签页按标签名前 10 位 MD5 命名，不支持自定义标签路径。
@@ -644,7 +760,7 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-## 十、许可与第三方组件
+## 十一、许可与第三方组件
 
 本项目以 **MIT 许可证**发布，版权归 `hexoblog-web-site` 所有，许可证全文见 [`LICENSE`](LICENSE)。
 
@@ -669,4 +785,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：1.9.5
+版本：2.0.0

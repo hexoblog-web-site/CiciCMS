@@ -149,6 +149,9 @@ if (is_post()) {
                 $msg .= '，但静态生成有 ' . count($r['errors']) . ' 个问题（' . implode('；', array_slice($r['errors'], 0, 2)) . '）';
             }
         }
+        // 插件钩子：同步到外部系统、生成推送、写索引都在这里接
+        cms_do_action('article_saved', $id, $data, $oldRow ? false : true);
+
         flash($msg);
         redirect(admin_url('article'));
     }

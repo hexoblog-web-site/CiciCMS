@@ -18,6 +18,7 @@ $NAV = array(
     'build'     => array('生成静态', '<path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4v4.8h-4.8"/>'),
     'clean'     => array('系统清理', '<path d="M4.5 7h15"/><path d="M9.5 7V5.5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.5 7l.8 11.4a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9L17.5 7"/>'),
     'theme'     => array('模板管理', '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M3.5 9.8h17"/><path d="M9.8 9.8v9.7"/>'),
+    'plugin'    => array('插件管理', '<path d="M9 3.5v4M15 3.5v4"/><path d="M6.5 7.5h11v4.2a5.5 5.5 0 0 1-11 0z"/><path d="M12 17v3.5"/>'),
     'setting'   => array('系统设置', '<path d="M4 7.5h7M15.5 7.5h4.5M4 16.5h4M12.5 16.5h7.5"/><circle cx="13" cy="7.5" r="2.2"/><circle cx="10" cy="16.5" r="2.2"/>'),
 );
 $SUBTITLE = array(
@@ -30,8 +31,12 @@ $SUBTITLE = array(
     'build'     => '把内容渲染为静态 HTML',
     'clean'     => '清理无用附件与缓存',
     'theme'     => '模板文件与代码块样式',
+    'plugin'    => '启用、停用与插件自带的后台页面',
     'setting'   => '站点、账号与安全选项',
 );
+/* 插件可以增删菜单：cms_add_filter('admin_menu', function ($nav) { ... }) */
+$NAV = (array) cms_apply_filters('admin_menu', $NAV);
+
 $pageTitle = isset($NAV[$p]) ? $NAV[$p][0] : '管理后台';
 $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : '';
 ?>
@@ -42,6 +47,7 @@ $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : '';
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title><?php echo e($pageTitle); ?> - CiciCMS 管理后台</title>
 <link rel="stylesheet" href="<?php echo e(site_url('admin/assets/admin.css')); ?>">
+<?php cms_do_action('admin_head'); ?>
 </head>
 <body>
 <div class="app">
