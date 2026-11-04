@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v1.9.2-2563EB.svg)](https://github.com/hexoblog-web-site/HtmlCms/releases)
+[![Release](https://img.shields.io/badge/release-v1.9.3-2563EB.svg)](https://github.com/hexoblog-web-site/HtmlCms/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台交互参考 Z-Blog PHP，程序健壮性按 DedeCMS 的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -242,6 +242,15 @@ rm -rf install                       # 装完删掉安装目录
 4. 仪表盘新增「快捷入口」2×4 网格；权限自检表由三列简化为「项目 + 状态」两列。
 5. `select` 加自定义下拉箭头（`appearance:none` + 内联 SVG），跨浏览器高度一致。
 6. 静态文件仍沿用原路径，旧 CSS 缓存请强刷一次（Ctrl+F5）。
+
+### 3.12 从 1.9.2 升级到 1.9.3（第三方许可合规）
+
+没有数据库变更，覆盖 `content/themes/default/assets/prism.bundle.js`、`content/themes/default/footer.html`、`THIRD-PARTY-NOTICES.md` 三个文件即可。
+
+1. `prism.bundle.js` 顶部补回 PrismJS 的 MIT 版权与许可声明（原压缩产物中缺失，不符合 MIT 的保留声明要求）。
+2. 新增 `THIRD-PARTY-NOTICES.md`，列明随程序分发的第三方组件、许可证全文，以及未打包字体/图标/图片的说明。
+3. 默认主题页脚「Powered by」链接由不存在的 `htmlcms.local` 改为项目仓库地址。
+4. 已生成的静态页需重新生成一次，页脚链接才会更新。
 
 ---
 
@@ -613,4 +622,34 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：1.9.2
+## 十、许可与第三方组件
+
+本项目以 **MIT 许可证**发布，版权归 `hexoblog-web-site` 所有，许可证全文见 [`LICENSE`](LICENSE)。
+
+**这意味着你可以**：自由使用、修改、分发、商用、闭源再分发，只需在副本中保留版权声明与许可声明。
+
+**这意味着你不能**：以作者名义为衍生品背书，或要求作者承担责任（软件按「现状」提供，无任何明示或默示担保）。
+
+### 随程序分发的第三方组件
+
+| 组件 | 位置 | 许可证 |
+| --- | --- | --- |
+| PrismJS（代码高亮，含 17 种语言） | `content/themes/default/assets/prism.bundle.js` | MIT，Copyright (c) 2012 Lea Verou |
+
+许可证全文见 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)。二次分发时请勿删除 `prism.bundle.js` 顶部的声明注释。
+
+### 没有引入的东西
+
+- **无前端框架**：不依赖 jQuery、Bootstrap、Vue、React，前后台均为原生 HTML/CSS/JS。
+- **无图标库**：后台图标为手写 24px 线性 SVG。
+- **无打包字体**：只用系统字体栈，不涉及字体嵌入授权。
+- **无 Composer 依赖**：`vendor/` 目录不存在，部署只需 PHP + MySQL。
+- **无 GPL 代码**：全部代码为本项目原创，不含任何 GPL/LGPL 授权代码，因此可以合法地与闭源或商业项目组合分发。
+
+### 与 DedeCMS / Z-Blog 的关系
+
+程序中出现这两个名称，仅用于说明标签语法风格与字段命名的兼容关系，属描述性使用。本项目与其著作权人**无任何关联、合作或授权关系**，也未包含其任何代码、模板或图片素材。`{cici:}` 标签语法、`arcurl`/`litpic` 等字段别名属于功能性接口与短名称，不构成对其作品的复制。
+
+---
+
+版本：1.9.3
