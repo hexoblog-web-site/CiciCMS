@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 标签引擎 · 运行时
+ * CiciCMS 标签引擎 · 运行时
  * 系统变量（cfg_webname 等）。
  *
  * 编译出来的 PHP 会直接调用这里的函数，因此每次请求都会加载。
@@ -14,7 +14,7 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-/** 系统变量：兼容 dedecms 的 cfg_xxx 命名 */
+/** 系统变量：兼容 cfg_xxx 命名 */
 function cms_tag_global($name)
 {
     $name = trim((string) $name);

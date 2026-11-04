@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 标签引擎 · 运行时
+ * CiciCMS 标签引擎 · 运行时
  * 变量求值与作用域：把 $post.title / $item.id 这类路径解析成真实值。
  *
  * 编译出来的 PHP 会直接调用这里的函数，因此每次请求都会加载。
@@ -49,7 +49,7 @@ function cms_loop_top()
     return $GLOBALS['__cms_loop'][$n - 1];
 }
 
-/** 给数据行补上模板常用的虚拟字段与 dedecms 别名 */
+/** 给数据行补上模板常用的虚拟字段与兼容别名 */
 function cms_row_expand($row)
 {
     if (!is_array($row)) {
@@ -122,7 +122,7 @@ function cms_row_expand($row)
             $row['cat_list'] = $row['tag_list']; // 历史变量名兼容
         }
 
-        // dedecms 字段别名：老模板复制过来即可用
+        // 兼容字段别名：旧模板复制过来即可用
         $alias = array(
             'arcurl'      => 'url',
             'litpic'      => 'cover',

@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 静态生成器
+ * CiciCMS 静态生成器
  * 输出：首页/分页、分类、文章、单页、标签、404、sitemap.xml、rss.xml
  *
  * 设计要点：

@@ -40,16 +40,16 @@ $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : '';
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title><?php echo e($pageTitle); ?> - HtmlCms 管理后台</title>
+<title><?php echo e($pageTitle); ?> - CiciCMS 管理后台</title>
 <link rel="stylesheet" href="<?php echo e(site_url('admin/assets/admin.css')); ?>">
 </head>
 <body>
 <div class="app">
     <aside class="sidebar" id="sidebar">
         <div class="brand">
-            <span class="logo-mark">H</span>
+            <span class="logo-mark">C</span>
             <div>
-                <div class="brand-name">HtmlCms</div>
+                <div class="brand-name">CiciCMS</div>
                 <div class="brand-sub">静态化 CMS v<?php echo e(CMS_VERSION); ?></div>
             </div>
         </div>

@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 安装向导
+ * CiciCMS 安装向导
  * 单文件多步安装：环境检测 -> 参数配置 -> 建库建表 -> 完成
  */
 
@@ -11,7 +11,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
-define('INS_VERSION', '1.9.4');
+define('INS_VERSION', '1.9.5');
 define('INS_ROOT', dirname(__DIR__));
 define('INS_CONTENT', INS_ROOT . '/content');
 define('INS_LOCK', INS_CONTENT . '/data/install.lock');
@@ -185,7 +185,7 @@ function install_config_content($conf)
         return str_replace(array('\\', "'"), array('\\\\', "\\'"), (string) $v);
     };
     $out  = "<?php\n";
-    $out .= "/**\n * HtmlCms 配置文件\n * 由安装程序于 " . date('Y-m-d H:i:s') . " 自动生成\n * 迁移站点时只需修改本文件的数据库信息\n */\n\n";
+    $out .= "/**\n * CiciCMS 配置文件\n * 由安装程序于 " . date('Y-m-d H:i:s') . " 自动生成\n * 迁移站点时只需修改本文件的数据库信息\n */\n\n";
     $out .= "define('DB_HOST', '" . $esc($conf['host']) . "');\n";
     $out .= "define('DB_PORT', '" . $esc($conf['port']) . "');\n";
     $out .= "define('DB_NAME', '" . $esc($conf['name']) . "');\n";
@@ -210,7 +210,7 @@ $errors  = array();
 $old     = array(
     'db_host'    => 'localhost',
     'db_port'    => '3306',
-    'db_name'    => 'htmlcms',
+    'db_name'    => 'cicicms',
     'db_prefix'  => 'cms_',
     'db_user'    => 'root',
     'site_name'  => '我的网站',
@@ -317,7 +317,7 @@ if ($step === 3 && !$blocked) {
                 $defaults = array(
                     'site_name'     => $old['site_name'],
                     'site_url'      => rtrim($old['site_url'], '/'),
-                    'site_desc'     => '一个由 HtmlCms 驱动的静态站点',
+                    'site_desc'     => '一个由 CiciCMS 驱动的静态站点',
                     'site_keywords' => '',
                     'site_icp'      => '',
                     'site_footer'   => '',
@@ -348,7 +348,7 @@ if ($step === 3 && !$blocked) {
                 $catStmt->execute(array('默认分类', 'default', 0, 0, '站点默认分类', ''));
                 $catId = (int) $pdo->lastInsertId();
 
-                $welcome = '<p>欢迎使用 <strong>HtmlCms</strong>——一个可直接跑在虚拟主机上的 PHP + MySQL 静态化 CMS。</p>'
+                $welcome = '<p>欢迎使用 <strong>CiciCMS</strong>——一个可直接跑在虚拟主机上的 PHP + MySQL 静态化 CMS。</p>'
                          . '<h2>它做了什么</h2>'
                          . '<ul><li>后台发布内容，一键生成纯静态 HTML，访问速度接近 CDN；</li>'
                          . '<li>后台按国内站长熟悉的习惯组织：文章、分类、单页、标签、模板、生成管理；</li>'
@@ -362,12 +362,12 @@ if ($step === 3 && !$blocked) {
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
                 $artStmt->execute(array(
                     $catId,
-                    '欢迎使用 HtmlCms',
+                    '欢迎使用 CiciCMS',
                     'hello-world',
-                    'HtmlCms 安装成功，这是一篇示例文章，可在后台修改或删除。',
+                    'CiciCMS 安装成功，这是一篇示例文章，可在后台修改或删除。',
                     $welcome,
                     '',
-                    'HtmlCms,静态CMS,安装',
+                    'CiciCMS,静态CMS,安装',
                     $uid,
                     1,
                     1,
@@ -455,7 +455,7 @@ if ($step === 4) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HtmlCms 安装向导</title>
+<title>CiciCMS 安装向导</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f1f5f9;color:#0f172a;font:14px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
@@ -498,7 +498,7 @@ code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:12px}
 </head>
 <body>
 <div class="wrap">
-    <div class="brand">HtmlCms <span>PHP + MySQL 静态化内容管理系统 v<?php echo INS_VERSION; ?></span></div>
+    <div class="brand">CiciCMS <span>PHP + MySQL 静态化内容管理系统 v<?php echo INS_VERSION; ?></span></div>
     <div class="sub">三步完成安装，安装后即可在后台发布内容并生成纯静态 HTML。</div>
 
     <?php if ($blocked): ?>

@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 标签引擎 · 注册表
+ * CiciCMS 标签引擎 · 注册表
  *
  * 每个标签 = includes/tags/single|block/ 下的一个文件，文件被 include 时
  * 返回一份定义数组，注册表把它记到「标签名 → 定义」的映射里。

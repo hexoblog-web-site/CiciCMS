@@ -3,7 +3,7 @@
  * 标签：{cici:field name="arcurl"}　按字段名取值，同时是所有字段类标签的兜底
  *
  * 两条路：
- *   1. 显式写 field name="xxx"，字段名走 dedecms 别名映射；
+ *   1. 显式写 field name="xxx"，字段名走别名映射；
  *   2. 直接写 {cici:title} 这类字段标签，由本文件末尾的 cms_tag_field_compile() 兜底。
  *
  * 只在编译期（生成静态页 / 模板重编）加载。编译器收到统一的 ctx：
@@ -22,7 +22,7 @@ if (!defined('CMS_TAG_NS')) {
 
 return array(
     'name'     => 'field',
-    'desc'     => '按字段名取值，兼容 dedecms；字段类标签（title / content ...）也走这里',
+    'desc'     => '按字段名取值，兼容别名；字段类标签（title / content ...）也走这里',
     'compile'  => 'cms_tag_single_field',
     'fallback' => true,
 );

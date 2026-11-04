@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 标签引擎 · 块标签
+ * CiciCMS 标签引擎 · 块标签
  * {cici:type} / {cici:autochannel}　单个栏目
  *
  * 只在编译期（生成静态页 / 模板重编）加载，运行期不参与。

@@ -1,9 +1,9 @@
-# HtmlCms
+# CiciCMS
 
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v1.9.4-2563EB.svg)](https://github.com/hexoblog-web-site/HtmlCms/releases)
+[![Release](https://img.shields.io/badge/release-v1.9.5-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -249,7 +249,7 @@ rm -rf install                       # 装完删掉安装目录
 
 1. `prism.bundle.js` 顶部补回 PrismJS 的 MIT 版权与许可声明（原压缩产物中缺失，不符合 MIT 的保留声明要求）。
 2. 新增 `THIRD-PARTY-NOTICES.md`，列明随程序分发的第三方组件、许可证全文，以及未打包字体/图标/图片的说明。
-3. 默认主题页脚「Powered by」链接由不存在的 `htmlcms.local` 改为项目仓库地址。
+3. 默认主题页脚「Powered by」链接由占位域名改为项目仓库地址。
 4. 已生成的静态页需重新生成一次，页脚链接才会更新。
 
 ### 3.13 从 1.9.3 升级到 1.9.4（移除代码高亮）
@@ -262,6 +262,17 @@ rm -rf install                       # 装完删掉安装目录
 4. `class="language-xx"` 仍保留在 `<pre><code>` 上，将来接入任何高亮库时内容无需改动。
 5. 已生成的静态页需重新生成一次，页面里不再有那两个资源标签。
 6. 自 1.9.4 起，程序不含任何第三方运行时代码。
+
+### 3.14 从 1.9.4 升级到 1.9.5（正式定名 CiciCMS）
+
+没有数据库变更，没有表结构变化。
+
+1. 程序名统一为 **CiciCMS**：版本常量、安装向导、后台标题与侧栏、登录页、页脚、README、LICENSE、文档站包名全部改名。
+2. 删除源码与文档中所有对其它 CMS 品牌的引用，兼容功能照旧保留（字段别名、`limit="0,10"`、`orderby` 写法仍可用），只是不再提来源。
+3. 会话名 `HTMLCMSSID` → `CICICMSSID`，登录态会失效一次，重新登录即可。
+4. 标签页 slug 的哈希盐值随改名变化，**所有标签页 URL 会变**；升级后请重新生成一次静态页，并让生成器清理旧文件（后台「系统清理 → 清理无主静态文件」）。
+5. 数据库备份文件名前缀改为 `cicicms-`；数据库名、表名、字段名**未改动**，老库可直连。
+6. 部署目录名可继续沿用旧名，不影响运行；想统一的话，整目录改名后仅需确认 `config.php` 中的站点路径设置。
 
 ---
 
@@ -413,9 +424,9 @@ location ~ ^/docs/ { deny all; }
 
 `url` `date` `datetime` `year` `month` `day` `summary` `cat_name` `cat_url` `tag_list` `flag_list` `index`
 
-**兼容 dedecms 字段名**，老模板可原样搬：
+**兼容字段别名**，旧模板里的常见写法可直接沿用：
 
-| dedecms | 本站 | dedecms | 本站 |
+| 别名 | 本站字段 | 别名 | 本站字段 |
 | --- | --- | --- | --- |
 | `arcurl` | `url` | `litpic` | `cover` |
 | `pubdate` | `created_at` | `click` | `views` |
@@ -459,7 +470,7 @@ location ~ ^/docs/ { deny all; }
 | --- | --- |
 | `{cici:include file="header"}` | 引入片段，继承当前变量 |
 | `{cici:pager}` | 分页条，可配 `prev` `next` `first` `last` `size` `info="0"` `class` |
-| `{cici:field name="title"}` | 按字段名取值，自动认 dedecms 别名；`name="position"` 直接输出面包屑 |
+| `{cici:field name="title"}` | 按字段名取值，自动识别别名；`name="position"` 直接输出面包屑 |
 | `{cici:global name="cfg_webname"}` | 系统变量，兼容 `cfg_*` 命名 |
 | `{cici:position}` | 面包屑的默认输出（空标签形态） |
 | `{cici:prev}` / `{cici:next}` | 上下篇默认链接；无上一篇时输出“已是第一篇” |
@@ -484,9 +495,9 @@ location ~ ^/docs/ { deny all; }
 | `idlist` | 指定 ID 且按给顺序输出：`idlist="3,1,2"` |
 | `notid` / `exclude` | 排除指定 ID |
 | `subday` | 最近 N 天 |
-| `limit` / `row` / `offset` | 条数与偏移，支持 dedecms 写法 `limit="0,10"` |
+| `limit` / `row` / `offset` | 条数与偏移，支持 `limit="0,10"` 的偏移写法（偏移,条数） |
 | `order` | `new` `hot` `top` `old` `updated` `rand` |
-| `orderby` / `orderway` | dedecms 写法：`orderby="click" orderway="asc"` |
+| `orderby` / `orderway` | 字段 + 方向：`orderby="click" orderway="asc"` |
 | `titlelen` | 截断标题，完整标题保留在 `item.fulltitle` |
 | `infolen` | 截断摘要，完整摘要在 `item.fullsummary` |
 | `col` | 多列输出，行内可用 `item.col` / `item.rowno` |
@@ -625,7 +636,7 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 - 标签页按标签名前 10 位 MD5 命名，不支持自定义标签路径。
 - 分类为单级结构（表中保留 `parent_id`，面包屑已支持多级链路，后台暂未提供多级管理界面）。
 - 归档页按年份单页输出，不分页；文章量过万时建议改成分页版。
-- 正文分页（dedecms 的 `pagebreak`）尚未实现。
+- 正文分页（`pagebreak` 标记）尚未实现。
 - 搜索为动态查询，静态站点如需纯静态搜索可接入第三方搜索服务。
 - 代码块为纯文本呈现（深色面板 + 等宽字体），不含语法着色。如需高亮，可在主题里自行挂载 Prism 等库，或改由 PHP 端在生成阶段着色；`class="language-xx"` 已写入，接入时内容无需改动。
 - 正文支持代码块围栏，但不支持完整 Markdown（标题、表格、列表仍需写 HTML）。
@@ -656,17 +667,6 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 - **无 Composer 依赖**：`vendor/` 目录不存在，部署只需 PHP + MySQL。
 - **无 GPL 代码**：全部代码为本项目原创，不含任何 GPL/LGPL 授权代码，因此可以合法地与闭源或商业项目组合分发。
 
-### 与 DedeCMS / Z-Blog 的关系
-
-程序中出现这两个名称，仅用于说明**标签语法与字段命名的兼容关系**——目的是让老模板能低成本迁移过来，属描述性使用。
-
-需要明确的是：
-
-- 本项目与其著作权人**无任何关联、合作或授权关系**，不是它们的衍生版本，也未获得任何形式的背书。
-- **不含其任何代码、模板、图片或界面素材**。后台界面、图标、样式均为本项目自行设计，前后台视觉与它们无关。
-- `{cici:}` 标签语法、`arcurl`/`litpic`/`pubdate` 等字段别名属于功能性接口与短名称，目的是兼容既有模板习惯，不构成对其作品的复制。
-- 若你是这些产品的用户，请注意本项目的功能范围、授权方式（MIT）与技术支持均由其自身提供，与它们无关。
-
 ---
 
-版本：1.9.4
+版本：1.9.5

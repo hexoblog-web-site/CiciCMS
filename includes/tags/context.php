@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 标签引擎 · 编译上下文
+ * CiciCMS 标签引擎 · 编译上下文
  * 编译期的公共工具：属性解析、修饰器链、变量路径、循环体生成。
  * single/ 与 block/ 下的编译器都靠这些函数拼 PHP 代码。
  *
@@ -227,7 +227,7 @@ function cms_tag_is_raw_path($path)
     return in_array(strtolower($last), cms_tag_raw_fields(), true);
 }
 
-/** {cici:field name="x"} → 变量路径（兼容 dedecms 字段名） */
+/** {cici:field name="x"} → 变量路径（兼容字段别名） */
 function cms_tag_path($name)
 {
     $name = trim((string) $name);

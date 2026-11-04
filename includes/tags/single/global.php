@@ -2,7 +2,7 @@
 /**
  * 标签：{cici:global name="cfg_webname"}　系统变量
  *
- * 兼容 dedecms 的 cfg_webname / cfg_beian 等写法，映射关系在 runtime/global.php。
+ * 兼容 cfg_webname / cfg_beian 等写法，映射关系在 runtime/global.php。
  *
  * 只在编译期（生成静态页 / 模板重编）加载。编译器收到统一的 ctx：
  *   $ctx['name']    标签名
@@ -20,7 +20,7 @@ if (!defined('CMS_TAG_NS')) {
 
 return array(
     'name'    => 'global',
-    'desc'    => '系统变量，兼容 dedecms 的 cfg_xxx 写法',
+    'desc'    => '系统变量，兼容 cfg_xxx 写法',
     'compile' => 'cms_tag_single_global',
 );
 

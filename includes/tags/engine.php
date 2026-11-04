@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 标签引擎 · 核心引擎
+ * CiciCMS 标签引擎 · 核心引擎
  * 扫描器与编译缓存：把 .html 模板里的 {cici:xxx} 编译成可 include 的 PHP。
  * 这一层只管"怎么扫、怎么缓存、怎么分发"，具体标签在 single/ 与 block/ 下。
  *
@@ -61,7 +61,7 @@ function cms_tag_compile($file)
     if ($src === '') {
         return '';
     }
-    $php = "<?php /* HtmlCms tag cache: " . basename($file) . " */ ?>\n" . cms_tag_parse($src);
+    $php = "<?php /* CiciCMS tag cache: " . basename($file) . " */ ?>\n" . cms_tag_parse($src);
 
     if (!write_file_atomic($cache, $php)) {
         log_msg('模板编译写入失败：' . $cache);

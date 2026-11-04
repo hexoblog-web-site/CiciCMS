@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 标签引擎 · 运行时
+ * CiciCMS 标签引擎 · 运行时
  * 取数：列表、归档、相关文档共用的 SQL 组装与结果整理。
  *
  * 编译出来的 PHP 会直接调用这里的函数，因此每次请求都会加载。
@@ -28,7 +28,7 @@ function cms_tag_rows($q)
     $limit  = isset($q['limit']) ? $q['limit'] : 10;
     $offset = max(0, (int) (isset($q['offset']) ? $q['offset'] : 0));
 
-    // dedecms 写法 limit="0,10"（偏移,条数）
+    // limit="0,10" 写法（偏移,条数）
     if (is_string($limit) && strpos($limit, ',') !== false) {
         $seg = explode(',', $limit, 2);
         $offset = max(0, (int) $seg[0]);
@@ -159,7 +159,7 @@ function cms_tag_rows($q)
     return cms_tag_rows_post($rows, $q);
 }
 
-/** 排序 SQL：兼容 order 与 dedecms 的 orderby/orderway */
+/** 排序 SQL：兼容 order 与 orderby/orderway 两套写法 */
 function cms_tag_order_sql($q)
 {
     $way = isset($q['orderway']) ? strtolower((string) $q['orderway']) : '';

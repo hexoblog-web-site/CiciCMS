@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 前台数据与渲染
+ * CiciCMS 前台数据与渲染
  * 静态生成与动态预览共用同一套渲染函数，保证两者输出一致
  */
 
@@ -16,7 +16,7 @@ function fe_per_page()
 function fe_site()
 {
     return array(
-        'name'     => setting('site_name', 'HtmlCms'),
+        'name'     => setting('site_name', 'CiciCMS'),
         'desc'     => setting('site_desc', ''),
         'keywords' => setting('site_keywords', ''),
         'url'      => site_url(),

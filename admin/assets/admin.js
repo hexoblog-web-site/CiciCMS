@@ -1,4 +1,4 @@
-/* HtmlCms 后台脚本 */
+/* CiciCMS 后台脚本 */
 (function () {
   'use strict';
 

@@ -28,7 +28,7 @@ function db_backup_tables()
  */
 function db_backup()
 {
-    $out = "-- HtmlCms 数据备份\n-- 生成时间: " . date('Y-m-d H:i:s') . "\n"
+    $out = "-- CiciCMS 数据备份\n-- 生成时间: " . date('Y-m-d H:i:s') . "\n"
          . "-- 数据库: " . DB_NAME . "  前缀: " . DB_PREFIX . "\n"
          . "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n";
 
@@ -58,7 +58,7 @@ function db_backup()
 
     // 文件名带随机后缀：即使服务器没配好目录保护，也没法靠猜地址下载备份
     $rand = substr(md5(uniqid((string) mt_rand(), true)), 0, 8);
-    $name = 'htmlcms-' . date('Ymd-His') . '-' . $rand . '.sql';
+    $name = 'cicicms-' . date('Ymd-His') . '-' . $rand . '.sql';
 
     return write_file_atomic(db_backup_dir() . '/' . $name, $out) ? $name : false;
 }

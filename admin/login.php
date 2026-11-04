@@ -34,15 +34,15 @@ if (is_post()) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>登录 - HtmlCms 管理后台</title>
+<title>登录 - CiciCMS 管理后台</title>
 <link rel="stylesheet" href="<?php echo e(site_url('admin/assets/admin.css')); ?>">
 </head>
 <body class="login-body">
 <div class="login-wrap">
     <div class="login-brand">
-        <div class="logo-mark">H</div>
+        <div class="logo-mark">C</div>
         <div>
-            <div class="login-title">HtmlCms</div>
+            <div class="login-title">CiciCMS</div>
             <div class="login-sub">静态化内容管理系统</div>
         </div>
     </div>
@@ -61,7 +61,7 @@ if (is_post()) {
     </form>
     <div class="login-foot">
         <a href="<?php echo e(site_url()); ?>" target="_blank">查看站点 &rarr;</a>
-        <span>HtmlCms v<?php echo e(CMS_VERSION); ?></span>
+        <span>CiciCMS v<?php echo e(CMS_VERSION); ?></span>
     </div>
 </div>
 </body>

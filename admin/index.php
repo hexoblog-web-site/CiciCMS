@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 后台入口（单入口路由）
+ * CiciCMS 后台入口（单入口路由）
  */
 
 require_once dirname(__DIR__) . '/includes/bootstrap.php';

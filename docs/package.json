@@ -1,9 +1,9 @@
 {
-  "name": "htmlcms-docs",
+  "name": "cicicms-docs",
   "version": "1.8.0",
   "private": true,
   "type": "module",
-  "description": "HtmlCms 使用手册（VitePress）",
+  "description": "CiciCMS 使用手册（VitePress）",
   "scripts": {
     "dev": "vitepress dev . --port 5173",
     "build": "vitepress build .",

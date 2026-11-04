@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 登录认证（单管理员 / 多管理员通用）
+ * CiciCMS 登录认证（单管理员 / 多管理员通用）
  */
 
 function auth_user()

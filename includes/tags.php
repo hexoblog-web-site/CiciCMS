@@ -1,15 +1,15 @@
 <?php
 /**
- * HtmlCms 模板标签引擎（.html 模板）
+ * CiciCMS 模板标签引擎（.html 模板）
  *
  * 目标：模板写纯 HTML，不出现一行 PHP；改版不碰程序；做站时任何内容都能调出来。
- * 语法风格对齐 dedecms 的 {dede:xxx}，前缀为 {cici:xxx}。
+ * 标签以 {cici:xxx} 书写，支持单标签、块标签与修饰器链。
  *
  * ── 单标签 ──────────────────────────────────────────────
  *   {cici:site.name}                点号取字段，自动转义
  *   {cici:post.title|limit:24}      取字段 + 修饰器
  *   {cici:post.content}             正文类字段原样输出（不转义）
- *   {cici:field name="arcurl"}      兼容 dedecms 写法，自动识别字段别名
+ *   {cici:field name="arcurl"}      兼容字段别名，自动识别
  *   {cici:global name="cfg_webname"} 系统变量
  *   {cici:url} {cici:theme} {cici:year}
  *   {cici:include file="header"}    引入片段（继承当前变量）

@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 公共函数库
+ * CiciCMS 公共函数库
  * 兼容 PHP 7.0+ / MySQL 5.6+，无 Composer 依赖
  */
 
@@ -73,7 +73,7 @@ function cms_session_start()
     } else {
         session_set_cookie_params(0, '/', '', $secure, true);
     }
-    session_name('HTMLCMSSID');
+    session_name('CICICMSSID');
     session_start();
 }
 
@@ -310,7 +310,7 @@ function u_page($page)
 
 function tag_slug($name)
 {
-    return substr(md5('htmlcms-tag:' . $name), 0, 10);
+    return substr(md5('cicicms-tag:' . $name), 0, 10);
 }
 
 function u_tag($name, $page = 1)

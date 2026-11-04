@@ -1,6 +1,6 @@
 <?php
 /**
- * HtmlCms 引导文件
+ * CiciCMS 引导文件
  * 所有入口（前台 / 后台 / API）统一加载此文件
  */
 
@@ -23,7 +23,7 @@ define('CMS_THEMES', CMS_CONTENT . '/themes');
 define('CMS_UPLOADS', CMS_CONTENT . '/uploads');
 define('CMS_DATA', CMS_CONTENT . '/data');
 
-define('CMS_VERSION', '1.9.4');
+define('CMS_VERSION', '1.9.5');
 
 if (!is_file(CMS_ROOT . '/config.php')) {
     $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
@@ -36,7 +36,7 @@ if (!is_file(CMS_ROOT . '/config.php')) {
         http_response_code(503);
     }
     echo '<div style="font:14px/1.9 -apple-system,Segoe UI,sans-serif;padding:60px;text-align:center;color:#334155">'
-       . '<h2 style="color:#0f172a">HtmlCms 尚未安装</h2>'
+       . '<h2 style="color:#0f172a">CiciCMS 尚未安装</h2>'
        . '<p>请先运行安装向导完成初始化：</p>'
        . '<p><a style="color:#2563eb" href="' . htmlspecialchars($dir . '/install/index.php', ENT_QUOTES, 'UTF-8') . '">进入安装向导 &rarr;</a></p>'
        . '</div>';

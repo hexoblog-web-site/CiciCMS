@@ -1,7 +1,7 @@
 <?php
 /**
- * HtmlCms 标签引擎 · 配置
- * 命名空间、推荐位定义、原样输出字段、dedecms 字段别名。
+ * CiciCMS 标签引擎 · 配置
+ * 命名空间、推荐位定义、原样输出字段、兼容字段别名。
  * 想改标签前缀、加字段别名，只改这一个文件。
  *
  * 文件：includes/tags/config.php
@@ -34,7 +34,7 @@ function cms_tag_raw_fields()
     return array('content', 'body', 'html', 'footer', 'code');
 }
 
-/** dedecms 字段别名 → 本站字段，便于老模板迁移 */
+/** 兼容字段别名 → 本站字段，便于旧模板迁移 */
 function cms_tag_field_alias()
 {
     return array(
