@@ -25,7 +25,7 @@ define('CMS_DATA', CMS_CONTENT . '/data');
 /** 插件目录：content/plugins/<id>/，每个插件一个文件夹，升级不覆盖 */
 define('CMS_PLUGINS', CMS_CONTENT . '/plugins');
 
-define('CMS_VERSION', '2.0.0');
+define('CMS_VERSION', '2.1.0');
 
 if (!is_file(CMS_ROOT . '/config.php')) {
     $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
@@ -115,7 +115,10 @@ require CMS_INC . '/frontend.php';
 require CMS_INC . '/builder.php';
 require CMS_INC . '/backup.php';
 require CMS_INC . '/plugin.php';
+require CMS_INC . '/uploader.php';
 require CMS_INC . '/upload.php';
+require CMS_INC . '/zipreader.php';
+require CMS_INC . '/updater.php';
 require CMS_INC . '/clean.php';
 require CMS_INC . '/tags.php';
 require CMS_INC . '/upgrade.php';

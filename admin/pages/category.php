@@ -81,15 +81,8 @@ if (is_post()) {
             $msg = '栏目已创建';
         }
 
-        // 目录改名：记下"旧目录 → 新目录"，老链接访问时据此 301，再把旧静态文件删干净
+        // 目录改名：旧目录下的静态文件全部清掉，免得根目录里留着两份同样内容
         if ($oldDir !== '' && $oldDir !== $dir) {
-            $map = json_decode((string) setting('cat_dir_map', ''), true);
-            if (!is_array($map)) {
-                $map = array();
-            }
-            $map[$oldDir] = $dir;
-            set_setting('cat_dir_map', json_encode($map));
-
             $stale = array($oldDir . '/index.html');
             $per   = fe_per_page();
             $total = (int) val('SELECT COUNT(*) FROM {p}article WHERE cat_id = ? AND status = 1', array($id));
@@ -289,7 +282,7 @@ $siteBase  = rtrim(site_url(), '/');
     <div class="card-body">
         <div class="hint">
             生成规则：栏目第 1 页 <code>/别名/index.html</code>，第 N 页 <code>/别名/page/N/index.html</code>，
-            文章 <code>/别名/文章ID.html</code>。别名相当于网址目录，上线后建议不要再改；真改了，老地址会自动 301 到新地址。
+            文章 <code>/别名/文章ID.html</code>。别名相当于网址目录，上线后不要再改——本程序不做伪静态，也不做旧地址跳转，改了旧链接就是 404。
         </div>
     </div>
 </div>

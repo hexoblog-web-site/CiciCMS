@@ -1,24 +1,11 @@
 <?php
 /**
  * CiciCMS 前台入口（动态预览）
- * 正式环境访问静态 HTML，本文件用于：未生成静态前的预览、站内搜索、404 兜底
+ * 正式环境访问静态 HTML，本文件只在两种情况下被访问：
+ * 还没有生成静态页时的预览，以及站内搜索。
  */
 
 require __DIR__ . '/includes/bootstrap.php';
-
-/* 请求路径：静态页由 Web 服务器直接发出，落到这里的都是"文件不存在"的请求 */
-$reqPath = (string) parse_url(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '', PHP_URL_PATH);
-$reqPath = trim($reqPath, '/');
-$isPretty = ($reqPath !== '' && stripos($reqPath, 'index.php') === false);
-
-/* 老地址（改版前的 /post/、/cat/，或分类改过名）一律 301 到新地址 */
-if ($isPretty) {
-    $target = legacy_redirect_target($reqPath);
-    if ($target !== '') {
-        header('Location: ' . $target, true, 301);
-        exit;
-    }
-}
 
 $articleSlug = (string) get('p');
 $catDir      = (string) get('cat');
@@ -70,11 +57,5 @@ if (isset($_GET['s'])) {
     exit;
 }
 
-/* 走到这里说明是不认识的路径：给出 404，而不是拿首页冒充（避免被搜索引擎判成软 404） */
-if ($isPretty) {
-    http_response_code(404);
-    echo fe_render_404();
-    exit;
-}
-
+/* 没有带任何参数：首页（未生成静态页时的预览） */
 echo fe_render_home($page);

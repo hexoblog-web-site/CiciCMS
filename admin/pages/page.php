@@ -138,6 +138,7 @@ if ($action === 'new' || $action === 'edit') {
                                 <button type="button" data-insert="codeblock">代码块</button>
                             </div>
                             <textarea class="input" id="content" name="content" style="min-height:380px"><?php echo e(content_source($row)); ?></textarea>
+                            <div class="hint">图片：点工具栏的「图片」，可以上传本地文件（也能直接拖进去），或粘贴网址让程序抓回本站。</div>
                         </div>
                     </div>
                     <div class="edit-side">

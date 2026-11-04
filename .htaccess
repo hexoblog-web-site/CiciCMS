@@ -1,32 +1,13 @@
-# HtmlCms 目录保护与默认首页
-# 静态 HTML 优先生效，未生成静态页时回落到 index.php（动态预览）
+# CiciCMS 目录保护与默认首页
+# 整站是真实静态文件：请求直接命中磁盘上的 .html，不使用任何伪静态 / rewrite 规则。
 DirectoryIndex index.html index.php
+
+# 404 交给生成好的静态页（不经过 PHP，也不做任何跳转）
+ErrorDocument 404 /404.html
 
 # 关闭目录列表（部分虚拟主机不允许 Options，用 IfModule 包裹避免 500）
 <IfModule mod_autoindex.c>
     Options -Indexes
-</IfModule>
-
-# 老地址 301 与未生成页面的兜底
-# 静态页已存在就直接由服务器发出（!-f 判断），只有"文件不存在"的请求才交给 index.php，
-# 由 PHP 决定：老地址 → 301 到新地址；确实没有 → 404 页面。
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-
-    # 改版前的文章地址 /post/<slug>.html
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^post/[A-Za-z0-9_-]+\.html$ index.php [L,QSA]
-
-    # 改版前的分类地址 /cat/<目录>/index.html、/cat/<目录>/page/N/index.html
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^cat/[A-Za-z0-9_-]+/(index\.html|page/[0-9]+/index\.html)?$ index.php [L,QSA]
-
-    # 分类改过名之后的文章地址 /<旧目录>/<id>.html（按文章 ID 找到现地址）
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^[A-Za-z0-9_-]+/[0-9]+\.html$ index.php [L,QSA]
 </IfModule>
 
 AddDefaultCharset UTF-8

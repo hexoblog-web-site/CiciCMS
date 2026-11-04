@@ -6,7 +6,14 @@
  * 插件被停用时不会被 include，文件继续留在原处，随时可以恢复。
  */
 
-if (is_post()) {
+/*
+ * 只有「列表页」的 POST 归本页处理（启用 / 停用）。
+ * 插件自己的页面 POST 到 ?p=<插件ID> 或 ?p=plugin&id=<插件ID>，由插件文件自行处理，
+ * 否则核心的 do 取值会和插件撞车——插件永远收不到自己的动作。
+ */
+$openId = get_str('id');
+
+if ($openId === '' && is_post()) {
     csrf_verify();
     $do = post_str('do');
 
@@ -36,12 +43,11 @@ if (is_post()) {
     }
 }
 
-/* 进入某个插件自己的后台页面 */
-$openId    = get_str('id');
+/* 进入某个插件自己的后台页面（兼容旧地址 ?p=plugin&id=xxx） */
 $adminPage = cms_plugin_admin_pages();
 if ($openId !== '' && isset($adminPage[$openId])) {
     $GLOBALS['cms_plugin_current'] = $openId;
-    require $adminPage[$openId]['file'];
+    include_once $adminPage[$openId]['file'];
     return;
 }
 
@@ -91,7 +97,7 @@ $dir     = cms_plugins_dir();
                         </td>
                         <td style="text-align:right;white-space:nowrap">
                             <?php if ($on && isset($adminPage[$id])): ?>
-                                <a class="btn btn-sm" href="<?php echo e(admin_url('plugin', array('id' => $id))); ?>">打开</a>
+                                <a class="btn btn-sm" href="<?php echo e(admin_url($id)); ?>">打开</a>
                             <?php endif; ?>
                             <form method="post" action="<?php echo e(admin_url('plugin')); ?>" style="display:inline">
                                 <?php echo csrf_field(); ?>

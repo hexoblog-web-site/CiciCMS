@@ -264,13 +264,6 @@ function post_static_rel($post)
     return $id > 0 ? cat_dir_of($dir) . '/' . $id . '.html' : '';
 }
 
-/** 文章静态地址（无论当前是否在生成模式，始终给静态地址，301 用） */
-function post_static_url($post)
-{
-    $rel = post_static_rel($post);
-    return $rel !== '' ? site_url($rel) : '';
-}
-
 function u_post($post)
 {
     $slug = is_array($post) ? (string) $post['slug'] : (string) $post;

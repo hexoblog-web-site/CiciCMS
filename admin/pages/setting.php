@@ -5,7 +5,7 @@ if (!defined('CMS_ADMIN')) {
     exit;
 }
 
-/** 系统设置：站点信息 / 管理员密码 / 数据库备份 */
+/** 系统设置：站点信息 / 管理员密码 / 目录权限 / 系统信息（数据备份在「数据系统」） */
 
 if (is_post()) {
     csrf_verify();
@@ -55,79 +55,7 @@ if (is_post()) {
         }
         redirect(admin_url('setting'));
     }
-
-    if ($do === 'backup') {
-        $name = db_backup();
-        if ($name) {
-            flash('备份已生成：' . $name);
-        } else {
-            flash('备份失败，请检查 content/data/backup 目录权限', 'err');
-        }
-        redirect(admin_url('setting') . '#backup');
-    }
-
-    if ($do === 'backup_delete') {
-        $name = post_str('file');
-        if (db_backup_delete($name)) {
-            flash('已删除备份：' . $name);
-        } else {
-            flash('删除失败，文件可能已经不存在', 'err');
-        }
-        redirect(admin_url('setting') . '#backup');
-    }
-
-    /* 从已有备份恢复：必须手打 RESTORE，防止误点 */
-    if ($do === 'restore') {
-        if (post_str('confirm') !== 'RESTORE') {
-            flash('请输入 RESTORE 确认恢复，本次未执行', 'err');
-            redirect(admin_url('setting') . '#backup');
-        }
-        $path = db_backup_find(post_str('file'));
-        if ($path === '') {
-            flash('备份文件不存在', 'err');
-            redirect(admin_url('setting') . '#backup');
-        }
-        $info = array();
-        $ok   = db_restore_file($path, $info);
-        if ($ok) {
-            flash('恢复完成：执行 ' . (int) $info['executed'] . ' 条语句'
-                . ($info['skipped'] ? '，忽略 ' . (int) $info['skipped'] . ' 条非备份语句' : '')
-                . ($info['backup'] !== '' ? '；恢复前的数据已备份为 ' . $info['backup'] : ''));
-        } else {
-            flash($info['error'] !== '' ? $info['error'] : '恢复失败', 'err');
-        }
-        redirect(admin_url('setting') . '#backup');
-    }
-
-    /* 上传 .sql 恢复 */
-    if ($do === 'restore_upload') {
-        if (post_str('confirm') !== 'RESTORE') {
-            flash('请输入 RESTORE 确认恢复，本次未执行', 'err');
-            redirect(admin_url('setting') . '#backup');
-        }
-        $f = isset($_FILES['sql']) ? $_FILES['sql'] : null;
-        if (!$f || (int) $f['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($f['tmp_name'])) {
-            flash('没有收到 SQL 文件', 'err');
-            redirect(admin_url('setting') . '#backup');
-        }
-        if (strtolower(pathinfo($f['name'], PATHINFO_EXTENSION)) !== 'sql') {
-            flash('只接受 .sql 备份文件', 'err');
-            redirect(admin_url('setting') . '#backup');
-        }
-        $info = array();
-        $ok   = db_restore_file($f['tmp_name'], $info);
-        @unlink($f['tmp_name']);
-        if ($ok) {
-            flash('恢复完成：执行 ' . (int) $info['executed'] . ' 条语句'
-                . ($info['backup'] !== '' ? '；恢复前的数据已备份为 ' . $info['backup'] : ''));
-        } else {
-            flash($info['error'] !== '' ? $info['error'] : '恢复失败', 'err');
-        }
-        redirect(admin_url('setting') . '#backup');
-    }
 }
-
-$backups = db_backup_list();
 ?>
 <div class="edit-cols">
     <div>
@@ -197,72 +125,39 @@ $backups = db_backup_list();
             </div>
         </div>
 
-        <div class="card" id="backup">
-            <div class="card-head"><h2>数据库备份</h2></div>
-            <div class="card-body">
-                <p class="hint" style="margin-top:0">备份文件保存在 content/data/backup 目录，包含全部内容表，可用于迁移或恢复。</p>
-                <form method="post" action="<?php echo e(admin_url('setting')); ?>" style="margin-bottom:14px">
-                    <?php echo csrf_field(); ?>
-                    <input type="hidden" name="do" value="backup">
-                    <button class="btn" type="submit">立即备份数据库</button>
-                </form>
-                <?php if (empty($backups)): ?>
-                    <div class="hint">暂无备份文件</div>
-                <?php else: ?>
-                    <table class="table">
-                        <?php foreach (array_slice($backups, 0, 10) as $b): ?>
-                            <tr>
-                                <td>
-                                    <?php echo e($b); ?>
-                                    <div class="hint" style="font-size:11px"><?php echo e(db_backup_size($b) > 1048576
-                                        ? round(db_backup_size($b) / 1048576, 1) . ' MB'
-                                        : round(db_backup_size($b) / 1024) . ' KB'); ?></div>
-                                </td>
-                                <td class="actions-cell" style="white-space:nowrap">
-                                    <a class="btn btn-sm" href="download.php?f=<?php echo e(urlencode($b)); ?>">下载</a>
-                                    <form method="post" action="<?php echo e(admin_url('setting')); ?>" style="display:inline"
-                                          onsubmit="return confirm('确定删除这个备份文件？');">
-                                        <?php echo csrf_field(); ?>
-                                        <input type="hidden" name="do" value="backup_delete">
-                                        <input type="hidden" name="file" value="<?php echo e($b); ?>">
-                                        <button class="btn btn-sm" type="submit">删除</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </table>
-
-                    <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px">
-                        <h3 style="margin:0 0 8px;font-size:13px">从备份恢复</h3>
-                        <p class="hint" style="margin:0 0 10px;line-height:1.8">
-                            恢复会用备份内容<strong>覆盖现有全部内容表</strong>，执行前会自动再备份一次当前数据。
-                            输入 <code>RESTORE</code> 后才能执行。
-                        </p>
-                        <form method="post" action="<?php echo e(admin_url('setting')); ?>" class="form-row">
-                            <?php echo csrf_field(); ?>
-                            <input type="hidden" name="do" value="restore">
-                            <select class="input" name="file">
-                                <?php foreach (array_slice($backups, 0, 30) as $b): ?>
-                                    <option value="<?php echo e($b); ?>"><?php echo e($b); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <input class="input" name="confirm" placeholder="输入 RESTORE 确认" style="margin-top:8px">
-                            <button class="btn" type="submit" style="margin-top:10px">恢复这个备份</button>
-                        </form>
-                    </div>
-                <?php endif; ?>
-
-                <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px">
-                    <h3 style="margin:0 0 8px;font-size:13px">上传 SQL 恢复</h3>
-                    <form method="post" action="<?php echo e(admin_url('setting')); ?>" enctype="multipart/form-data" class="form-row">
-                        <?php echo csrf_field(); ?>
-                        <input type="hidden" name="do" value="restore_upload">
-                        <input class="input" type="file" name="sql" accept=".sql">
-                        <input class="input" name="confirm" placeholder="输入 RESTORE 确认" style="margin-top:8px">
-                        <div class="hint">只接受本程序生成的备份（文件头必须是 CiciCMS 数据备份），上限 64MB。</div>
-                        <button class="btn" type="submit" style="margin-top:10px">上传并恢复</button>
-                    </form>
-                </div>
+        <div class="card" id="perms">
+            <div class="card-head">
+                <h2>目录权限自检</h2>
+                <span class="hint">部署时看一眼，之后不必常查</span>
+            </div>
+            <div class="card-body tight">
+                <table class="table">
+                    <tr>
+                        <th style="width:120px">目录</th>
+                        <th>说明</th>
+                        <th style="width:80px;white-space:nowrap">期望</th>
+                        <th style="width:90px;text-align:right">实际</th>
+                    </tr>
+                    <?php foreach (cms_permission_audit() as $row): ?>
+                        <tr>
+                            <td><?php echo e($row['label']); ?></td>
+                            <td class="hint"><?php echo e($row['note']); ?></td>
+                            <td class="hint" style="white-space:nowrap"><?php echo e($row['want']); ?></td>
+                            <td style="white-space:nowrap;text-align:right">
+                                <?php if ($row['ok']): ?>
+                                    <span class="badge badge-green"><?php echo e($row['actual']); ?></span>
+                                <?php else: ?>
+                                    <span class="badge badge-amber"><?php echo e($row['actual']); ?></span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </table>
+            </div>
+            <div class="card-foot hint" style="line-height:1.9">
+                代码区只执行不写入，内容区只写入不执行，黄色项是部署建议。<br>
+                <code style="background:var(--card);border-radius:4px;padding:1px 5px">chmod -R a-w includes admin</code><br>
+                只去写位，目录要保留 <code style="background:var(--card);border-radius:4px;padding:1px 5px">r-x</code>，否则标签注册表扫不到文件，前台会白屏。
             </div>
         </div>
     </div>
@@ -291,11 +186,16 @@ $backups = db_backup_list();
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-head"><h2>数据库信息</h2></div>
+        <div class="card" id="sysinfo">
+            <div class="card-head"><h2>系统信息</h2></div>
             <div class="card-body">
-                <div class="kv"><span>主机</span><span><?php echo e(DB_HOST . ':' . DB_PORT); ?></span></div>
-                <div class="kv"><span>数据库</span><span><?php echo e(DB_NAME); ?></span></div>
+                <div class="kv"><span>程序版本</span><span>CiciCMS <?php echo e(CMS_VERSION); ?></span></div>
+                <div class="kv"><span>PHP</span><span><?php echo e(PHP_VERSION); ?></span></div>
+                <div class="kv"><span>MySQL</span><span><?php echo e((string) val('SELECT VERSION()')); ?></span></div>
+                <div class="kv"><span>当前模板</span><span><?php echo e(theme_name()); ?></span></div>
+                <div class="kv"><span>自动生成</span><span><?php echo setting('auto_build', '1') === '1' ? '开启' : '关闭'; ?></span></div>
+                <div class="kv"><span>数据库主机</span><span><?php echo e(DB_HOST . ':' . DB_PORT); ?></span></div>
+                <div class="kv"><span>数据库名</span><span><?php echo e(DB_NAME); ?></span></div>
                 <div class="kv"><span>表前缀</span><span><?php echo e(DB_PREFIX); ?></span></div>
                 <div class="kv"><span>字符集</span><span><?php echo e(DB_CHARSET); ?></span></div>
             </div>
@@ -307,7 +207,7 @@ $backups = db_backup_list();
                     安全建议：<br>
                     · 安装后删除 install 目录<br>
                     · config.php 权限设为 644<br>
-                    · 定期下载数据库备份
+                    · 定期到「数据系统」生成并下载备份
                 </div>
             </div>
         </div>

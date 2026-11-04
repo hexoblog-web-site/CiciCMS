@@ -17,7 +17,7 @@ if (is_post()) {
             flash($err, 'err');
             redirect(admin_url('media'));
         }
-        flash('上传成功：' . basename($r['path']));
+        flash('上传成功：' . $r['name']);
         redirect(admin_url('media'));
     }
 

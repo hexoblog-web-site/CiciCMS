@@ -119,9 +119,9 @@ $lastBuild = (int) setting('last_build', 0);
         <div class="card">
             <div class="card-head"><h2>部署提示</h2></div>
             <div class="card-body hint" style="line-height:1.9">
-                · Apache 默认即可直接访问生成的 .html，无需伪静态。<br>
+                · 生成的是真静态文件，Apache 默认即可直接访问，<b>本程序不做伪静态</b>，也不需要任何 rewrite 规则。<br>
                 · 建议根目录 .htaccess 保留 <code>DirectoryIndex index.html index.php</code>，让静态首页优先。<br>
-                · Nginx 环境可用 <code>index index.html index.php;</code>，无需 rewrite。<br>
+                · Nginx 环境只需 <code>index index.html index.php;</code>，同样不需要 rewrite。<br>
                 · 发布后可将生成的静态文件同步到 CDN。
             </div>
         </div>

@@ -1,12 +1,12 @@
 {
   "id": "hexo-import",
   "name": "Hexo 导入",
-  "version": "1.0.0",
-  "description": "把 Hexo 的 Markdown 文章批量导入为 CMS 文章：自动解析 front-matter 的标题、日期、标签、分类、封面，正文转成 HTML，代码块沿用站内的深色样式。",
+  "version": "1.1.0",
+  "description": "把 Hexo 的 Markdown 文章批量导入为 CMS 文章：解析 front-matter 的标题、日期、标签、分类、封面，正文转成 HTML，代码块沿用站内的深色样式；正文图片可按原站地址下载到本地并自动改名。",
   "author": "CiciCMS",
   "admin": {
     "file": "admin.php",
     "title": "Hexo 导入",
-    "sub": "把 Markdown 文章批量转成 CMS 内容"
+    "sub": "Markdown 与图片一起搬到本站"
   }
 }

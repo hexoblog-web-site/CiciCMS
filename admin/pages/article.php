@@ -239,6 +239,7 @@ if ($action === 'new' || $action === 'edit') {
                                 <button type="button" data-insert="img">图片</button>
                             </div>
                             <textarea class="input" id="content" name="content" style="min-height:430px" placeholder="<p>开始写点什么…</p>"><?php echo e(content_source($row)); ?></textarea>
+                            <div class="hint">图片：点工具栏的「图片」，可以上传本地文件（也能直接拖进去），或粘贴网址让程序抓回本站。</div>
                             <div class="hint">代码块写法：<code>```php</code> 开头，写好代码后另起一行 <code>```</code> 收尾。支持 php / sql / bash / js / html / css / json 等，保存后前台自动高亮并可一键复制。</div>
                             <div class="hint">出于安全考虑，保存时会移除 script / iframe 标签与 onclick 等事件属性。</div>
                         </div>
