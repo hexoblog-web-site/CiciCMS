@@ -501,5 +501,46 @@
     }, 0);
   });
 
+  /* 封面预览：<div data-cover-field> 里放地址输入框 + .cover-pick 缩略图 */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-cover-field]'), function (box) {
+    var input = box.querySelector('input[type="text"]');
+    var img = box.querySelector('.cover-pick img');
+    var empty = box.querySelector('.cover-empty');
+    var clear = box.querySelector('.cover-clear');
+    if (!input || !img) return;
+
+    function show(src) {
+      img.hidden = false;
+      if (img.getAttribute('src') !== src) { img.src = src; }
+      if (empty) { empty.hidden = true; empty.textContent = '暂无封面'; }
+      box.classList.add('has-img');
+    }
+    function hide() {
+      img.hidden = true;
+      img.removeAttribute('src');
+      if (empty) { empty.hidden = false; }
+      box.classList.remove('has-img');
+    }
+    function sync() {
+      var v = (input.value || '').trim();
+      if (v === '') { hide(); } else { show(v); }
+    }
+
+    input.addEventListener('input', sync);
+    input.addEventListener('change', sync);
+    img.addEventListener('error', function () {
+      hide();
+      if (empty) { empty.hidden = false; empty.textContent = '图片打不开'; }
+    });
+    if (clear) {
+      clear.addEventListener('click', function () {
+        input.value = '';
+        hide();
+        input.focus();
+      });
+    }
+    sync();
+  });
+
   /* 切换静态/动态预览等无需额外脚本 */
 })();

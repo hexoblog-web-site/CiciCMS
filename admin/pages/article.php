@@ -270,8 +270,15 @@ if ($action === 'new' || $action === 'edit') {
                         </div>
                         <div class="form-row" style="margin-bottom:0">
                             <label for="cover">封面图地址</label>
-                            <input class="input" type="text" id="cover" name="cover" value="<?php echo e($row['cover']); ?>" placeholder="https://... 或 /content/uploads/...">
-                            <div class="hint">可先在<a href="<?php echo e(admin_url('media')); ?>">媒体信息</a>上传后复制地址</div>
+                            <div class="cover-field<?php echo trim((string) $row['cover']) !== '' ? ' has-img' : ''; ?>" data-cover-field>
+                                <input class="input" type="text" id="cover" name="cover" value="<?php echo e($row['cover']); ?>" placeholder="https://... 或 /content/uploads/...">
+                                <div class="cover-pick">
+                                    <img id="cover-preview" alt="封面预览"<?php echo trim((string) $row['cover']) !== '' ? ' src="' . e($row['cover']) . '"' : ' hidden'; ?>>
+                                    <span class="cover-empty"<?php echo trim((string) $row['cover']) !== '' ? ' hidden' : ''; ?>>暂无封面</span>
+                                    <button type="button" class="cover-clear" title="移除封面" aria-label="移除封面">&times;</button>
+                                </div>
+                            </div>
+                            <div class="hint">填了地址右侧立即预览；可先在<a href="<?php echo e(admin_url('media')); ?>">媒体信息</a>上传后复制地址</div>
                         </div>
                     </div>
                 </div>
