@@ -5,7 +5,7 @@ if (!defined('CMS_ADMIN')) {
     exit;
 }
 
-/** 媒体库：图片上传与管理 */
+/** 媒体信息：图片上传与管理 */
 
 if (is_post()) {
     csrf_verify();

@@ -3,7 +3,7 @@
  * 图片上传（系统能力的薄封装）
  *
  * 真正的校验、命名、落盘、登记都在 includes/uploader.php 的 Cms_Image_Uploader 里。
- * 这里保留函数式接口，是为了让媒体库、栏目横幅这些老调用点不必改；新代码可以直接用类。
+ * 这里保留函数式接口，是为了让媒体信息、栏目横幅这些老调用点不必改；新代码可以直接用类。
  *
  * 不做界面，也不做权限判断，调用方必须先确认是管理员。
  */
@@ -25,7 +25,7 @@ function cms_upload_max_bytes()
  *
  * @param array  $file     $_FILES 里的单个元素
  * @param string $err      失败原因（出参）
- * @param bool   $register 是否登记到 attachment 表（媒体库里能看见）
+ * @param bool   $register 是否登记到 attachment 表（媒体信息里能看见）
  * @return array|false     成功返回 path/rel/url/name/mime/size/width/height
  */
 function cms_upload_image($file, &$err = '', $register = true)
@@ -57,7 +57,7 @@ function cms_upload_remote($url, &$err = '', $register = true)
  *
  * 这样换域名、换协议时站内图片不会失效；同时挡住 javascript: 之类的值。
  *
- * @param string $v 用户输入：上传返回的路径 / 媒体库复制的完整地址 / 外链
+ * @param string $v 用户输入：上传返回的路径 / 媒体信息复制的完整地址 / 外链
  * @return string
  */
 function cms_banner_clean($v)
@@ -67,7 +67,7 @@ function cms_banner_clean($v)
         return '';
     }
 
-    // 媒体库里复制出来的完整地址 → 反查成相对路径
+    // 媒体信息里复制出来的完整地址 → 反查成相对路径
     $pos = strpos($v, '/' . CMS_CONTENT_REL . '/uploads/');
     if ($pos !== false) {
         $rel = upload_rel(substr($v, $pos + 1));

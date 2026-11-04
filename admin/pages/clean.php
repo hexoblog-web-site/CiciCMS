@@ -46,7 +46,7 @@ $shown = array_slice($unused, 0, $limit);
     <div class="stat">
         <div class="label">附件总数</div>
         <div class="num"><?php echo (int) $scan['total']; ?></div>
-        <div class="sub">含媒体库记录与磁盘文件</div>
+        <div class="sub">含媒体信息记录与磁盘文件</div>
     </div>
     <div class="stat">
         <div class="label">正在使用</div>
@@ -61,7 +61,7 @@ $shown = array_slice($unused, 0, $limit);
     <div class="stat">
         <div class="label">失效记录</div>
         <div class="num"><?php echo (int) $scan['missing']; ?></div>
-        <div class="sub">媒体库有记录但文件已不在</div>
+        <div class="sub">媒体信息有记录但文件已不在</div>
     </div>
 </div>
 

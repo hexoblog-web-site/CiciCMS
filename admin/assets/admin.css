@@ -285,7 +285,7 @@ input[type="file"].input { padding: 7px 9px; font-size: 12.5px; background: var(
 }
 .editor-tools button:hover { background: var(--brand-soft); color: var(--brand-strong); }
 
-/* ---------- 媒体库 ---------- */
+/* ---------- 媒体信息 ---------- */
 .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: var(--gap); }
 .media-item { border: 0; border-radius: var(--r-md); overflow: hidden; background: var(--card-soft); }
 .media-item .thumb { height: 108px; background: var(--card-soft); display: flex; align-items: center; justify-content: center; overflow: hidden; }

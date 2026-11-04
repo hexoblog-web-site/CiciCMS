@@ -263,7 +263,7 @@ $siteBase  = rtrim(site_url(), '/');
                 <?php endif; ?>
                 <input class="input" type="file" name="banner_file" accept="image/jpeg,image/png,image/gif,image/webp">
                 <div class="hint">上传新的会替换旧图；也可以在下面直接填图片地址</div>
-                <input class="input" type="text" name="banner_url" value="<?php echo e($bannerUrl); ?>" placeholder="https://… 或从媒体库复制地址" style="margin-top:8px">
+                <input class="input" type="text" name="banner_url" value="<?php echo e($bannerUrl); ?>" placeholder="https://… 或从媒体信息复制地址" style="margin-top:8px">
                 <div class="hint">作为栏目页页头背景，建议 1200×300 左右；jpg / png / webp，单张 ≤ 5MB</div>
             </div>
 

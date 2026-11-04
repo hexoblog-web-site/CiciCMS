@@ -31,7 +31,7 @@ $QUICK = array(
     array('写文章', admin_url('article', array('action' => 'new')), '<path d="M4 20h4L18 10a2.5 2.5 0 0 0-3.5-3.5L4.5 16.5z"/><path d="M13.5 6.5l4 4"/>'),
     array('栏目管理', admin_url('category'), '<path d="M3.5 7.5a2 2 0 0 1 2-2h3.6l2 2h7.4a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2z"/>'),
     array('单页管理', admin_url('page'), '<rect x="8.5" y="3.5" width="11" height="13" rx="2"/><path d="M16 20.5H6.5a2 2 0 0 1-2-2V7.5"/>'),
-    array('媒体库', admin_url('media'), '<rect x="3" y="4.5" width="18" height="15" rx="3"/><circle cx="8.5" cy="10" r="1.5"/><path d="M4 16.5l4.5-3.6 3.4 2.6 2.6-2 4.5 3.4"/>'),
+    array('媒体信息', admin_url('media'), '<rect x="3" y="4.5" width="18" height="15" rx="3"/><circle cx="8.5" cy="10" r="1.5"/><path d="M4 16.5l4.5-3.6 3.4 2.6 2.6-2 4.5 3.4"/>'),
     array('生成静态', admin_url('build'), '<path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4v4.8h-4.8"/>'),
     array('数据系统', admin_url('data'), '<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/>'),
     array('系统清理', admin_url('clean'), '<path d="M4.5 7h15"/><path d="M9.5 7V5.5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.5 7l.8 11.4a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9L17.5 7"/>'),

@@ -150,7 +150,7 @@
           '</div>' +
           '<div class="cms-pane" data-pane="url" hidden>' +
             '<input class="input" type="url" placeholder="https://example.com/a.jpg" autocomplete="off">' +
-            '<label class="cms-check"><input type="checkbox" checked> 下载到本站媒体库（原站删图也不会失效）</label>' +
+            '<label class="cms-check"><input type="checkbox" checked> 下载到本站（原站删图也不会失效）</label>' +
           '</div>' +
           '<div class="cms-preview" hidden>' +
             '<img alt="">' +

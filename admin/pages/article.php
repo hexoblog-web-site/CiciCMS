@@ -315,7 +315,7 @@ if ($action === 'new' || $action === 'edit') {
                                 <div class="form-row">
                                     <label for="cover">封面图地址</label>
                                     <input class="input" type="text" id="cover" name="cover" value="<?php echo e($row['cover']); ?>" placeholder="https://... 或 /content/uploads/...">
-                                    <div class="hint">可先在<a href="<?php echo e(admin_url('media')); ?>">媒体库</a>上传后复制地址</div>
+                                    <div class="hint">可先在<a href="<?php echo e(admin_url('media')); ?>">媒体信息</a>上传后复制地址</div>
                                 </div>
                             </div>
                         </div>
