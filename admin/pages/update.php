@@ -263,18 +263,20 @@ $hasPass  = (string) setting('mail_pass', '') !== '';
         <?php endif; ?>
         <div class="kv"><span>上次更新</span><span><?php echo !empty($state['last_update_at']) ? e(date('Y-m-d H:i', (int) $state['last_update_at'])) : '从未'; ?></span></div>
 
-        <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
-            <div style="font-weight:600;margin-bottom:2px">系统回滚</div>
-            <div class="hint" style="margin-bottom:10px">一键恢复到最近一次更新前的备份（最新一份）。</div>
-            <?php if (empty($backups)): ?>
-                <div class="hint">还没有可用的备份。</div>
-            <?php else: ?>
-                <form method="post" action="<?php echo e(admin_url('update')); ?>" data-busy="回滚中…">
-                    <?php echo csrf_field(); ?>
-                    <input type="hidden" name="do" value="rollback_last">
-                    <button class="btn btn-danger" type="submit" data-confirm="确定回滚到最近一次备份（<?php echo e($backups[0]['name']); ?>）？当前程序文件会被覆盖，刷新后生效。">回滚到最近版本</button>
-                </form>
-            <?php endif; ?>
+        <div class="kv" style="align-items:center;margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+            <span>系统回滚</span>
+            <span style="display:flex;align-items:center;gap:10px">
+                <?php if (empty($backups)): ?>
+                    <span class="hint">暂无可用备份</span>
+                <?php else: ?>
+                    <b><?php echo e(preg_replace('/^\d{8}-\d{6}-/', '', $backups[0]['name'])); ?></b>
+                    <form method="post" action="<?php echo e(admin_url('update')); ?>" data-busy="回滚中…" style="margin:0">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="do" value="rollback_last">
+                        <button class="btn btn-sm btn-danger" type="submit" data-confirm="确定回滚到最近一次备份（<?php echo e($backups[0]['name']); ?>）？当前程序文件会被覆盖，刷新后生效。">开始回滚</button>
+                    </form>
+                <?php endif; ?>
+            </span>
         </div>
 
         <?php if ($hasNew): ?>
@@ -319,7 +321,6 @@ $hasPass  = (string) setting('mail_pass', '') !== '';
             <div class="form-row">
                 <label for="update_notify_email">通知邮箱</label>
                 <input class="input" type="email" id="update_notify_email" name="update_notify_email" value="<?php echo e((string) setting('update_notify_email', '')); ?>" placeholder="you@example.com">
-                <div class="hint">发现新版本时发一封邮件，同一版本只发一次。留空就只在后台提示。</div>
             </div>
             </div>
 
