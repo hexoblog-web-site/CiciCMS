@@ -28,6 +28,16 @@ function cms_flag_map()
     );
 }
 
+/** 面向访客展示的推荐位。幻灯/滚动/加粗/图片/图文属于排版用途，不对读者显示 */
+function cms_flag_public_map()
+{
+    return array(
+        'c' => '推荐',
+        'h' => '头条',
+        'a' => '特荐',
+    );
+}
+
 /** 这些字段按 HTML 原样输出，不做转义 */
 function cms_tag_raw_fields()
 {

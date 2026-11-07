@@ -7,8 +7,8 @@
  *
  * 请求：POST admin/upload.php
  *   _token  会话令牌（页面上的 csrf_field）
- *   mode    file（默认）| url
- *   file    mode=file 时的文件字段
+ *   mode    file（默认）| url | attach
+ *   file    mode=file / attach 时的文件字段
  *   url     mode=url 时要抓取的图片地址
  *
  * 返回：{"ok":true,"url":"...","path":"content/uploads/...","name":"...","width":0,"height":0,"size":"123 KB"}
@@ -60,6 +60,23 @@ if ($token === '' || empty($_SESSION['_csrf']) || !hash_equals((string) $_SESSIO
 }
 
 $mode = isset($_POST['mode']) ? (string) $_POST['mode'] : 'file';
+
+if ($mode === 'attach') {
+    /* 文章附件：文档 / 压缩包 / 小软件，规则见 includes/fileupload.php */
+    $r = cms_file_upload(isset($_FILES['file']) ? $_FILES['file'] : null, $err);
+    if (!$r) {
+        cms_upload_json(false, array('msg' => $err !== '' ? $err : '上传失败'));
+    }
+    log_msg('attach upload ok: ' . $r['path']);
+    cms_upload_json(true, array(
+        'url'   => $r['url'],
+        'path'  => $r['path'],
+        'name'  => $r['name'],
+        'ext'   => $r['ext'],
+        'bytes' => (int) $r['size'],
+        'size'  => format_bytes($r['size']),
+    ));
+}
 
 if ($mode === 'url') {
     $url = isset($_POST['url']) ? trim((string) $_POST['url']) : '';

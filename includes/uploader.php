@@ -93,90 +93,44 @@ class Cms_Image_Uploader
         $this->error = '';
 
         $url = trim((string) $url);
-        $bad = $this->urlCheck($url);
-        if ($bad !== '') {
-            return $this->fail($bad);
+        if ($url === '') {
+            return $this->fail('请填写图片地址');
         }
 
-        $body = '';
-        $tooBig = false;
-        $max = self::maxBytes();
+        $body  = '';
+        $code  = 0;
+        $final = $url;
 
-        if (function_exists('curl_init')) {
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; CiciCMS)');
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Accept: image/*'));
-            if (defined('CURLOPT_PROTOCOLS')) {
-                curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        // 手动跟随重定向：每一跳都重新做一次「公网地址」校验。
+        // 若交给 curl 自动跟随，「公网地址 302 到 127.0.0.1」就绕过了 urlCheck。
+        for ($hop = 0; $hop <= 3; $hop++) {
+            $r = $this->fetchOnce($url);
+            if ($r === false) {
+                return false; // fetchOnce 已经写好 error
             }
-            if (defined('CURLOPT_REDIR_PROTOCOLS')) {
-                curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
-            }
-            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $chunk) use (&$body, $max, &$tooBig) {
-                if (strlen($body) + strlen($chunk) > $max) {
-                    $tooBig = true;
-                    return 0; // 中断传输，不把大文件读进内存
-                }
-                $body .= $chunk;
-                return strlen($chunk);
-            });
+            $final = $url;
+            $code  = (int) $r['code'];
+            $body  = (string) $r['body'];
 
-            $ok    = curl_exec($ch);
-            $code  = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $cerr  = (string) curl_error($ch);
-            $mimeH = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-            if (PHP_VERSION_ID < 80000) {
-                curl_close($ch);
-            }
-
-            if ($tooBig) {
-                return $this->fail('图片超过 ' . format_bytes($max));
-            }
-            if ($ok === false) {
-                return $this->fail($cerr !== '' ? '下载失败：' . $cerr : '下载失败');
-            }
-            if ($code < 200 || $code >= 300) {
-                return $this->fail('原地址返回 HTTP ' . $code);
-            }
-        } else {
-            $ctx = stream_context_create(array(
-                'http' => array(
-                    'timeout'         => 20,
-                    'user_agent'      => 'Mozilla/5.0 (compatible; CiciCMS)',
-                    'follow_location' => 1,
-                    'max_redirects'   => 3,
-                ),
-            ));
-            $fp = @fopen($url, 'rb', false, $ctx);
-            if (!$fp) {
-                return $this->fail('无法打开地址，可能是证书或网络问题');
-            }
-            while (!feof($fp)) {
-                $chunk = fread($fp, 8192);
-                if ($chunk === false) {
-                    break;
+            if ($code >= 300 && $code < 400 && $r['location'] !== '') {
+                $next = $this->absoluteUrl($url, (string) $r['location']);
+                if ($next === '') {
+                    return $this->fail('重定向地址无法解析');
                 }
-                if (strlen($body) + strlen($chunk) > $max) {
-                    $tooBig = true;
-                    break;
-                }
-                $body .= $chunk;
+                $url = $next;
+                continue;
             }
-            fclose($fp);
-            if ($tooBig) {
-                return $this->fail('图片超过 ' . format_bytes($max));
-            }
+            break;
         }
 
+        if ($code < 200 || $code >= 300) {
+            return $this->fail('原地址返回 HTTP ' . $code);
+        }
         if ($body === '') {
             return $this->fail('原地址返回了空内容');
         }
 
-        $path = (string) parse_url($url, PHP_URL_PATH);
+        $path = (string) parse_url($final, PHP_URL_PATH);
         $orig = urldecode(basename($path));
         if ($orig === '' || strpos($orig, '.') === false) {
             $orig = 'remote';
@@ -195,6 +149,135 @@ class Cms_Image_Uploader
         $r = $this->store($tmp, $orig, $ext, false, strlen($body));
         @unlink($tmp);
         return $r;
+    }
+
+    /**
+     * 取一次地址，不跟随重定向
+     *
+     * @return array|false array('code','body','mime','location')
+     */
+    protected function fetchOnce($url)
+    {
+        $bad = $this->urlCheck($url);
+        if ($bad !== '') {
+            $this->fail($bad);
+            return false;
+        }
+
+        $max      = self::maxBytes();
+        $body     = '';
+        $tooBig   = false;
+        $location = '';
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; CiciCMS)');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Accept: image/*'));
+            if (defined('CURLOPT_PROTOCOLS')) {
+                curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+            }
+            curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $line) use (&$location) {
+                if (stripos($line, 'location:') === 0) {
+                    $location = trim(substr($line, 9));
+                }
+                return strlen($line);
+            });
+            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $chunk) use (&$body, $max, &$tooBig) {
+                if (strlen($body) + strlen($chunk) > $max) {
+                    $tooBig = true;
+                    return 0; // 中断传输，不把大文件读进内存
+                }
+                $body .= $chunk;
+                return strlen($chunk);
+            });
+
+            $ok   = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $cerr = (string) curl_error($ch);
+            if (PHP_VERSION_ID < 80000) {
+                curl_close($ch);
+            }
+
+            if ($tooBig) {
+                $this->fail('图片超过 ' . format_bytes($max));
+                return false;
+            }
+            if ($ok === false) {
+                $this->fail($cerr !== '' ? '下载失败：' . $cerr : '下载失败');
+                return false;
+            }
+            return array('code' => $code, 'body' => $body, 'mime' => '', 'location' => $location);
+        }
+
+        $ctx = stream_context_create(array(
+            'http' => array(
+                'timeout'         => 20,
+                'user_agent'      => 'Mozilla/5.0 (compatible; CiciCMS)',
+                'follow_location' => 0,
+                'ignore_errors'   => true,
+            ),
+        ));
+        $fp = @fopen($url, 'rb', false, $ctx);
+        if (!$fp) {
+            $this->fail('无法打开地址，可能是证书或网络问题');
+            return false;
+        }
+        $code = 0;
+        if (isset($http_response_header) && is_array($http_response_header)) {
+            foreach ($http_response_header as $line) {
+                if (preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m)) {
+                    $code = (int) $m[1];
+                } elseif (stripos($line, 'location:') === 0) {
+                    $location = trim(substr($line, 9));
+                }
+            }
+        }
+        while (!feof($fp)) {
+            $chunk = fread($fp, 8192);
+            if ($chunk === false) {
+                break;
+            }
+            if (strlen($body) + strlen($chunk) > $max) {
+                $tooBig = true;
+                break;
+            }
+            $body .= $chunk;
+        }
+        fclose($fp);
+        if ($tooBig) {
+            $this->fail('图片超过 ' . format_bytes($max));
+            return false;
+        }
+        return array('code' => $code, 'body' => $body, 'mime' => '', 'location' => $location);
+    }
+
+    /** 把 Location 里的相对地址补成绝对地址 */
+    protected function absoluteUrl($base, $loc)
+    {
+        $loc = trim((string) $loc);
+        if ($loc === '') {
+            return '';
+        }
+        if (preg_match('#^https?://#i', $loc)) {
+            return $loc;
+        }
+        $p = parse_url($base);
+        if (!$p || empty($p['host'])) {
+            return '';
+        }
+        $scheme = isset($p['scheme']) ? $p['scheme'] : 'http';
+        if (strpos($loc, '//') === 0) {
+            return $scheme . ':' . $loc;
+        }
+        $root = $scheme . '://' . $p['host'] . (isset($p['port']) ? ':' . $p['port'] : '');
+        if (strpos($loc, '/') === 0) {
+            return $root . $loc;
+        }
+        $dir = isset($p['path']) ? preg_replace('#/[^/]*$#', '/', (string) $p['path']) : '/';
+        return $root . $dir . $loc;
     }
 
     /* ---------------- 内部实现 ---------------- */
@@ -318,28 +401,7 @@ class Cms_Image_Uploader
      */
     protected function urlCheck($url)
     {
-        if ($url === '') {
-            return '请填写图片地址';
-        }
-        if (!preg_match('#^https?://#i', $url)) {
-            return '只支持 http / https 地址';
-        }
-        $host = (string) parse_url($url, PHP_URL_HOST);
-        if ($host === '') {
-            return '地址格式不正确';
-        }
-
-        $ip = filter_var($host, FILTER_VALIDATE_IP)
-            ? $host
-            : (string) gethostbyname($host);
-
-        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-            return '无法解析该域名';
-        }
-        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-            return '不允许抓取内网或保留地址';
-        }
-        return '';
+        return cms_url_public_check($url);
     }
 
     protected function uploadErrorMessage($code)

@@ -131,19 +131,95 @@ function hexo_img_download($url, &$err)
         return false;
     }
 
-    $max     = 5 * 1024 * 1024;
-    $body    = '';
-    $tooBig  = false;
+    $max    = 5 * 1024 * 1024;
+    $body   = '';
+    $code   = 0;
+    $final  = $url;
+
+    /*
+     * 逐跳校验再抓：导入包里的图片地址来自别人的文章，不能无条件相信。
+     * 「公网地址 302 到 127.0.0.1」是最常见的绕法，所以自动跟随必须关掉，
+     * 每一跳都重新过一次公网判定。
+     */
+    for ($hop = 0; $hop <= 3; $hop++) {
+        $bad = cms_url_public_check($url);
+        if ($bad !== '') {
+            $err = $bad;
+            return false;
+        }
+        $r = hexo_img_fetch($url, $max, $err);
+        if ($r === false) {
+            return false;
+        }
+        $final = $url;
+        $code  = (int) $r['code'];
+        $body  = (string) $r['body'];
+
+        if ($code >= 300 && $code < 400 && $r['location'] !== '') {
+            $next = hexo_img_absolute($url, (string) $r['location']);
+            if ($next === '') {
+                $err = '重定向地址无法解析';
+                return false;
+            }
+            $url = $next;
+            continue;
+        }
+        break;
+    }
+
+    if ($code < 200 || $code >= 300) {
+        $err = 'HTTP ' . $code;
+        return false;
+    }
+    if ($body === '') {
+        $err = '下载内容为空';
+        return false;
+    }
+
+    $info = @getimagesizefromstring($body);
+    if (!$info || empty($info['mime']) || strpos((string) $info['mime'], 'image/') !== 0) {
+        $err = '返回的不是有效图片';
+        return false;
+    }
+
+    $ext = hexo_img_ext($final, (string) $info['mime']);
+    if ($ext === '') {
+        $err = '不支持的格式（只收 jpg / png / gif / webp）';
+        return false;
+    }
+
+    return array('body' => $body, 'mime' => (string) $info['mime'], 'ext' => $ext);
+}
+
+/**
+ * 取一次地址，不跟随重定向
+ *
+ * @return array|false array('code','body','location')
+ */
+function hexo_img_fetch($url, $max, &$err)
+{
+    $err      = '';
+    $body     = '';
+    $tooBig   = false;
+    $location = '';
 
     if (function_exists('curl_init')) {
-        $ch  = curl_init($url);
+        $ch = curl_init($url);
         $hdr = array('Accept: image/*');
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
         curl_setopt($ch, CURLOPT_TIMEOUT, 20);
         curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; CiciCMS-HexoImport/1.0)');
         curl_setopt($ch, CURLOPT_HTTPHEADER, $hdr);
+        if (defined('CURLOPT_PROTOCOLS')) {
+            curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        }
+        curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $line) use (&$location) {
+            if (stripos($line, 'location:') === 0) {
+                $location = trim(substr($line, 9));
+            }
+            return strlen($line);
+        });
         curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $chunk) use (&$body, $max, &$tooBig) {
             if (strlen($body) + strlen($chunk) > $max) {
                 $tooBig = true;
@@ -168,67 +244,78 @@ function hexo_img_download($url, &$err)
             $err = $cerr !== '' ? $cerr : '下载失败';
             return false;
         }
-        if ($code < 200 || $code >= 300) {
-            $err = 'HTTP ' . $code;
-            return false;
-        }
-    } else {
-        // 没有 curl 的主机：用流读取，同样按 5MB 截断
-        $ctx = stream_context_create(array(
-            'http' => array(
-                'timeout'         => 20,
-                'user_agent'      => 'Mozilla/5.0 (compatible; CiciCMS-HexoImport/1.0)',
-                'follow_location' => 1,
-                'max_redirects'   => 3,
-            ),
-        ));
-        $fp = @fopen($url, 'rb', false, $ctx);
-        if (!$fp) {
-            $err = '无法打开地址（可能是证书或网络问题）';
-            return false;
-        }
-        while (!feof($fp)) {
-            $chunk = fread($fp, 8192);
-            if ($chunk === false) {
-                break;
-            }
-            if (strlen($body) + strlen($chunk) > $max) {
-                $tooBig = true;
-                break;
-            }
-            $body .= $chunk;
-        }
-        fclose($fp);
-        if ($tooBig) {
-            $err = '文件超过 5MB';
-            return false;
-        }
-        if ($body === '') {
-            $err = '下载内容为空';
-            return false;
-        }
+        return array('code' => $code, 'body' => $body, 'location' => $location);
     }
 
-    $info = @getimagesizefromstring($body);
-    if (!$info || empty($info['mime']) || strpos((string) $info['mime'], 'image/') !== 0) {
-        $err = '返回的不是有效图片';
+    // 没有 curl 的主机：用流读取，同样按 5MB 截断
+    $ctx = stream_context_create(array(
+        'http' => array(
+            'timeout'         => 20,
+            'user_agent'      => 'Mozilla/5.0 (compatible; CiciCMS-HexoImport/1.0)',
+            'follow_location' => 0,
+            'ignore_errors'   => true,
+        ),
+    ));
+    $fp = @fopen($url, 'rb', false, $ctx);
+    if (!$fp) {
+        $err = '无法打开地址（可能是证书或网络问题）';
         return false;
     }
-
-    $ext = hexo_img_ext($url, (string) $info['mime']);
-    if ($ext === '') {
-        $err = '不支持的格式（只收 jpg / png / gif / webp）';
+    $code = 0;
+    if (isset($http_response_header) && is_array($http_response_header)) {
+        foreach ($http_response_header as $line) {
+            if (preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m)) {
+                $code = (int) $m[1];
+            } elseif (stripos($line, 'location:') === 0) {
+                $location = trim(substr($line, 9));
+            }
+        }
+    }
+    while (!feof($fp)) {
+        $chunk = fread($fp, 8192);
+        if ($chunk === false) {
+            break;
+        }
+        if (strlen($body) + strlen($chunk) > $max) {
+            $tooBig = true;
+            break;
+        }
+        $body .= $chunk;
+    }
+    fclose($fp);
+    if ($tooBig) {
+        $err = '文件超过 5MB';
         return false;
     }
-
-    return array('body' => $body, 'mime' => (string) $info['mime'], 'ext' => $ext);
+    return array('code' => $code, 'body' => $body, 'location' => $location);
 }
 
-/**
- * 保存到 content/uploads/images/年/月日/，命名规则：日期(8) + 微秒时间戳(16)
- *
- * @return array|false array('rel','url','size','mime')
- */
+/** 把 Location 里的相对地址补成绝对地址 */
+function hexo_img_absolute($base, $loc)
+{
+    $loc = trim((string) $loc);
+    if ($loc === '') {
+        return '';
+    }
+    if (preg_match('#^https?://#i', $loc)) {
+        return $loc;
+    }
+    $p = parse_url($base);
+    if (!$p || empty($p['host'])) {
+        return '';
+    }
+    $scheme = isset($p['scheme']) ? $p['scheme'] : 'http';
+    if (strpos($loc, '//') === 0) {
+        return $scheme . ':' . $loc;
+    }
+    $root = $scheme . '://' . $p['host'] . (isset($p['port']) ? ':' . $p['port'] : '');
+    if (strpos($loc, '/') === 0) {
+        return $root . $loc;
+    }
+    $dir = isset($p['path']) ? preg_replace('#/[^/]*$#', '/', (string) $p['path']) : '/';
+    return $root . $dir . $loc;
+}
+
 function hexo_img_store($body, $ext, $mime, $origName)
 {
     $dirRel = CMS_CONTENT_REL . '/uploads/images/' . date('Y') . '/' . date('md');

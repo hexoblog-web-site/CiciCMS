@@ -37,3 +37,7 @@ node_modules/
 Thumbs.db
 *.log
 *.tmp
+
+# ---- 设计预览稿（本地看样式用，不进发布包）----
+/_preview_*.html
+/docs/_preview/

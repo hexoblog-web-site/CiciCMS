@@ -389,6 +389,7 @@
 
   function openDialog(ta) {
     buildDialog();
+    state.lastFocus = document.activeElement;
     state.ta = ta;
     state.url = '';
     state.busy = false;
@@ -419,6 +420,8 @@
     state.busy = false;
     el.ok.disabled = true;
     el.ok.textContent = '插入';
+    if (state.lastFocus && state.lastFocus.focus) { state.lastFocus.focus(); }
+    state.lastFocus = null;
   }
 
   document.addEventListener('click', function (ev) {
@@ -456,6 +459,9 @@
     opts = opts || {};
     var box = document.createElement('div');
     box.className = 'cms-toast';
+    box.setAttribute('role', 'status');
+    box.setAttribute('aria-live', 'polite');
+    box.setAttribute('aria-atomic', 'true');
 
     if (opts.href) {
       var a = document.createElement('a');
@@ -542,5 +548,246 @@
     sync();
   });
 
-  /* 切换静态/动态预览等无需额外脚本 */
+  /* 附件：上传到 admin/upload.php（mode=attach），返回的站内地址写回输入框 */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-attach-field]'), function (box) {
+    var input = box.querySelector('input[type="text"]');
+    var files = box.querySelectorAll('input[type="file"]');
+    var file = files.length ? files[0] : null;
+    var pick = box.querySelector('[data-attach-pick]');
+    var clear = box.querySelector('.attach-clear');
+    if (!input || !file || !pick) return;
+
+    var formEl = box.closest('form');
+    var tokenEl = formEl ? formEl.querySelector('input[name="_token"]') : null;
+    var nameEl = document.getElementById('attach_name');
+    var sizeEl = document.getElementById('attach_size');
+    var showEl = formEl ? formEl.querySelector('input[name="attach_show"]') : null;
+    var info = document.querySelector('[data-attach-info]');
+    var pickLabel = pick.textContent;
+
+    function sync() {
+      box.classList.toggle('has-file', input.value.trim() !== '');
+    }
+    function setInfo(text) {
+      if (info) { info.textContent = text; }
+    }
+
+    input.addEventListener('input', sync);
+    pick.addEventListener('click', function () { file.click(); });
+
+    file.addEventListener('change', function () {
+      if (!file.files || !file.files.length) return;
+      var fd = new FormData();
+      if (tokenEl) { fd.append('_token', tokenEl.value); }
+      fd.append('mode', 'attach');
+      fd.append('file', file.files[0]);
+
+      pick.disabled = true;
+      pick.textContent = '上传中…';
+
+      fetch('upload.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d || !d.ok) { throw new Error((d && d.msg) || '上传失败'); }
+          input.value = d.path;
+          if (nameEl && nameEl.value.trim() === '') { nameEl.value = d.name; }
+          if (sizeEl) { sizeEl.value = d.bytes; }
+          setInfo('已上传：' + d.name + '（' + d.size + '）。勾上「显示下载按钮」才会出现在文章页。');
+          sync();
+        })
+        .catch(function (e) {
+          setInfo('上传失败：' + (e && e.message ? e.message : '请重试'));
+        })
+        .then(function () {
+          pick.disabled = false;
+          pick.textContent = pickLabel;
+          file.value = '';
+        });
+    });
+
+    if (clear) {
+      clear.addEventListener('click', function () {
+        input.value = '';
+        if (sizeEl) { sizeEl.value = '0'; }
+        if (showEl) { showEl.checked = false; }
+        setInfo('附件已移除，点「保存并生成」后生效。');
+        sync();
+        input.focus();
+      });
+    }
+
+    sync();
+  });
+
+  /* ================= 显示设置：主题与密度 ================= */
+
+  var THEME_KEY = 'cici-theme', DENSITY_KEY = 'cici-density';
+
+  function store(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
+  function read(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+
+  function syncDisplayButtons() {
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var compact = document.documentElement.getAttribute('data-density') === 'compact';
+    Array.prototype.forEach.call(document.querySelectorAll('[data-theme-toggle]'), function (b) {
+      b.setAttribute('aria-label', dark ? '切换到浅色主题' : '切换到深色主题');
+      b.setAttribute('title', dark ? '切换到浅色主题' : '切换到深色主题');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-density-toggle]'), function (b) {
+      b.setAttribute('aria-pressed', compact ? 'true' : 'false');
+      b.setAttribute('title', compact ? '切回舒适密度' : '切换到紧凑密度');
+    });
+  }
+
+  document.addEventListener('click', function (ev) {
+    var t = ev.target.closest('[data-theme-toggle]');
+    if (t) {
+      var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      store(THEME_KEY, next);
+      syncDisplayButtons();
+      return;
+    }
+    var d = ev.target.closest('[data-density-toggle]');
+    if (d) {
+      var nextD = document.documentElement.getAttribute('data-density') === 'compact' ? 'comfortable' : 'compact';
+      document.documentElement.setAttribute('data-density', nextD);
+      store(DENSITY_KEY, nextD);
+      syncDisplayButtons();
+    }
+  });
+
+  /* 用户没手动选过主题时，跟随系统切换 */
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    var onSys = function (e) {
+      if (read(THEME_KEY)) { return; }
+      document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      syncDisplayButtons();
+    };
+    if (mq.addEventListener) { mq.addEventListener('change', onSys); }
+    else if (mq.addListener) { mq.addListener(onSys); }
+  }
+  syncDisplayButtons();
+
+  /* ================= 弹窗焦点陷阱（所有 .cms-modal 通用） ================= */
+
+  var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]),' +
+                  'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]),' +
+                  'iframe, [contenteditable="true"]';
+
+  function visibleModals() {
+    return Array.prototype.filter.call(document.querySelectorAll('.cms-modal'), function (m) {
+      return !m.hidden && getComputedStyle(m).display !== 'none';
+    });
+  }
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Tab') { return; }
+    var list = visibleModals();
+    if (!list.length) { return; }
+    var modal = list[list.length - 1];
+    var panel = modal.querySelector('.cms-modal-panel') || modal;
+    var nodes = Array.prototype.filter.call(panel.querySelectorAll(FOCUSABLE), function (n) {
+      return n.offsetParent !== null || n === panel;
+    });
+    if (!nodes.length) { ev.preventDefault(); panel.focus(); return; }
+    var first = nodes[0], last = nodes[nodes.length - 1];
+    var active = document.activeElement;
+    if (ev.shiftKey && (active === first || active === panel)) {
+      ev.preventDefault(); last.focus();
+    } else if (!ev.shiftKey && active === last) {
+      ev.preventDefault(); first.focus();
+    }
+  });
+
+  /* ================= 内容预览弹窗（后台窗口内） ================= */
+
+  var pvModal = null, pvLastFocus = null;
+
+  function closePreview() {
+    if (!pvModal) { return; }
+    if (pvModal.parentNode) { pvModal.parentNode.removeChild(pvModal); }
+    pvModal = null;
+    if (!visibleModals().length) { document.body.classList.remove('cms-modal-open'); }
+    if (pvLastFocus && pvLastFocus.focus) { pvLastFocus.focus(); }
+    pvLastFocus = null;
+  }
+
+  function hiddenField(name, value) {
+    var i = document.createElement('input');
+    i.type = 'hidden'; i.name = name; i.value = value;
+    return i;
+  }
+
+  function openPreview(btn) {
+    var form = btn.closest('form');
+    if (!form) { return; }
+    if (pvModal) { closePreview(); }
+
+    var type = btn.getAttribute('data-preview') === 'page' ? 'page' : 'article';
+    var staticUrl = btn.getAttribute('data-static-url') || '';
+    pvLastFocus = btn;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'cms-modal preview-modal';
+    wrap.innerHTML =
+      '<div class="cms-modal-mask" data-pv-close></div>' +
+      '<div class="cms-modal-panel" role="dialog" aria-modal="true" aria-labelledby="cms-pv-title" tabindex="-1">' +
+        '<div class="cms-modal-head">' +
+          '<h3 id="cms-pv-title">内容预览' +
+            '<span class="preview-head-note">按编辑器里的当前内容渲染，未保存也能看</span></h3>' +
+          '<div class="preview-tools">' +
+            (staticUrl ? '<a class="btn btn-sm" target="_blank" rel="noopener" href="' + escAttr(staticUrl) + '">打开静态页 ↗</a>' : '') +
+            '<button type="button" class="cms-modal-x" data-pv-close aria-label="关闭预览">&times;</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="cms-modal-body">' +
+          '<iframe class="preview-frame" name="cms-preview-frame" title="内容预览"></iframe>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    document.body.classList.add('cms-modal-open');
+    pvModal = wrap;
+
+    wrap.addEventListener('click', function (ev) {
+      if (ev.target.closest('[data-pv-close]')) { closePreview(); }
+    });
+    wrap.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') { ev.preventDefault(); closePreview(); }
+    });
+    wrap.querySelector('.cms-modal-panel').focus();
+
+    /* 把编辑表单原样提交到 preview.php，结果落进 iframe。
+       这样草稿、未保存的改动都能预览，且不产生任何公开动态地址。 */
+    var pf = document.createElement('form');
+    pf.method = 'POST';
+    pf.action = 'preview.php';
+    pf.target = 'cms-preview-frame';
+    pf.style.display = 'none';
+    var data = new FormData(form);
+    data.forEach(function (value, key) {
+      if (value instanceof File) { return; }
+      pf.appendChild(hiddenField(key, value));
+    });
+    pf.appendChild(hiddenField('type', type));
+    document.body.appendChild(pf);
+    pf.submit();
+    setTimeout(function () { if (pf.parentNode) { pf.parentNode.removeChild(pf); } }, 0);
+  }
+
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-preview]');
+    if (!btn) { return; }
+    ev.preventDefault();
+    openPreview(btn);
+  });
+
+  /* 焦点若落进 iframe，keydown 不会冒泡到弹窗，这里在 document 上兜一层 */
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && pvModal) { ev.preventDefault(); closePreview(); }
+  });
+
+  /* 预览弹窗属后台功能，页面离开时不用留着 */
+  window.addEventListener('beforeunload', closePreview);
 })();

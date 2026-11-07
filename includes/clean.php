@@ -23,6 +23,13 @@ function cms_clean_skip($rel)
     return in_array(strtolower($base), array('index.html', 'index.htm'), true);
 }
 
+/** 没有入库记录的文件，按后缀判断是不是图片（附件目录里全是 pdf / zip 这些） */
+function cms_clean_is_image_name($rel)
+{
+    $ext = strtolower(pathinfo((string) $rel, PATHINFO_EXTENSION));
+    return in_array($ext, array('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'ico', 'avif'), true);
+}
+
 /**
  * 建立"引用索引"：把可能提到图片的所有文本收集起来
  *
@@ -33,12 +40,16 @@ function cms_clean_index()
     $idx = array();
 
     try {
-        foreach (all('SELECT id, title, content, content_src, excerpt, cover FROM {p}article') as $r) {
+        // attachment 列是 v7 才加的：老库还没升级时不能让它把整段索引带崩
+        $hasAttach = !empty(all("SHOW COLUMNS FROM {p}article LIKE 'attachment'"));
+        $cols = 'id, title, content, content_src, excerpt, cover' . ($hasAttach ? ', attachment' : '');
+        foreach (all('SELECT ' . $cols . ' FROM {p}article') as $r) {
             $idx[] = array(
                 'type'  => '文章',
                 'label' => '#' . (int) $r['id'] . ' ' . str_limit($r['title'], 30),
                 'text'  => (string) $r['content'] . "\n" . (string) $r['content_src']
-                         . "\n" . (string) $r['excerpt'] . "\n" . (string) $r['cover'],
+                         . "\n" . (string) $r['excerpt'] . "\n" . (string) $r['cover']
+                         . "\n" . (isset($r['attachment']) ? (string) $r['attachment'] : ''),
             );
         }
     } catch (Throwable $ex) {
@@ -186,7 +197,7 @@ function cms_clean_scan()
                     'missing'  => false,
                     'used'     => $refs !== array(),
                     'refs'     => $refs,
-                    'is_image' => $rec ? strpos((string) $rec['mime'], 'image/') === 0 : true,
+                    'is_image' => $rec ? strpos((string) $rec['mime'], 'image/') === 0 : cms_clean_is_image_name($rel),
                 );
             }
         } catch (Throwable $ex) {

@@ -103,17 +103,24 @@ function cms_row_expand($row)
         }
         if (!isset($row['flag_list'])) {
             $row['flag_list'] = array();
+            $row['flag_all_list'] = array();
             if (!empty($row['flag'])) {
                 $flagMap = cms_flag_map();
+                $pubMap = cms_flag_public_map();
                 foreach (explode(',', $row['flag']) as $f) {
                     $f = trim($f);
-                    if ($f !== '') {
-                        $row['flag_list'][] = array(
-                            'name'  => $f,
-                            'title' => isset($flagMap[$f]) ? $flagMap[$f] : $f,
-                            'label' => isset($flagMap[$f]) ? $flagMap[$f] : $f,
-                            'value' => $f,
-                        );
+                    if ($f === '') {
+                        continue;
+                    }
+                    $item = array(
+                        'name'  => $f,
+                        'title' => isset($flagMap[$f]) ? $flagMap[$f] : $f,
+                        'label' => isset($flagMap[$f]) ? $flagMap[$f] : $f,
+                        'value' => $f,
+                    );
+                    $row['flag_all_list'][] = $item;
+                    if (isset($pubMap[$f])) {
+                        $row['flag_list'][] = $item;
                     }
                 }
             }

@@ -1,0 +1,47 @@
+/* 截图统一加细边框，避免浅色界面在浅色背景上看不清边界 */
+.vp-doc img {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  margin: 12px 0;
+}
+
+/* 图片下面的一句话说明 */
+.vp-doc img + em,
+.vp-doc p > img + em {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  color: var(--vp-c-text-3);
+  margin-top: -6px;
+}
+
+/* 结论 / 提醒块收窄一点，别把正文挤得太碎 */
+.vp-doc .custom-block {
+  border-radius: 8px;
+}
+
+/* 表格保留 VitePress 自带的横向滚动，只把字号压一档，宽表更耐看 */
+.vp-doc table th,
+.vp-doc table td {
+  font-size: 13.5px;
+}
+
+/* 行内代码压一点，避免中文段落被撑开 */
+.vp-doc code {
+  font-size: 0.86em;
+}
+
+/* 首页特性卡片里的图标尺寸 */
+.VPFeature .icon {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 16px;
+}
+
+.VPFeature .icon img {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  margin: 0;
+  border-radius: 0;
+}

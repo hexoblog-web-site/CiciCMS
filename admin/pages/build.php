@@ -105,7 +105,7 @@ $lastBuild = (int) setting('last_build', 0);
 <div class="card">
     <div class="card-head"><h2>维护</h2></div>
     <div class="card-body">
-        <p class="hint" style="margin-top:0">清空静态文件只删除磁盘上的 HTML/XML，不会动数据库。清空后站点前台将回到动态预览模式。</p>
+        <p class="hint" style="margin-top:0">清空静态文件只删除磁盘上的 HTML/XML，不会动数据库。清空后前台所有页面将 404，需要重新生成。</p>
         <form method="post" action="<?php echo e(admin_url('build')); ?>">
             <?php echo csrf_field(); ?>
             <input type="hidden" name="do" value="clean">

@@ -16,6 +16,19 @@
 
     <div class="entry-content">{cici:post.content}</div>
 
+    {cici:if $post.attach_show}
+    <div class="entry-attach">
+        <a class="attach-card" href="{cici:post.attachment}" download>
+            <span class="attach-ico" aria-hidden="true">↓</span>
+            <span class="attach-text">
+                <strong>{cici:post.attach_name}</strong>
+                {cici:if $post.attach_size}<em>{cici:post.attach_size|size}</em>{/cici:if}
+            </span>
+            <span class="attach-go">下载</span>
+        </a>
+    </div>
+    {/cici:if}
+
     {cici:if $post.tag_list}
     <div class="entry-tags">
         <span>标签</span>

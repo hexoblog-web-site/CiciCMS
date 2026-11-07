@@ -89,7 +89,6 @@ if ($action === 'edit') {
         <h2>友情链接</h2>
         <div class="filter-bar">
             <a class="btn btn-sm" target="_blank" href="<?php echo e(site_url('links.html')); ?>">查看友链页</a>
-            <a class="btn btn-sm btn-primary" href="<?php echo e(admin_url('flink', array('action' => 'new'))); ?>">新增链接</a>
         </div>
     </div>
     <div class="card-body tight">

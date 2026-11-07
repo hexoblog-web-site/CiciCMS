@@ -62,12 +62,29 @@ if (is_post()) {
             }
         }
 
+        // 附件：地址留空就一并清掉名字、大小与显示开关，避免留下孤儿数据
+        $attach     = cms_file_clean(post_str('attachment'));
+        $attachName = str_limit(post_str('attach_name'), 100);
+        $attachSize = max(0, (int) post_str('attach_size', '0'));
+        $attachShow = ($attach !== '' && post_str('attach_show') === '1') ? 1 : 0;
+        if ($attach === '') {
+            $attachName = '';
+            $attachSize = 0;
+        } elseif ($attachName === '') {
+            // 名字没填就退回文件名，至少有东西可点
+            $attachName = str_limit(basename((string) parse_url($attach, PHP_URL_PATH)), 100);
+        }
+
         $data = array(
             'cat_id'     => $catId,
             'title'      => str_limit($title, 150),
             'excerpt'    => str_limit($excerpt, 200),
             'content'    => $content,
             'content_src' => $contentSrc,
+            'attachment' => $attach,
+            'attach_name' => $attachName,
+            'attach_size' => $attachSize,
+            'attach_show' => $attachShow,
             'cover'      => $cover,
             'tags'       => normalize_tags(post_str('tags')),
             'flag'       => implode(',', $flags),
@@ -207,7 +224,14 @@ if ($action === 'new' || $action === 'edit') {
             'id' => 0, 'cat_id' => (isset($cats[0]) ? (int) $cats[0]['id'] : 0),
             'title' => '', 'slug' => '', 'excerpt' => '', 'content' => '', 'content_src' => '',
             'cover' => '', 'tags' => '', 'flag' => '', 'status' => 1, 'is_top' => 0,
+            'attachment' => '', 'attach_name' => '', 'attach_size' => 0, 'attach_show' => 0,
         );
+    }
+    // 结构升级没跑成功时（数据库账号可能没有 ALTER 权限）字段会缺，这里兜一层默认值
+    foreach (array('attachment' => '', 'attach_name' => '', 'attach_size' => 0, 'attach_show' => 0) as $fk2 => $fv2) {
+        if (!isset($row[$fk2])) {
+            $row[$fk2] = $fv2;
+        }
     }
     ?>
     <div class="card">
@@ -268,7 +292,7 @@ if ($action === 'new' || $action === 'edit') {
                                 <div class="hint">仅英文/数字，输出 /post/xxx.html</div>
                             </div>
                         </div>
-                        <div class="form-row" style="margin-bottom:0">
+                        <div class="form-row">
                             <label for="cover">封面图地址</label>
                             <div class="cover-field<?php echo trim((string) $row['cover']) !== '' ? ' has-img' : ''; ?>" data-cover-field>
                                 <input class="input" type="text" id="cover" name="cover" value="<?php echo e($row['cover']); ?>" placeholder="https://... 或 /content/uploads/...">
@@ -279,6 +303,40 @@ if ($action === 'new' || $action === 'edit') {
                                 </div>
                             </div>
                             <div class="hint">填了地址右侧立即预览；可先在<a href="<?php echo e(admin_url('media')); ?>">媒体信息</a>上传后复制地址</div>
+                        </div>
+
+                        <?php
+                        $hasAttach = trim((string) $row['attachment']) !== '';
+                        ?>
+                        <div class="form-row" style="margin-bottom:0">
+                            <label for="attachment">附件（可选）</label>
+                            <div class="attach-field<?php echo $hasAttach ? ' has-file' : ''; ?>" data-attach-field>
+                                <input class="input" type="text" id="attachment" name="attachment" value="<?php echo e($row['attachment']); ?>" placeholder="点右侧上传，或粘贴一个下载地址">
+                                <button type="button" class="btn btn-sm" data-attach-pick>选择文件</button>
+                                <button type="button" class="attach-clear" title="移除附件" aria-label="移除附件">&times;</button>
+                                <input type="file" class="attach-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv,.rtf,.zip,.rar,.7z,.gz,.tar,.exe,.msi,.apk,.dmg,.ipa,.pkg" hidden>
+                            </div>
+                            <input type="hidden" name="attach_size" id="attach_size" value="<?php echo (int) $row['attach_size']; ?>">
+                            <div class="grid2" style="margin-top:10px">
+                                <div class="form-row" style="margin-bottom:0">
+                                    <label for="attach_name">下载按钮上的名字</label>
+                                    <input class="input" type="text" id="attach_name" name="attach_name" value="<?php echo e($row['attach_name']); ?>" placeholder="留空则用文件名">
+                                </div>
+                                <div class="form-row" style="margin-bottom:0">
+                                    <label>是否显示</label>
+                                    <label class="inline" style="font-weight:400;padding-top:7px">
+                                        <input class="check" type="checkbox" name="attach_show" value="1" <?php echo (int) $row['attach_show'] === 1 ? 'checked' : ''; ?>>
+                                        文章页底部显示下载按钮
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="hint" data-attach-info>
+                                <?php if ($hasAttach): ?>
+                                    当前附件：<?php echo e($row['attach_name'] !== '' ? $row['attach_name'] : basename($row['attachment'])); ?><?php echo (int) $row['attach_size'] > 0 ? '（' . e(format_bytes($row['attach_size'])) . '）' : ''; ?>
+                                <?php else: ?>
+                                    支持 pdf / word / excel / ppt / 压缩包 / apk / exe，单个不超过 <?php echo e(format_bytes(cms_file_max_bytes())); ?>。默认不显示，勾上「显示下载按钮」才会出现在文章页。
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -323,9 +381,9 @@ if ($action === 'new' || $action === 'edit') {
                         </div>
                         <div class="form-actions">
                             <button class="btn btn-primary" type="submit">保存并生成</button>
-                            <?php if ($row['id']): ?>
-                                <a class="btn" target="_blank" href="<?php echo e(site_url('index.php?p=' . rawurlencode($row['slug']))); ?>">预览</a>
-                            <?php endif; ?>
+                            <?php $previewUrl = $row['id'] ? u_post_preview($row) : ''; ?>
+                            <button class="btn" type="button" data-preview="article" data-static-url="<?php echo e($previewUrl); ?>"
+                                    title="在当前窗口弹窗预览，未保存的改动、草稿也能看">预览</button>
                             <a class="btn" href="<?php echo e(admin_url('article')); ?>">取消</a>
                         </div>
                     </div>
@@ -363,7 +421,7 @@ $total = (int) val('SELECT COUNT(*) FROM {p}article a WHERE ' . $where, $params)
 $pages = max(1, (int) ceil($total / $per));
 $page  = min($page, $pages);
 $rows  = all(
-    'SELECT a.*, c.name AS cat_name FROM {p}article a LEFT JOIN {p}category c ON c.id = a.cat_id
+    'SELECT a.*, c.name AS cat_name, c.dirname AS cat_dir FROM {p}article a LEFT JOIN {p}category c ON c.id = a.cat_id
      WHERE ' . $where . ' ORDER BY a.is_top DESC, a.id DESC
      LIMIT ' . (int) $per . ' OFFSET ' . (int) (($page - 1) * $per),
     $params
@@ -389,7 +447,6 @@ $rows  = all(
                 </select>
                 <button class="btn btn-sm" type="submit">筛选</button>
             </form>
-            <a class="btn btn-sm btn-primary" href="<?php echo e(admin_url('article', array('action' => 'new'))); ?>">写文章</a>
         </div>
     </div>
 
@@ -431,7 +488,12 @@ $rows  = all(
                         <td><?php echo (int) $r['views']; ?></td>
                         <td class="hint"><?php echo e(format_date($r['created_at'], 'Y-m-d H:i')); ?></td>
                         <td class="actions-cell">
-                            <a class="btn btn-sm" target="_blank" href="<?php echo e(site_url('index.php?p=' . rawurlencode($r['slug']))); ?>">预览</a>
+                            <?php $pv = u_post_preview($r); ?>
+                            <?php if ($pv !== ''): ?>
+                                <a class="btn btn-sm" target="_blank" href="<?php echo e($pv); ?>">预览</a>
+                            <?php else: ?>
+                                <button class="btn btn-sm" type="button" disabled title="草稿不生成静态页">预览</button>
+                            <?php endif; ?>
                             <a class="btn btn-sm" href="<?php echo e(admin_url('article', array('action' => 'edit', 'id' => $r['id']))); ?>">编辑</a>
                             <form method="post" action="<?php echo e(admin_url('article')); ?>" style="display:inline">
                                 <?php echo csrf_field(); ?>

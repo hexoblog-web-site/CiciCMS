@@ -58,8 +58,8 @@ if ($upDue):
 $bpPending = (isset($_GET['p']) && $_GET['p'] === 'build') ? null : build_pending();
 if (!empty($bpPending)):
 ?>
-<div id="bg-build" style="position:fixed;right:20px;bottom:20px;z-index:9999;background:#fff;color:#17171C;padding:12px 18px;border-radius:999px;font-size:12.5px;box-shadow:0 10px 30px rgba(17,24,39,.14);display:flex;align-items:center;gap:9px">
-    <span id="bg-build-dot" style="width:7px;height:7px;border-radius:50%;background:#2563EB;flex:0 0 7px"></span>
+<div id="bg-build" style="position:fixed;right:20px;bottom:20px;z-index:9999;background:var(--card);color:var(--text);padding:12px 18px;border-radius:var(--r-pill);font-size:12.5px;box-shadow:var(--shadow-float);border:1px solid var(--line);display:flex;align-items:center;gap:9px">
+    <span id="bg-build-dot" style="width:7px;height:7px;border-radius:50%;background:var(--brand);flex:0 0 7px"></span>
     <span id="bg-build-text">正在生成静态页 <?php echo (int) $bpPending['pos']; ?>/<?php echo (int) $bpPending['total']; ?></span>
 </div>
 <script>
@@ -80,8 +80,8 @@ if (!empty($bpPending)):
             .then(function (d) {
                 if (d.errors && d.errors.length) {
                     txt.textContent = '静态生成出错：' + d.errors[0];
-                    txt.style.color = '#C0392B';
-                    dot.style.background = '#C0392B';
+                    txt.style.color = 'var(--state-err)';
+                    dot.style.background = 'var(--state-err)';
                     stop = true;
                     return;
                 }
@@ -89,8 +89,8 @@ if (!empty($bpPending)):
                 if (d.finished) {
                     stop = true;
                     txt.textContent = '静态页已全部更新（' + (d.files || 0) + ' 个文件）';
-                    txt.style.color = '#0B8A4B';
-                    dot.style.background = '#0B8A4B';
+                    txt.style.color = 'var(--state-ok)';
+                    dot.style.background = 'var(--state-ok)';
                     setTimeout(function () { box.style.display = 'none'; }, 2500);
                     return;
                 }

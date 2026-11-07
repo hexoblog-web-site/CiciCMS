@@ -90,6 +90,8 @@ a:hover { color: var(--brand-dark); }
 .post-excerpt { margin: 0 0 12px; color: var(--ink-2); font-size: 14.5px; line-height: 1.8; }
 .post-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .more { font-size: 13.5px; font-weight: 500; }
+a.pin.file { color: #1d4ed8; background: #eff4ff; }
+a.pin.file:hover { background: var(--brand); color: #fff; }
 .tags-mini { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-3); }
 .tags-mini a { color: var(--ink-3); }
 .tags-mini a:hover { color: var(--brand); }
@@ -143,6 +145,29 @@ a:hover { color: var(--brand-dark); }
 .entry-content table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14.5px; }
 .entry-content th, .entry-content td { border: 1px solid var(--line); padding: 9px 12px; text-align: left; }
 .entry-content th { background: var(--bg-soft); }
+/* ---------- 附件下载 ---------- */
+.entry-attach { margin-top: 30px; }
+.attach-card {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px; border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--bg-soft); color: var(--ink);
+}
+.attach-card:hover { border-color: #bfdbfe; background: #f5f9ff; color: var(--ink); }
+.attach-ico {
+    flex: none; width: 40px; height: 40px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; border: 1px solid var(--line);
+    color: var(--brand); font-size: 18px; font-weight: 700;
+}
+.attach-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.attach-text strong { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attach-text em { font-style: normal; font-size: 12.5px; color: var(--ink-3); }
+.attach-go {
+    flex: none; padding: 6px 15px; border-radius: 20px;
+    background: var(--brand); color: #fff; font-size: 13px; font-weight: 500;
+}
+.attach-card:hover .attach-go { background: var(--brand-dark); }
+
 .entry-tags { margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--ink-3); }
 .entry-tags a { background: var(--bg-soft); border: 1px solid var(--line); padding: 2px 10px; border-radius: 20px; color: var(--ink-2); font-size: 12.5px; }
 .entry-tags a:hover { color: var(--brand); border-color: #bfdbfe; }

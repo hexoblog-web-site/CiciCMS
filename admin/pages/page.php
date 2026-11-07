@@ -159,6 +159,10 @@ if ($action === 'new' || $action === 'edit') {
                             <input class="input" type="number" id="sort" name="sort" value="<?php echo (int) $row['sort']; ?>">
                         </div>
                         <button class="btn btn-primary btn-block" type="submit">保存并生成</button>
+                        <?php $previewUrl = $row['id'] ? u_page_preview($row) : ''; ?>
+                        <button class="btn btn-block" style="margin-top:8px" type="button"
+                                data-preview="page" data-static-url="<?php echo e($previewUrl); ?>"
+                                title="在当前窗口弹窗预览，未保存的改动、草稿也能看">预览</button>
                     </div>
                 </div>
             </form>
@@ -173,7 +177,6 @@ $rows = all('SELECT * FROM {p}page ORDER BY sort ASC, id ASC');
 <div class="card">
     <div class="card-head">
         <h2>单页列表</h2>
-        <a class="btn btn-sm btn-primary" href="<?php echo e(admin_url('page', array('action' => 'new'))); ?>">新建单页</a>
     </div>
     <div class="card-body tight">
         <?php if (empty($rows)): ?>
@@ -188,7 +191,12 @@ $rows = all('SELECT * FROM {p}page ORDER BY sort ASC, id ASC');
                         <td><?php echo ((int) $r['status'] === 1) ? '<span class="badge badge-green">已发布</span>' : '<span class="badge badge-gray">草稿</span>'; ?></td>
                         <td><?php echo (int) $r['sort']; ?></td>
                         <td class="actions-cell">
-                            <a class="btn btn-sm" target="_blank" href="<?php echo e(site_url('index.php?single=' . rawurlencode($r['slug']))); ?>">预览</a>
+                            <?php $pv = u_page_preview($r); ?>
+                            <?php if ($pv !== ''): ?>
+                                <a class="btn btn-sm" target="_blank" href="<?php echo e($pv); ?>">预览</a>
+                            <?php else: ?>
+                                <button class="btn btn-sm" type="button" disabled title="草稿不生成静态页">预览</button>
+                            <?php endif; ?>
                             <a class="btn btn-sm" href="<?php echo e(admin_url('page', array('action' => 'edit', 'id' => $r['id']))); ?>">编辑</a>
                             <form method="post" action="<?php echo e(admin_url('page')); ?>" style="display:inline">
                                 <?php echo csrf_field(); ?>

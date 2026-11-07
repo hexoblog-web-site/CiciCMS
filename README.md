@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v2.1.7-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
+[![Release](https://img.shields.io/badge/release-v2.1.8-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -58,7 +58,7 @@ PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的�
 
 ```
 /
-├── index.php                前台入口（动态预览 / 搜索 / 404）
+├── index.php                前台入口（仅站内搜索，其余 404）
 ├── api.php                  浏览量计数接口
 ├── config.php               安装时生成，数据库配置
 ├── .htaccess                静态首页优先 + 敏感文件保护
@@ -94,10 +94,11 @@ PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的�
 │   ├── index.php            后台单入口路由
 │   ├── login.php            登录页
 │   ├── download.php         数据库备份下载
-│   ├── upload.php           编辑器插图接口（POST，返回 JSON）
+│   ├── upload.php           编辑器插图接口（POST，返回 JSON；也收附件）
 │   ├── cron.php             计划任务入口：不登录也能检查更新（token 校验）
-│   ├── inc/                 后台头尾布局
-│   ├── assets/              后台 CSS/JS
+│   ├── preview.php          后台弹窗预览端点（登录校验 + noindex + 不计浏览）
+│   ├── inc/                 后台头尾布局、内联 SVG 图标 sprite（icons.php）
+│   ├── assets/              后台 CSS/JS（设计令牌、暗色主题、预览弹窗都在这里）
 │   └── pages/               dashboard/article/category/page/media/flink/build/clean/data/theme/setting/plugin/update
 │
 ├── install/                 安装向导（装完必须删除整个目录）
@@ -137,7 +138,8 @@ PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的�
 | 区域 | 目录 | 规则 | 落实手段 |
 | --- | --- | --- | --- |
 | 只执行不写 | `includes/` `admin/` `install/` | 运行期不产生任何新文件 | 目录设只读（`chmod -R a-w`），升级时临时改回可写再覆盖 |
-| 只写不执行 | `content/uploads/` `content/data/` 根目录静态页 | 能写，但写进去的脚本跑不起来 | `.htaccess` 拒绝脚本后缀；Nginx 加 `location ~ ^/content/.*\.(php\|phtml)$ { deny all; }` |
+| 只写不执行 | `content/uploads/` `content/data/` 根目录静态页 | 能写，但写进去的脚本跑不起来 | `.htaccess` 拒绝脚本后缀；Nginx 加 `location ~* ^/content/(uploads\|themes\|plugins)/.*\.(php\|phtml\|phar)$ { deny all; }` |
+| 只写**但会执行** | `content/plugins/` | 插件代码就是 PHP，启用时被 `include` | 见 3.3，这条打破了"内容区不执行"，必须单独理解 |
 
 > **`includes/` 必须保留 `r-x`（555），不能设成 `--x`。** `includes/tags/registry.php` 用 `glob()` 扫描 `tags/single`、`tags/block`、`tags/fields`，`includes/tags.php` 扫描 `tags/runtime`；目录一旦去掉 `r`（列目录），`glob()` 返回空数组，标签注册表为空，所有 `{cici:}` 标签集体失效，前台直接白屏。只去掉写位（`chmod a-w`）就对了，读和执行位都要留着。
 >
@@ -155,17 +157,24 @@ PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的�
 
 **只读之后哪些功能照常**：发文章、改栏目、传图、编辑主题、切模板、数据库备份、静态生成、登录，全部不写 `admin/`，只写数据库、`content/` 和站点根。唯一要做的是**升级**：先 `chmod -R u+w includes admin`，覆盖完再改回只读。
 
-### 3.3 一处例外（必须知道）
+### 3.3 两处例外（必须知道）
 
-`content/` 里唯一会被执行的东西，是标签编译缓存：
+`content/` 是可写区，但有两处东西会被 `include` 执行。它们是"内容区不执行"这条规则的全部破口，也决定了后台权限等于多大：
 
 | 位置 | 为什么可执行 | 怎么控 |
 | --- | --- | --- |
 | `content/data/cache/tpl/*.php` | `{cici:}` 标签模板的编译产物，`include` 执行 | 只能由主题源码编译生成，不接收外部内容；`content/data/.htaccess` 整层 `Require all denied` |
+| `content/plugins/<id>/plugin.php` | 插件逻辑入口，启用时由 `cms_plugin_load()` 载入 | 只加载 `plugins_active` 里列出的插件；ID 走白名单正则；`content/plugins/.htaccess` 拒绝直接请求 `.php`；Nginx 必须补 `location ~ ^/content/plugins/.*\.php$ { deny all; }` |
 
-内置主题已全部改为纯 HTML 标签模板，所以 `content/themes/` 下**没有 PHP 文件**，"可写区不执行"成立。
+**插件带来的实际含义**：能往 `content/plugins/` 写一个 `plugin.php`、并且能点一下"启用"的人，等于能在服务器上执行任意 PHP。所以
 
-如果自己写 PHP 主题（见第七节，属高级用法），那 `content/themes/*/index.php` 就是代码，会把这条打破：只有后台"模板管理"能改（需登录 + CSRF + 文件名白名单 + 目录越界校验），`content/themes/.htaccess` 也会拒绝直接请求 `.php`。**主题编辑权限等同于改代码权限**，只给管理员。
+- 只启用自己看过代码的插件，第三方插件先在本地读一遍；
+- 后台"系统设置 → 目录权限自检"不会替你看这件事，插件目录**本来就必须可写**；
+- 如果你的站不需要插件，把 `content/plugins/` 清空或整个删掉，风险面直接归零（程序检测不到插件目录时会跳过加载）。
+
+内置主题已全部改为纯 HTML 标签模板，所以 `content/themes/` 下**没有 PHP 文件**。
+
+如果自己写 PHP 主题（见第七节，属高级用法），那 `content/themes/*/index.php` 就是代码，同样打破这条：只有后台"模板管理"能改（需登录 + CSRF + 文件名白名单 + 目录越界校验），`content/themes/.htaccess` 也会拒绝直接请求 `.php`。**主题编辑权限等同于改代码权限**，只给管理员。
 
 ### 3.4 部署检查清单
 
@@ -382,19 +391,67 @@ rm -rf install                       # 装完删掉安装目录
 
 ---
 
+### 3.24 从 2.1.7 升级到 2.1.8（后台可读性体系、弹窗预览、附件与纯静态化）
+
+这是一次较大的累计发版，**数据库结构有一次变更**（文章表加四个附件字段，升级时由 `includes/upgrade.php` 自动 `ALTER TABLE`，不需要手工执行 SQL）。
+
+**新增：文章附件**
+
+1. 文章表新增 `attachment` / `attach_name` / `attach_size` / `attach_show` 四列；安装向导的建表语句同步。
+2. 编辑页属性区加「附件（可选）」：可直接上传文档、压缩包、小软件（默认 20MB 上限，类型白名单），也可手填地址。上传落到 `content/uploads/files/`，`admin/upload.php` 的 `mode=attach` 返回站内地址、原名与字节数。
+3. **默认不显示**——要勾上「显示下载按钮」，前台文章页底部才出现下载卡；首页列表的 meta 行同时出现可直接下载的「附件下载」标记。模板用 `{cici:post.attachment}` / `attach_name` / `attach_size|size` 取用，新增 `size` 修饰器。
+4. 系统清理的引用索引把附件地址也算进去，附件不会被当孤儿文件误删；没有入库记录的文件改按扩展名判断是不是图片。
+
+**新增：后台弹窗预览**
+
+5. 文章/单页编辑页的「预览」改成**在当前后台窗口弹窗**：把编辑表单原样 POST 到 `admin/preview.php`，用与保存完全相同的正文处理链渲染，未保存的改动和草稿都能看。结果落在 iframe 里，带 `noindex`、剔除浏览计数脚本，不产生任何公开动态地址。弹窗右上角另有「打开静态页 ↗」指向真实静态文件。
+6. 列表页的「预览」仍直接指向静态页；静态文件不在就现场增量生成那一页，草稿则显示禁用按钮。
+
+**前台彻底纯静态化**
+
+7. `index.php` 只保留站内搜索 `?s=`，旧的 `?p=` / `?cat=` / `?single=` / `?tag=` 路由全部下线，访问一律 404。`u_home` / `u_post` / `u_cat` / `u_page` / `u_tag` 删掉所有动态分支，永远输出静态路径。
+8. 404 模板与安装完成页里指向动态入口的链接一并修正；README、VitePress 文档的 URL 规则表同步。**注意：手工分享过 `index.php?p=` 链接的地方要换成真实静态地址。**
+
+**修复：推荐位不再泄漏给读者**
+
+9. 新增 `cms_flag_public_map()`：只有「推荐 / 头条 / 特荐」对外展示；幻灯、滚动、加粗、图片、图文属排版用途，不再出现在文章页 meta 行。完整列表保留在 `flag_all_list` 供模板取用。
+
+**后台外观：可读性基线（P0）**
+
+10. 次要文字 `--text-3` 由 `#9B9BA6`（2.75:1）改为 `#6B6B78`（**5.25:1**），绿/琥珀/红三套状态色同步加深；浅色、暗色两套配色实测**全部达到 WCAG AA 4.5:1**。
+11. 正文 13.5 → 14px，最小的 11px 字号统一提到 12px 以上；`.content` 限宽 1440px（整体布局按侧栏 + 正文一起居中），宽屏不再把 14px 文字拉成一条线。
+12. 卡片、统计卡、登录卡补 1px 可见边线；`.grid2` / `.grid3` 补行间距；全局 `:focus-visible` 焦点环；`prefers-reduced-motion` 关闭动效。
+
+**后台外观：体系化（P1）**
+
+13. `admin.css` 组件区**零硬编码色**（原来 32 处），全部收进 `:root` 令牌；建立 `--state-*` 语义色，alert / badge / toast / 更新横幅共用一套口径；`.card-inset` 与 `.grid2.cards > .card` 解除耦合。
+14. 主操作统一到右上角**页头动作槽**（写文章 / 新建单页 / 新建栏目 / 新增链接），不再散落在各张卡片的 `card-head` 里。
+15. 新增 1200 / 1440 两档断点，表格在 900px 以下就可横向滚动；加入紧凑/舒适密度变量，卡片内边距、表格行高、间距都随密度切换。
+
+**后台外观：增强（P2）**
+
+16. **暗色主题**：只覆盖令牌、不改任何组件规则；顶栏圆形按钮切换，首次跟随 `prefers-color-scheme`，之后记在 localStorage；登录页同步。
+17. **SVG 图标 sprite**：`admin/inc/icons.php` 统一 24×24 线性图标，侧栏导航、快捷入口、统计卡改用 `<use>` 引用；`cms_icon()` 仍接受旧插件传的内联 path，向后兼容。
+18. **弹窗焦点陷阱**：Tab 在弹窗内循环、关闭后归还焦点，轻提示加 `role="status" aria-live="polite"`。
+19. 仪表盘新增「近 7 日发布」柱状图（只查 `created_at`，PHP 按天分桶，不依赖 MySQL 日期函数）。
+20. 文档截图更新了仪表盘，并新增深色主题、内容预览弹窗两张；`docs/use/index.md` 补「外观设置与预览」一节。
+
+---
+
 ## 四、URL 规则
 
-| 内容 | 静态地址 | 动态预览 |
-| --- | --- | --- |
-| 首页 | `/index.html`、`/page/2/index.html` | `/index.php?page=2` |
-| 文章 | `/minjiangushi/5.html`（分类目录 + 文章 ID） | `/index.php?p=hello-world` |
-| 分类 | `/minjiangushi/index.html`、`/minjiangushi/page/2/index.html` | `/index.php?cat=minjiangushi` |
-| 单页 | `/about.html` | `/index.php?single=about` |
-| 标签 | `/tag/1a2b3c4d5e.html` | `/index.php?tag=标签名` |
-| 搜索 | 动态（`index.php?s=关键词`） | 同左 |
-| 归档 | `/archive.html` | 动态预览无对应页 |
-| 友链 | `/links.html` | 动态预览无对应页 |
-| 其他 | `/sitemap.xml`、`/rss.xml`、`/tags.html`、`/404.html` | — |
+| 内容 | 地址 |
+| --- | --- |
+| 首页 | `/index.html`、`/page/2/index.html` |
+| 文章 | `/minjiangushi/5.html`（分类目录 + 文章 ID） |
+| 分类 | `/minjiangushi/index.html`、`/minjiangushi/page/2/index.html` |
+| 单页 | `/about.html` |
+| 标签 | `/tag/1a2b3c4d5e.html` |
+| 归档 | `/archive.html` |
+| 友链 | `/links.html` |
+| 其他 | `/sitemap.xml`、`/rss.xml`、`/tags.html`、`/404.html` |
+
+除站内搜索 `/index.php?s=关键词`（搜索要查库，无法静态化）外，前台不存在任何动态地址：旧的 `index.php?p=`、`?cat=`、`?single=`、`?tag=` 路由已全部移除，访问一律 404。后台「预览」按钮也直接指向生成好的静态页——静态文件不在就先现场生成该页再给地址。
 
 **文章地址用 ID 不用 slug**：`/minjiangushi/5.html` 里的 5 是文章 ID。改标题、改英文路径都不会让地址失效；只有把文章移到别的分类，目录名才会变，而且旧地址直接 404——程序不做跳转。
 
@@ -416,13 +473,17 @@ location ~ \.php$ {
     include fastcgi_params;
 }
 location ~ ^/(content/data|includes|install)/ { deny all; }
-# 附件目录只放静态文件，绝不允许执行脚本
-location ~* ^/content/uploads/.*\.(php|phtml|phar|pht)$ { deny all; }
+# 主题与插件里的 PHP 只能被程序 include，不能被 URL 直接请求；css/js/图片照常放行
+location ~* ^/content/(uploads|themes|plugins)/.*\.(php|phtml|phar|pht|inc)$ { deny all; }
+# 插件元信息不必对外
+location ~* ^/content/plugins/.*\.json$ { deny all; }
 # 文档源码目录（VitePress + node_modules），不属于站点内容
 location ~ ^/docs/ { deny all; }
 ```
 
 > `docs/` 只在开发机上存在。真要在服务器上保留，上面的 `deny` 必须加；更彻底的做法是把它移出站点根目录。
+>
+> **`/content/plugins/` 那条不能省。** Apache 靠 `content/plugins/.htaccess` 拦住了直接请求，Nginx **不读 `.htaccess`**；少了这行，`https://你的站/content/plugins/<id>/admin.php` 会被 PHP-FPM 直接执行。内置插件都有 `CMS_ADMIN` 守卫，第三方插件未必有。
 
 **不做伪静态，一条规则都没有。** 整站输出的是真实 `.html` 文件，请求由服务器直接命中磁盘，不存在"URL 重写 → 交给 PHP 处理"的链路，所以本程序既不提供 `?p=` 到 `.html` 的映射，也不支持去掉 `.html` 后缀这类美化。想要伪静态的，请用 Z-Blog 或 WordPress。
 
@@ -439,10 +500,10 @@ location ~ ^/docs/ { deny all; }
 
 ## 五、后台功能
 
-- **仪表盘**：四张统计卡（已发布/累计浏览/静态文件/运行状态），下方通栏快捷入口 5×2（写文章、栏目、单页、媒体、生成、数据系统、清理、模板、友链、设置）与最近文章。
+- **仪表盘**：四张统计卡（已发布/累计浏览/静态文件/运行状态），下方通栏快捷入口 5×2、近 7 日发布柱状图与最近文章。
 - **数据系统**：数据备份（立即备份/下载/删除）、数据恢复（从已有备份覆盖，需手输 `RESTORE`）、数据导入（上传 `.sql`）；恢复与导入前都会自动再备份一次当前数据。
 - **系统设置**另有：站点信息、目录权限自检、系统信息（版本、PHP、MySQL、模板、数据库连接）、修改密码。
-- **文章管理**：筛选、置顶、草稿、标签、摘要、封面、自定义英文路径、**推荐位**（推荐/头条/图片/幻灯/特荐/滚动/加粗/图文），保存即自动重建静态页。正文编辑器的「图片」按钮既能上传本地文件，也能填网址，见下文。
+- **文章管理**：筛选、置顶、草稿、标签、摘要、封面、自定义英文路径、**推荐位**（推荐/头条/图片/幻灯/特荐/滚动/加粗/图文）、**附件**（文档/压缩包/小软件，默认不显示），保存即自动重建静态页。正文编辑器的「图片」按钮既能上传本地文件，也能填网址，见下文。
 - **栏目管理**：一个设置页管六项——栏目标题、别名、URL、关键词、描述、栏目横幅（Banner）。别名即网址目录，改动后旧地址直接 404（程序不做跳转），所以上线后不要再改；横幅支持上传或填外链，作为栏目页页头背景；栏目下有文章时禁止删除（防误删数据）。
 - **单页管理**：关于我们、联系方式等，输出 `/<slug>.html`。
 - **媒体信息**：图片上传（真实 MIME 校验、时间戳文件名）、地址一键复制、删除。
@@ -453,12 +514,13 @@ location ~ ^/docs/ { deny all; }
 - **系统设置**：站点信息、每页条数、时区、页脚 HTML、自动生成开关、改密码、目录权限自检、系统信息。
 - **数据系统**：数据库备份、恢复与导入，见上文。
 - **系统更新**：和 GitHub 仓库比提交，有新版本一键拉下来覆盖程序文件；更新前自动备份，可回滚。自动检查覆盖后台所有页面，也可用计划任务定时查，发现新版会发邮件（`mail()` 或 SMTP 任选）。见下文。
+- **外观设置**：顶栏可切换浅色/深色主题与舒适/紧凑密度，首次跟随系统、之后记住选择。文章与单页编辑的「预览」在当前后台窗口弹窗，按未保存的内容渲染，草稿也能看；前台没有任何动态预览地址。
 
 ### 系统清理怎么判断"没被引用"
 
 扫描范围是 `content/uploads/` 下的每一个文件，逐个检查文件名是否出现在：
 
-文章正文、文章编辑源文、摘要、封面，单页正文，栏目横幅，友情链接 Logo，系统设置的每一个配置值，以及当前主题的模板文件。
+文章正文、文章编辑源文、摘要、封面、附件地址，单页正文，栏目横幅，友情链接 Logo，系统设置的每一个配置值，以及当前主题的模板文件。
 
 只要在上述任何一处出现过，就算"正在使用"，不会出现在待清理列表里。这是**故意保守**的口径：宁可少清理几个，也不能误删正在用的图。本系统上传的文件名带时间戳和随机串，撞名概率可以忽略。
 
@@ -468,6 +530,30 @@ location ~ ^/docs/ { deny all; }
 2. 只删 `content/uploads/` 内的文件，绝对路径与 `..` 一律拒绝；主题图片（`content/themes/`）不参与扫描。
 
 另外会列出"失效记录"——媒体信息里登记了、但文件已经不在了。这类条目删除时只清记录，不动磁盘。
+
+### 文章附件（文档 / 小软件）
+
+编辑文章时，属性区最下面一行是「附件（可选）」：
+
+1. 点「选择文件」上传，传完地址自动填进输入框；也可以直接粘贴一个下载地址。
+2. 「下载按钮上的名字」是前台显示的文件名，留空就用原始文件名。
+3. 「文章页底部显示下载按钮」**默认不勾**。传了但不勾，前台什么都不显示——存着备用，或者这期先不发都行。
+
+支持 pdf / doc(x) / xls(x) / ppt(x) / txt / md / csv / rtf，zip / rar / 7z / gz / tar，exe / msi / apk / dmg / ipa / pkg，单个不超过 20MB（还会被 php.ini 的 `upload_max_filesize` / `post_max_size` 再压一道，取更小的）。
+
+文件落在 `content/uploads/files/年/月日/`，目录里会自动写一份禁止执行脚本的 `.htaccess`。附件**不进**媒体信息（那张表是图片画廊，塞进 zip 会破图），但系统清理能扫到，只要还被文章引用就不会被删。
+
+前台模板这样取：
+
+```html
+{cici:if $post.attach_show}
+<a href="{cici:post.attachment}" download>
+    {cici:post.attach_name}（{cici:post.attach_size|size}）
+</a>
+{/cici:if}
+```
+
+默认主题已经做好了：文章正文下面一张下载卡，首页列表卡片上带「附件」标和直接下载的按钮。
 
 ### 正文编辑器怎么插图
 
@@ -632,7 +718,7 @@ location ~ ^/docs/ { deny all; }
 | `{cici:item.xxx}` | 循环内当前项（列表里 `post.xxx` 也会回退到当前项） |
 | `{cici:url}` `{cici:theme}` `{cici:year}` | 站点根地址 / 主题目录 / 当前年份 |
 
-文档字段除表里真实的 `title` `slug` `excerpt` `content` `cover` `tags` `views` `created_at` 外，还会自动补虚拟字段：
+文档字段除表里真实的 `title` `slug` `excerpt` `content` `cover` `tags` `views` `created_at` `attachment` `attach_name` `attach_size` `attach_show` 外，还会自动补虚拟字段：
 
 `url` `date` `datetime` `year` `month` `day` `summary` `cat_name` `cat_url` `tag_list` `flag_list` `index`
 
@@ -672,6 +758,7 @@ location ~ ^/docs/ { deny all; }
 | `default:"值"` | 空值兜底 | `|default:"—"` |
 | `replace:"旧":"新"` | 字符串替换 | `|replace:",":"·"` |
 | `int` / `num` | 取整 / 千分位 | `{cici:post.views|num}` |
+| `size` | 字节数转成人看的写法 | `{cici:post.attach_size|size}` → `1.4 MB` |
 | `trim` / `urlencode` | 去空格 / URL 编码 | `|urlencode` |
 
 没写修饰器时：正文类字段（`content`/`body`/`footer`）原样输出，其余全部转义。
@@ -890,7 +977,7 @@ cms_add_action('article_saved', function ($id, $data, $isNew) {
 | `setting_saved` | action | 系统设置保存后 | `keys` |
 | `search_query` | filter | 前台搜索词 | `keyword` |
 
-`html_head` / `html_foot` / `html_final` 在**静态生成**与**动态预览**两条链路上都会执行，所以插件只需要写一次，生成出来的 HTML 和临时预览完全一致。
+`html_head` / `html_foot` / `html_final` 在**静态生成**与**站内搜索**两条链路上都会执行，所以插件只需要写一次，生成出来的 HTML 和搜索结果页完全一致。
 
 ### 8.4 后台页面
 
@@ -1007,4 +1094,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：2.1.7
+版本：2.1.8

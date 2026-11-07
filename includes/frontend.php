@@ -1,7 +1,7 @@
 <?php
 /**
  * CiciCMS 前台数据与渲染
- * 静态生成与动态预览共用同一套渲染函数，保证两者输出一致
+ * 这些函数供静态生成器（builder.php）与站内搜索（index.php?s=）共用。
  */
 
 function fe_per_page()
@@ -392,17 +392,5 @@ function fe_render_links()
 
 /* ==================== 单条查询 ==================== */
 
-function fe_find_post($slug)
-{
-    return one(
-        'SELECT a.*, c.name AS cat_name, c.dirname AS cat_dir
-         FROM {p}article a LEFT JOIN {p}category c ON c.id = a.cat_id
-         WHERE a.slug = ? AND a.status = 1 LIMIT 1',
-        array($slug)
-    );
-}
-
-function fe_find_page($slug)
-{
-    return one('SELECT * FROM {p}page WHERE slug = ? AND status = 1 LIMIT 1', array($slug));
-}
+/* fe_find_post / fe_find_page 已随动态路由（index.php?p= / ?single=）一并移除：
+ * 前台只有静态文件与搜索两个入口，按 slug 动态取单条数据的场景不复存在。 */

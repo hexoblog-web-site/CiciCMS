@@ -1,61 +1,29 @@
 <?php
 /**
- * CiciCMS 前台入口（动态预览）
- * 正式环境访问静态 HTML，本文件只在两种情况下被访问：
- * 还没有生成静态页时的预览，以及站内搜索。
+ * CiciCMS 前台入口（仅站内搜索）
+ *
+ * 整站是真实静态文件：文章、栏目、标签、单页一律直接访问生成好的 .html，
+ * 不存在任何动态页面 / 伪静态地址。本文件只处理一件事——站内搜索
+ * （搜索必须查库，无法静态化），其余请求一律 404。
+ *
+ * 旧的 index.php?p= / ?cat= / ?tag= / ?single= 动态地址已移除：
+ * 内容地址规则见 README「静态页面组织」一节。
  */
 
 require __DIR__ . '/includes/bootstrap.php';
 
-$articleSlug = (string) get('p');
-$catDir      = (string) get('cat');
-$tagName     = (string) get('tag');
-$pageSlug    = (string) get('single');
-$kw          = (string) get('s');
-$page        = max(1, get_int('page', 1));
-
-if ($articleSlug !== '') {
-    $post = fe_find_post($articleSlug);
-    if (!$post) {
-        http_response_code(404);
-        echo fe_render_404();
-        exit;
-    }
-    echo fe_render_article($post);
-    exit;
-}
-
-if ($catDir !== '') {
-    $cat = fe_cat_by_dir($catDir);
-    if (!$cat) {
-        http_response_code(404);
-        echo fe_render_404();
-        exit;
-    }
-    echo fe_render_category($cat, $page);
-    exit;
-}
-
-if ($tagName !== '') {
-    echo fe_render_tag($tagName, $page);
-    exit;
-}
-
-if ($pageSlug !== '') {
-    $single = fe_find_page($pageSlug);
-    if (!$single) {
-        http_response_code(404);
-        echo fe_render_404();
-        exit;
-    }
-    echo fe_render_page($single);
-    exit;
-}
-
 if (isset($_GET['s'])) {
+    $kw   = (string) get('s');
+    $page = max(1, get_int('page', 1));
+    header('X-Robots-Tag: noindex');
     echo fe_render_search($kw, $page);
     exit;
 }
 
-/* 没有带任何参数：首页（未生成静态页时的预览） */
-echo fe_render_home($page);
+http_response_code(404);
+$notFound = CMS_ROOT . '/404.html';
+if (is_file($notFound)) {
+    readfile($notFound);
+    exit;
+}
+echo "404 Not Found\n";

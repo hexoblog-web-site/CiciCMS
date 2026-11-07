@@ -70,6 +70,9 @@ function cms_tag_filter($val, $name, $args = array())
             return $from === '' ? $s : str_replace($from, $to, $s);
         case 'int':
             return (string) (int) $s;
+        case 'size':
+            // 字节数转成人看的写法，如 {cici:post.attach_size|size} → 1.4 MB
+            return format_bytes((int) $s);
         case 'num':
             return number_format((float) $s);
         case 'urlencode':

@@ -9,7 +9,7 @@
 /** 当前数据结构版本，每次改表时 +1（唯一数据源，bootstrap 不再另设常量） */
 function cms_schema_version()
 {
-    return 6;
+    return 7;
 }
 
 /**
@@ -81,6 +81,29 @@ function cms_upgrade()
         if (empty($col)) {
             q("ALTER TABLE {p}page ADD COLUMN `content_src` mediumtext NULL AFTER `content`");
             log_msg('schema: page.content_src added');
+        }
+
+        /* 7. 文章附件（v7）：下载文件、显示名、字节数、是否在文章页显示。
+              attach_show 默认 0——上传了也不自动挂到文章底部，要手动勾选。 */
+        $col = all("SHOW COLUMNS FROM {p}article LIKE 'attachment'");
+        if (empty($col)) {
+            q("ALTER TABLE {p}article ADD COLUMN `attachment` varchar(255) NOT NULL DEFAULT '' AFTER `content_src`");
+            log_msg('schema: article.attachment added');
+        }
+        $col = all("SHOW COLUMNS FROM {p}article LIKE 'attach_name'");
+        if (empty($col)) {
+            q("ALTER TABLE {p}article ADD COLUMN `attach_name` varchar(120) NOT NULL DEFAULT '' AFTER `attachment`");
+            log_msg('schema: article.attach_name added');
+        }
+        $col = all("SHOW COLUMNS FROM {p}article LIKE 'attach_size'");
+        if (empty($col)) {
+            q("ALTER TABLE {p}article ADD COLUMN `attach_size` int unsigned NOT NULL DEFAULT 0 AFTER `attach_name`");
+            log_msg('schema: article.attach_size added');
+        }
+        $col = all("SHOW COLUMNS FROM {p}article LIKE 'attach_show'");
+        if (empty($col)) {
+            q("ALTER TABLE {p}article ADD COLUMN `attach_show` tinyint NOT NULL DEFAULT 0 AFTER `attach_size`");
+            log_msg('schema: article.attach_show added');
         }
 
         if (ensure_dir(CMS_DATA)) {

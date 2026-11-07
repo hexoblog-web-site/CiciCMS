@@ -4,24 +4,25 @@ if (!defined('CMS_ADMIN')) {
     http_response_code(404);
     exit;
 }
+require_once __DIR__ . '/icons.php';
 
 $user = auth_user();
 
 /* 图标统一 24 视图框、线性描边，由 CSS 控制尺寸与颜色 */
 $NAV = array(
-    'dashboard' => array('仪表盘', '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>'),
-    'article'   => array('文章管理', '<path d="M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z"/><path d="M14 3.5V8h4.5"/><path d="M9 12.5h6M9 16.5h4"/>'),
-    'category'  => array('栏目管理', '<path d="M3.5 7.5a2 2 0 0 1 2-2h3.6l2 2h7.4a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2z"/>'),
-    'page'      => array('单页管理', '<rect x="8.5" y="3.5" width="11" height="13" rx="2"/><path d="M16 20.5H6.5a2 2 0 0 1-2-2V7.5"/>'),
-    'media'     => array('媒体信息', '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17l5-4.2 3.8 3 2.8-2 4.4 3.4"/>'),
-    'flink'     => array('友情链接', '<path d="M10.5 13.5a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.5 1.5"/><path d="M13.5 10.5a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.5-1.5"/>'),
-    'build'     => array('生成静态', '<path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4v4.8h-4.8"/>'),
-    'clean'     => array('系统清理', '<path d="M4.5 7h15"/><path d="M9.5 7V5.5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.5 7l.8 11.4a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9L17.5 7"/>'),
-    'data'      => array('数据系统', '<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/>'),
-    'theme'     => array('模板管理', '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M3.5 9.8h17"/><path d="M9.8 9.8v9.7"/>'),
-    'plugin'    => array('插件管理', '<path d="M9 3.5v4M15 3.5v4"/><path d="M6.5 7.5h11v4.2a5.5 5.5 0 0 1-11 0z"/><path d="M12 17v3.5"/>'),
-    'update'    => array('系统更新', '<path d="M7.3 17.5a4 4 0 0 1-.4-7.98 5.5 5.5 0 0 1 10.66-.7A3.7 3.7 0 0 1 17.8 17.5"/><path d="M12 11.2v6.2"/><path d="M9.7 15 12 17.3 14.3 15"/>'),
-    'setting'   => array('系统设置', '<path d="M4 7.5h7M15.5 7.5h4.5M4 16.5h4M12.5 16.5h7.5"/><circle cx="13" cy="7.5" r="2.2"/><circle cx="10" cy="16.5" r="2.2"/>'),
+    'dashboard' => array('仪表盘', '#i-dashboard'),
+    'article'   => array('文章管理', '#i-article'),
+    'category'  => array('栏目管理', '#i-category'),
+    'page'      => array('单页管理', '#i-page'),
+    'media'     => array('媒体信息', '#i-media'),
+    'flink'     => array('友情链接', '#i-flink'),
+    'build'     => array('生成静态', '#i-build'),
+    'clean'     => array('系统清理', '#i-clean'),
+    'data'      => array('数据系统', '#i-data'),
+    'theme'     => array('模板管理', '#i-theme'),
+    'plugin'    => array('插件管理', '#i-plugin'),
+    'update'    => array('系统更新', '#i-update'),
+    'setting'   => array('系统设置', '#i-setting'),
 );
 $SUBTITLE = array(
     'dashboard' => '内容概览与系统状态',
@@ -54,6 +55,21 @@ if ($updateDot) {
 
 $pageTitle = isset($NAV[$p][0]) ? (string) $NAV[$p][0] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['title'] : '管理后台');
 $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['sub'] : '');
+
+/* 页头动作槽：每个页面的主操作统一放右上角，不再散落在各张卡片的 card-head 里。
+ * 编辑/新建态不显示，避免和「返回列表」挤在一起。 */
+$curAction = isset($_GET['action']) ? (string) $_GET['action'] : '';
+$HEAD_ACTION = array(
+    'dashboard' => array('写文章',   admin_url('article',  array('action' => 'new'))),
+    'article'   => array('写文章',   admin_url('article',  array('action' => 'new'))),
+    'page'      => array('新建单页', admin_url('page',     array('action' => 'new'))),
+    'category'  => array('新建栏目', admin_url('category', array('action' => 'new'))),
+    'flink'     => array('新增链接', admin_url('flink',    array('action' => 'new'))),
+);
+if ($curAction !== '' && $p !== 'dashboard') {
+    $HEAD_ACTION = array();
+}
+$headAct = isset($HEAD_ACTION[$p]) ? $HEAD_ACTION[$p] : null;
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -63,10 +79,27 @@ $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : ($PLUGIN_PAGE !== null ? $PL
 <meta name="cms-token" content="<?php echo e(csrf_token()); ?>">
 <meta name="cms-upload" content="upload.php">
 <title><?php echo e($pageTitle); ?> - CiciCMS 管理后台</title>
+<script>
+/* 主题与密度在样式表加载前定好，避免刷新时闪一下白底 */
+(function () {
+    try {
+        var t = localStorage.getItem('cici-theme');
+        if (t !== 'light' && t !== 'dark') {
+            t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        }
+        var d = localStorage.getItem('cici-density') === 'compact' ? 'compact' : 'comfortable';
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.setAttribute('data-density', d);
+    } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+    }
+})();
+</script>
 <link rel="stylesheet" href="<?php echo e(site_url('admin/assets/admin.css')); ?>?v=<?php echo (int) @filemtime(CMS_ROOT . '/admin/assets/admin.css'); ?>">
 <?php cms_do_action('admin_head'); ?>
 </head>
 <body>
+<?php echo cms_icon_sprite(); ?>
 <div class="app">
     <aside class="sidebar" id="sidebar">
         <div class="brand">
@@ -79,11 +112,11 @@ $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : ($PLUGIN_PAGE !== null ? $PL
         <nav class="nav">
             <?php foreach ($NAV as $key => $item):
                 $label = isset($item[0]) ? (string) $item[0] : (string) $key;
-                $icon  = isset($item[1]) && $item[1] !== '' ? (string) $item[1] : '<rect x="4.5" y="4.5" width="15" height="15" rx="4.5"/>';
+                $icon  = isset($item[1]) && $item[1] !== '' ? (string) $item[1] : '#i-square';
                 $on    = ($p === $key) || ($PLUGIN_PAGE !== null && $key === 'plugin' && !isset($NAV[$p]));
             ?>
                 <a class="<?php echo $on ? 'on' : ''; ?>" href="<?php echo e(admin_url($key)); ?>">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><?php echo $icon; ?></svg>
+                    <?php echo cms_icon($icon); ?>
                     <span><?php echo e($label); ?></span>
                     <?php if ($key === 'update' && $updateDot): ?><i class="nav-dot" title="有新版本"></i><?php endif; ?>
                 </a>
@@ -116,6 +149,18 @@ $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : ($PLUGIN_PAGE !== null ? $PL
                     </a>
                 <?php endif; ?>
                 <a class="link" href="<?php echo e(site_url()); ?>" target="_blank">访问站点 ↗</a>
+                <?php if ($headAct): ?>
+                    <div class="page-actions">
+                        <a class="btn btn-sm btn-primary" href="<?php echo e($headAct[1]); ?>"><?php echo e($headAct[0]); ?></a>
+                    </div>
+                <?php endif; ?>
+                <button class="icon-btn i-theme" type="button" data-theme-toggle title="切换深浅主题" aria-label="切换深浅主题">
+                    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+                    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+                </button>
+                <button class="icon-btn i-density" type="button" data-density-toggle title="切换紧凑 / 舒适密度" aria-label="切换紧凑或舒适密度" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                </button>
                 <span class="user-chip"><?php echo e($user['username']); ?></span>
             </div>
         </header>

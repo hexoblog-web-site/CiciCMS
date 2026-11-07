@@ -11,7 +11,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
-define('INS_VERSION', '2.1.7');
+define('INS_VERSION', '2.1.8');
 define('INS_ROOT', dirname(__DIR__));
 define('INS_CONTENT', INS_ROOT . '/content');
 define('INS_LOCK', INS_CONTENT . '/data/install.lock');
@@ -121,6 +121,10 @@ function install_sql($prefix)
   `excerpt` varchar(500) NOT NULL DEFAULT '',
   `content` mediumtext,
   `content_src` mediumtext NULL,
+  `attachment` varchar(255) NOT NULL DEFAULT '',
+  `attach_name` varchar(120) NOT NULL DEFAULT '',
+  `attach_size` int unsigned NOT NULL DEFAULT 0,
+  `attach_show` tinyint NOT NULL DEFAULT 0,
   `cover` varchar(255) NOT NULL DEFAULT '',
   `tags` varchar(255) NOT NULL DEFAULT '',
   `flag` varchar(60) NOT NULL DEFAULT '',
@@ -622,7 +626,7 @@ code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:12px}
             <div class="kv"><b>安全提示</b><span>请立即删除 <code>install</code> 目录，并确认 config.php 权限为 644。</span></div>
             <div class="actions">
                 <a class="btn" href="../admin/">进入后台</a>
-                <a class="btn ghost" href="../index.php">查看前台（动态预览）</a>
+                <a class="btn ghost" href="../index.html">查看前台</a>
             </div>
         </div>
     <?php endif; ?>

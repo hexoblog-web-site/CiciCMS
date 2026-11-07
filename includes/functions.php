@@ -153,7 +153,7 @@ function site_url($path = '')
     return $base . '/' . ltrim($path, '/');
 }
 
-/** 是否处于静态生成模式（生成时链接输出为 .html，动态预览时输出为查询串） */
+/** 是否处于静态生成模式（生成时模板缺失要抛异常而不是直接 exit，见 render()） */
 function cms_static_mode()
 {
     return !empty($GLOBALS['cms_static_mode']);
@@ -162,9 +162,6 @@ function cms_static_mode()
 function u_home($page = 1)
 {
     $page = max(1, (int) $page);
-    if (!cms_static_mode()) {
-        return site_url('index.php' . ($page > 1 ? '?page=' . $page : ''));
-    }
     return $page === 1 ? site_url('index.html') : site_url('page/' . $page . '/index.html');
 }
 
@@ -266,12 +263,48 @@ function post_static_rel($post)
 
 function u_post($post)
 {
-    $slug = is_array($post) ? (string) $post['slug'] : (string) $post;
-    if (!cms_static_mode()) {
-        return site_url('index.php?p=' . rawurlencode($slug));
+    $rel = post_static_rel($post);
+    return $rel !== '' ? site_url($rel) : '#';
+}
+
+/** 后台「预览」按钮用的地址：静态页没生成就现场生成该页，然后给真实静态地址。
+ *  纯静态站点不再提供动态预览；草稿（status=0）不生成静态页，返回空串由调用方隐藏按钮。 */
+function u_post_preview($post)
+{
+    if (is_array($post) && isset($post['status']) && (int) $post['status'] !== 1) {
+        return '';
     }
     $rel = post_static_rel($post);
-    return $rel !== '' ? site_url($rel) : site_url('index.php?p=' . rawurlencode($slug));
+    if ($rel === '') {
+        return '';
+    }
+    if (!is_file(CMS_ROOT . '/' . $rel)) {
+        $id = is_array($post) && isset($post['id']) ? (int) $post['id'] : 0;
+        if ($id > 0) {
+            build_incremental(array('post_id' => $id, 'no_home' => true));
+        }
+    }
+    return site_url($rel);
+}
+
+/** 单页「预览」按钮：同理，没生成就现场生成 /slug.html */
+function u_page_preview($page)
+{
+    if (is_array($page) && isset($page['status']) && (int) $page['status'] !== 1) {
+        return '';
+    }
+    $slug = is_array($page) ? (string) $page['slug'] : (string) $page;
+    $rel  = rawurlencode($slug) . '.html';
+    if ($slug === '') {
+        return '';
+    }
+    if (!is_file(CMS_ROOT . '/' . $rel)) {
+        $id = is_array($page) && isset($page['id']) ? (int) $page['id'] : 0;
+        if ($id > 0) {
+            build_incremental(array('page_id' => $id, 'no_home' => true));
+        }
+    }
+    return site_url($rel);
 }
 
 /** 分类静态地址：<目录>/index.html、<目录>/page/N/index.html */
@@ -284,20 +317,12 @@ function cat_static_url($cat, $page = 1)
 
 function u_cat($cat, $page = 1)
 {
-    $dir  = cat_dir_of($cat);
-    $page = max(1, (int) $page);
-    if (!cms_static_mode()) {
-        return site_url('index.php?cat=' . rawurlencode($dir) . ($page > 1 ? '&page=' . $page : ''));
-    }
     return cat_static_url($cat, $page);
 }
 
 function u_page($page)
 {
     $slug = is_array($page) ? $page['slug'] : (string) $page;
-    if (!cms_static_mode()) {
-        return site_url('index.php?single=' . rawurlencode($slug));
-    }
     return site_url(rawurlencode($slug) . '.html');
 }
 
@@ -308,9 +333,6 @@ function tag_slug($name)
 
 function u_tag($name, $page = 1)
 {
-    if (!cms_static_mode()) {
-        return site_url('index.php?tag=' . rawurlencode($name) . ($page > 1 ? '&page=' . (int) $page : ''));
-    }
     return site_url('tag/' . tag_slug($name) . '.html');
 }
 
@@ -353,6 +375,49 @@ function theme_url($file = '')
 function upload_path($rel = '')
 {
     return CMS_UPLOADS . '/' . ltrim((string) $rel, '/');
+}
+
+/**
+ * 判断一个地址能不能由服务器去抓
+ *
+ * 「从网扯一张图回来」有两个入口：媒体信息里的「按地址上传」和 Hexo 导入时
+ * 把外链图片本地化。两处规则必须一致，所以判定收在这里。
+ *
+ * 只放行 http / https，且解析出的 IP 不能是内网、回环、链路本地或保留地址。
+ * 挡不住 DNS 重绑定（解析后到真正连接之间域名可能变），但足以挡住
+ * 「填个 127.0.0.1 / 169.254.169.254 探内网」这类误用与顺手利用。
+ *
+ * @param string $url
+ * @return string 不通过时返回原因，通过返回空串
+ */
+function cms_url_public_check($url)
+{
+    $url = trim((string) $url);
+    if ($url === '') {
+        return '地址为空';
+    }
+    if (!preg_match('#^https?://#i', $url)) {
+        return '只支持 http / https 地址';
+    }
+    $host = (string) parse_url($url, PHP_URL_HOST);
+    if ($host === '') {
+        return '地址格式不正确';
+    }
+
+    // 形如 [::1] 的 IPv6 字面量要去掉方括号
+    $host = trim($host, '[]');
+
+    $ip = filter_var($host, FILTER_VALIDATE_IP)
+        ? $host
+        : (string) gethostbyname($host);
+
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        return '无法解析该域名';
+    }
+    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+        return '不允许抓取内网或保留地址';
+    }
+    return '';
 }
 
 /**

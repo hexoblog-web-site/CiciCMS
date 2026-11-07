@@ -10,6 +10,7 @@
                 {cici:if $item.cat_name}<a class="cat" href="{cici:item.cat_url}">{cici:item.cat_name}</a>{/cici:if}
                 <time datetime="{cici:item.date}">{cici:item.date}</time>
                 {cici:if $item.is_top == 1}<span class="pin">置顶</span>{/cici:if}
+                {cici:if $item.attach_show}<a class="pin file" href="{cici:item.attachment}" download title="直接下载附件">附件下载</a>{/cici:if}
             </div>
             <h2 class="post-title"><a href="{cici:item.url}">{cici:item.title}</a></h2>
             <p class="post-excerpt">{cici:item.summary}</p>

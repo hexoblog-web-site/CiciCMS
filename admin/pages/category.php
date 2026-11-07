@@ -160,7 +160,6 @@ $siteBase  = rtrim(site_url(), '/');
 <div class="card">
     <div class="card-head">
         <h2>栏目列表</h2>
-        <a class="btn btn-sm btn-primary" href="<?php echo e(admin_url('category', array('action' => 'new'))); ?>">新建栏目</a>
     </div>
     <div class="card-body tight">
         <?php if (empty($cats)): ?>
