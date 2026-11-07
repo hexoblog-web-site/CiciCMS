@@ -5,7 +5,7 @@ if (!defined('CMS_ADMIN')) {
     exit;
 }
 
-/** 系统设置：站点信息 / 目录权限自检 / 安全建议（修改密码与系统信息已移除，数据备份在「数据系统」） */
+/** 系统设置：站点信息 / 目录权限自检（修改密码、系统信息、安全建议已移除，数据备份在「数据系统」） */
 
 if (is_post()) {
     csrf_verify();
@@ -137,16 +137,5 @@ if (is_post()) {
         代码区只执行不写入，内容区只写入不执行，黄色项是部署建议。<br>
         <code style="background:var(--card);border-radius:4px;padding:1px 5px">chmod -R a-w includes admin</code><br>
         只去写位，目录要保留 <code style="background:var(--card);border-radius:4px;padding:1px 5px">r-x</code>，否则标签注册表扫不到文件，前台会白屏。
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-body">
-        <div class="hint" style="line-height:1.9">
-            安全建议：<br>
-            · 安装后删除 install 目录<br>
-            · config.php 权限设为 644<br>
-            · 定期到「数据系统」生成并下载备份
-        </div>
     </div>
 </div>

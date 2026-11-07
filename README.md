@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v2.2.0-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
+[![Release](https://img.shields.io/badge/release-v2.2.1-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -498,6 +498,24 @@ rm -rf install                       # 装完删掉安装目录
 **系统更新**
 
 7. 「更新设置」里的整段 SMTP 配置收进可折叠 `<details>`，默认收起；选 SMTP 发信方式才展开。平时只露仓库 / 分支 / 间隔 / 通知邮箱 / 发信方式 / 两个开关 / 保存按钮，卡片高度约减半。
+
+**升级提示**
+
+- 无数据库迁移，`includes/upgrade.php` 不新增步骤；`content/` 下的主题、插件文件本轮也没有改动。
+- 升级包按惯例**不含 `content/` 与 `docs/`**，程序功能不受影响。
+
+### 3.27 从 2.2.0 升级到 2.2.1（系统设置与系统更新再减法）
+
+这一版继续后台减法、理顺操作路径，**没有数据库结构变化、没有 URL 规则变化、没有模板标签变化**，升级包覆盖后刷新后台即可。
+
+**系统设置**
+
+1. 删除「安全建议」卡片，页面只保留「站点信息」「目录权限自检」两块。
+
+**系统更新**
+
+2. 「系统回滚」改为横排单行：左侧「系统回滚」标签，右侧显示上一版本号 +「开始回滚」按钮，点一下自动回退到最近一次备份（版本号从备份目录名自动提取）。
+3. 删除「更新设置」里通知邮箱那行的提示注释。
 
 **升级提示**
 
@@ -1162,4 +1180,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：2.2.0
+版本：2.2.1
