@@ -282,15 +282,6 @@ $siteBase  = rtrim(site_url(), '/');
     </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <div class="hint">
-            生成规则：栏目第 1 页 <code>/别名/index.html</code>，第 N 页 <code>/别名/page/N/index.html</code>，
-            文章 <code>/别名/文章ID.html</code>。别名相当于网址目录，上线后不要再改——本程序不做伪静态，也不做旧地址跳转，改了旧链接就是 404。
-        </div>
-    </div>
-</div>
-
 <script>
 (function () {
     var alias = document.getElementById('dirname');

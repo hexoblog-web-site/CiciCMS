@@ -11,7 +11,6 @@ $user = auth_user();
 /* 图标统一 24 视图框、线性描边，由 CSS 控制尺寸与颜色 */
 $NAV = array(
     'dashboard' => array('仪表盘', '#i-dashboard'),
-    'article'   => array('文章管理', '#i-article'),
     'category'  => array('栏目管理', '#i-category'),
     'page'      => array('单页管理', '#i-page'),
     'media'     => array('媒体信息', '#i-media'),
@@ -26,7 +25,7 @@ $NAV = array(
 );
 $SUBTITLE = array(
     'dashboard' => '内容概览与系统状态',
-    'article'   => '发布、编辑与检索全部文章',
+    'article'   => '从列表选一篇文章修改，也可检索与管理',
     'category'  => '栏目结构与静态目录',
     'page'      => '关于、联系等独立页面',
     'media'     => '图片与附件的上传、地址与大小',
@@ -43,40 +42,14 @@ $SUBTITLE = array(
  * 菜单项格式为 key => array(标题, SVG 内联图标)；icon 省略时用默认方块，避免布局被撑坏。 */
 $NAV = (array) cms_apply_filters('admin_menu', $NAV);
 
-/* 侧栏分组：按「写内容 → 发静态 / 备数据 → 换外观 → 管系统」的工作流排布。
- * $NAV 本身仍是扁平 key=>item，插件通过 admin_menu 插入的项不会失效：
- * 未知 key 跟随它在数组中前一个已知项的分组（例如插在「文章管理」后面就归到内容组）。 */
-$NAV_GROUPS = array(
-    'content' => array('内容', array('dashboard', 'article', 'category', 'page', 'media', 'flink')),
-    'publish' => array('发布与维护', array('build', 'clean', 'data')),
-    'extend'  => array('外观与扩展', array('theme', 'plugin')),
-    'system'  => array('系统', array('update', 'setting')),
+/* 侧栏两个高频动作入口。单独定义而不塞进 $NAV：
+ * $NAV 的 key 必须对应 admin/pages/{key}.php，插件的 admin_menu 钩子也按这个结构来，
+ * 带 action 参数的动作项混进去会同时破坏路由分发和第三方插件。
+ * 「文章管理」已从 $NAV 移除：文章列表由「编辑文章」承担，不再让两个菜单指向同一地址。 */
+$NAV_ACTIONS = array(
+    array('添加文章', '#i-plus',  admin_url('article', array('action' => 'new')), 'new'),
+    array('编辑文章', '#i-write', admin_url('article'),                          'list'),
 );
-$groupOfKey = array();
-foreach ($NAV_GROUPS as $gk => $gv) {
-    foreach ($gv[1] as $nk) {
-        $groupOfKey[$nk] = $gk;
-    }
-}
-$groupedNav = array();
-$lastGroup = 'content';
-foreach ($NAV as $key => $item) {
-    if (isset($groupOfKey[$key])) {
-        $lastGroup = $groupOfKey[$key];
-    }
-    if (!isset($groupedNav[$lastGroup])) {
-        $groupedNav[$lastGroup] = array();
-    }
-    $groupedNav[$lastGroup][$key] = $item;
-}
-/* 当前组：核心页直接查表，插件后台页按菜单项实际落在哪一组判断 */
-$currentGroup = isset($groupOfKey[$p]) ? $groupOfKey[$p] : 'extend';
-foreach ($groupedNav as $gk => $items) {
-    if (isset($items[$p])) {
-        $currentGroup = $gk;
-        break;
-    }
-}
 
 $PLUGIN_PAGE = isset($PLUGIN_PAGE) ? $PLUGIN_PAGE : null;
 
@@ -88,15 +61,43 @@ if ($updateDot) {
     $updateVer   = isset($updateState['remote']['version']) ? (string) $updateState['remote']['version'] : '';
 }
 
+$curAction = isset($_GET['action']) ? (string) $_GET['action'] : '';
+
 $pageTitle = isset($NAV[$p][0]) ? (string) $NAV[$p][0] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['title'] : '管理后台');
 $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['sub'] : '');
+/* article 已从 $NAV 移除，页面标题必须单独给，否则列表态会 fallback 成「管理后台」。
+ * 新建 / 编辑 / 列表三态各给一个准确名字，与侧栏动作入口对得上。 */
+if ($p === 'article') {
+    if ($curAction === 'new') {
+        $pageTitle = '添加文章';
+        $pageSub   = '填标题、栏目和正文，保存后到编辑页补属性';
+    } elseif ($curAction === 'edit') {
+        $pageTitle = '编辑文章';
+        $pageSub   = '内容与属性、封面、附件都在这里修改';
+    } else {
+        $pageTitle = '编辑文章';
+        $pageSub   = '从列表选一篇文章修改，也可检索与管理';
+    }
+}
+/* 动作入口高亮：新建态亮「添加文章」，其余文章页亮「编辑文章」 */
+$actionOn = '';
+if ($p === 'article') {
+    $actionOn = ($curAction === 'new') ? 'new' : 'list';
+}
+/* 两个动作入口的 HTML：插在仪表盘之后、其余菜单之前，顺序固定 添加 → 编辑 */
+$actionsHtml = '';
+foreach ($NAV_ACTIONS as $act) {
+    $on = ($actionOn === $act[3]);
+    $actionsHtml .= '<a class="nav-action' . ($on ? ' on' : '') . '" href="' . e($act[2]) . '"'
+                  . ($on ? ' aria-current="page"' : '') . '>'
+                  . cms_icon($act[1]) . '<span>' . e($act[0]) . '</span></a>';
+}
 
 /* 页头动作槽：列表页放主操作；编辑/新建态换成「返回列表」，
  * 页头不留空，也不和表单底部的保存按钮抢注意力。 */
-$curAction = isset($_GET['action']) ? (string) $_GET['action'] : '';
 $HEAD_ACTIONS = array(
-    'dashboard' => array(array('写文章',   admin_url('article',  array('action' => 'new')), true)),
-    'article'   => array(array('写文章',   admin_url('article',  array('action' => 'new')), true)),
+    'dashboard' => array(array('添加文章', admin_url('article',  array('action' => 'new')), true)),
+    'article'   => array(array('添加文章', admin_url('article',  array('action' => 'new')), true)),
     'page'      => array(array('新建单页', admin_url('page',     array('action' => 'new')), true)),
     'category'  => array(array('新建栏目', admin_url('category', array('action' => 'new')), true)),
     'flink'     => array(array('新增链接', admin_url('flink',    array('action' => 'new')), true)),
@@ -145,47 +146,21 @@ $headActs = isset($HEAD_ACTIONS[$p]) ? $HEAD_ACTIONS[$p] : array();
             </div>
         </div>
         <nav class="nav" aria-label="后台主导航">
-            <?php foreach ($NAV_GROUPS as $gk => $gv):
-                if (empty($groupedNav[$gk])) { continue; }
-                $isCur = ($gk === $currentGroup);
+            <?php /* 插件万一移除了 dashboard，动作入口仍要显示，兜底放在最前 */ ?>
+            <?php if (!isset($NAV['dashboard'])): ?><?php echo $actionsHtml; ?><?php endif; ?>
+            <?php foreach ($NAV as $key => $item):
+                $label = isset($item[0]) ? (string) $item[0] : (string) $key;
+                $icon  = isset($item[1]) && $item[1] !== '' ? (string) $item[1] : '#i-square';
+                $on    = ($p === $key) || ($PLUGIN_PAGE !== null && $key === 'plugin' && !isset($NAV[$p]));
             ?>
-                <div class="nav-group<?php echo $isCur ? ' is-current' : ''; ?>" data-nav-group="<?php echo e($gk); ?>">
-                    <button class="nav-group-title" type="button" data-nav-toggle="<?php echo e($gk); ?>"
-                            aria-expanded="true" aria-controls="nav-g-<?php echo e($gk); ?>"
-                            <?php echo $isCur ? 'disabled title="当前所在分组"' : 'title="折叠 / 展开这一组"'; ?>>
-                        <span><?php echo e($gv[0]); ?></span>
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-                    </button>
-                    <div class="nav-group-items" id="nav-g-<?php echo e($gk); ?>">
-                        <?php foreach ($groupedNav[$gk] as $key => $item):
-                            $label = isset($item[0]) ? (string) $item[0] : (string) $key;
-                            $icon  = isset($item[1]) && $item[1] !== '' ? (string) $item[1] : '#i-square';
-                            $on    = ($p === $key) || ($PLUGIN_PAGE !== null && $key === 'plugin' && !isset($NAV[$p]));
-                        ?>
-                            <a class="<?php echo $on ? 'on' : ''; ?>" href="<?php echo e(admin_url($key)); ?>"<?php echo $on ? ' aria-current="page"' : ''; ?>>
-                                <?php echo cms_icon($icon); ?>
-                                <span><?php echo e($label); ?></span>
-                                <?php if ($key === 'update' && $updateDot): ?><i class="nav-dot" title="有新版本"></i><?php endif; ?>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
+                <a class="<?php echo $on ? 'on' : ''; ?>" href="<?php echo e(admin_url($key)); ?>"<?php echo $on ? ' aria-current="page"' : ''; ?>>
+                    <?php echo cms_icon($icon); ?>
+                    <span><?php echo e($label); ?></span>
+                    <?php if ($key === 'update' && $updateDot): ?><i class="nav-dot" title="有新版本"></i><?php endif; ?>
+                </a>
+                <?php if ($key === 'dashboard'): ?><?php echo $actionsHtml; ?><?php endif; ?>
             <?php endforeach; ?>
         </nav>
-        <script>
-        /* 折叠状态在导航渲染完立刻恢复，避免刷新时菜单闪一下再收起 */
-        (function () {
-            try {
-                var list = (localStorage.getItem('cici-nav-collapsed') || '').split(',');
-                Array.prototype.forEach.call(document.querySelectorAll('.nav-group:not(.is-current)'), function (g) {
-                    if (list.indexOf(g.getAttribute('data-nav-group')) < 0) { return; }
-                    var t = g.querySelector('[data-nav-toggle]'), items = g.querySelector('.nav-group-items');
-                    if (items) { items.hidden = true; }
-                    if (t) { t.setAttribute('aria-expanded', 'false'); }
-                });
-            } catch (e) {}
-        })();
-        </script>
         <div class="sidebar-foot">
             <div class="build-hint">
                 已生成 <b><?php echo (int) static_files_count(); ?></b> 个静态文件
@@ -205,8 +180,7 @@ $headActs = isset($HEAD_ACTIONS[$p]) ? $HEAD_ACTIONS[$p] : array();
             <div>
                 <h1><?php echo e($pageTitle); ?></h1>
                 <div class="page-sub">
-                    <span class="crumb-group"><?php echo e($NAV_GROUPS[$currentGroup][0]); ?></span>
-                    <?php if ($pageSub !== ''): ?><?php echo e($pageSub); ?><?php endif; ?>
+                    <?php if ($pageSub !== ''): ?><span class="page-sub-text"><?php echo e($pageSub); ?></span><?php endif; ?>
                 </div>
             </div>
             <div class="top-actions">
@@ -230,7 +204,7 @@ $headActs = isset($HEAD_ACTIONS[$p]) ? $HEAD_ACTIONS[$p] : array();
                 <button class="icon-btn i-density" type="button" data-density-toggle title="切换紧凑 / 舒适密度" aria-label="切换紧凑或舒适密度" aria-pressed="false">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
                 </button>
-                <span class="user-chip"><?php echo e($user['username']); ?></span>
+                <span class="user-chip"><i class="user-dot" aria-hidden="true"></i><span class="user-name"><?php echo e($user['username']); ?></span></span>
             </div>
         </header>
         <div class="content">

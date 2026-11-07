@@ -240,10 +240,13 @@ if ($action === 'new' || $action === 'edit') {
             $row[$fk2] = $fv2;
         }
     }
+    /* 新建与编辑是两套表单：新建只收集把文章写进去所必需的字段，
+     * 编辑才展示完整的属性区。表单形态由 id 决定，不靠提交参数，避免误清空。 */
+    $isEdit = (int) $row['id'] > 0;
     ?>
     <div class="card has-action-bar">
         <div class="card-head">
-            <h2><?php echo $row['id'] ? '编辑文章 #' . (int) $row['id'] : '写新文章'; ?></h2>
+            <h2><?php echo $row['id'] ? '编辑文章 #' . (int) $row['id'] : '添加文章'; ?></h2>
         </div>
         <div class="card-body">
             <form method="post" action="<?php echo e(admin_url('article')); ?>" data-edit-form>
@@ -255,6 +258,20 @@ if ($action === 'new' || $action === 'edit') {
                     <input class="input" type="text" id="title" name="title" value="<?php echo e($row['title']); ?>" placeholder="请输入文章标题" required>
                 </div>
 
+                <?php if (!$isEdit): ?>
+                <div class="form-row">
+                    <label for="cat_id">分类</label>
+                    <select class="input" id="cat_id" name="cat_id">
+                        <option value="0">未分类</option>
+                        <?php foreach ($cats as $c): ?>
+                            <option value="<?php echo (int) $c['id']; ?>" <?php echo (int) $row['cat_id'] === (int) $c['id'] ? 'selected' : ''; ?>><?php echo e($c['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if (empty($cats)): ?>
+                        <div class="hint">还没有分类，<a href="<?php echo e(admin_url('category')); ?>">先建一个</a></div>
+                    <?php endif; ?>
+                </div>
+                <?php else: ?>
                 <?php
                 $flagsOn = array_filter(array_map('trim', explode(',', (string) (isset($row['flag']) ? $row['flag'] : ''))));
                 ?>
@@ -346,6 +363,7 @@ if ($action === 'new' || $action === 'edit') {
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <div class="form-row">
                     <label for="content">正文（支持 HTML）</label>
@@ -359,15 +377,17 @@ if ($action === 'new' || $action === 'edit') {
                         <button type="button" data-insert="link">链接</button>
                         <button type="button" data-insert="img">图片</button>
                     </div>
-                    <textarea class="input" id="content" name="content" style="min-height:430px" placeholder="<p>开始写点什么…</p>"><?php echo e(content_source($row)); ?></textarea>
+                    <textarea class="input" id="content" name="content" style="min-height:<?php echo $isEdit ? 430 : 260; ?>px" placeholder="<p>开始写点什么…</p>"><?php echo e(content_source($row)); ?></textarea>
                     <div class="hint">图片：点工具栏的「图片」，可以上传本地文件（也能直接拖进去），或粘贴网址让程序抓回本站。</div>
                     <div class="hint">代码块写法：<code>```php</code> 开头，写好代码后另起一行 <code>```</code> 收尾。支持 php / sql / bash / js / html / css / json 等，保存后前台自动高亮并可一键复制。</div>
                     <div class="hint">出于安全考虑，保存时会移除 script / iframe 标签与 onclick 等事件属性。</div>
                 </div>
+                <?php if ($isEdit): ?>
                 <div class="form-row">
                     <label for="excerpt">摘要</label>
                     <textarea class="input" id="excerpt" name="excerpt" style="min-height:74px" placeholder="留空则自动截取正文前 150 字"><?php echo e($row['excerpt']); ?></textarea>
                 </div>
+                <?php endif; ?>
 
                 <div class="card card-inset">
                     <div class="card-head"><h2>发布</h2></div>
@@ -379,22 +399,29 @@ if ($action === 'new' || $action === 'edit') {
                                     <option value="1" <?php echo (int) $row['status'] === 1 ? 'selected' : ''; ?>>已发布</option>
                                     <option value="0" <?php echo (int) $row['status'] === 0 ? 'selected' : ''; ?>>草稿</option>
                                 </select>
+                                <?php if ($isEdit): ?>
                                 <label style="font-weight:400">
                                     <input class="check" type="checkbox" name="is_top" value="1" <?php echo (int) $row['is_top'] === 1 ? 'checked' : ''; ?>>
                                     置顶（列表优先展示）
                                 </label>
+                                <?php endif; ?>
                             </div>
                         </div>
+                        <?php if (!$isEdit): ?>
+                        <div class="hint" style="margin-top:8px">保存后进入编辑页，可继续补推荐位、标签、封面、附件与摘要。</div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
                 <div class="edit-action-bar">
                     <div class="edit-action-inner">
-                        <button class="btn btn-primary" type="submit" name="go" value="stay">保存并生成</button>
+                        <button class="btn btn-primary" type="submit" name="go" value="stay"><?php echo $isEdit ? '保存并生成' : '发布文章'; ?></button>
                         <button class="btn" type="submit" name="go" value="list">保存并返回列表</button>
-                        <?php $previewUrl = $row['id'] ? u_post_preview($row) : ''; ?>
+                        <?php if ($isEdit): ?>
+                        <?php $previewUrl = u_post_preview($row); ?>
                         <button class="btn" type="button" data-preview="article" data-static-url="<?php echo e($previewUrl); ?>"
                                 title="在当前窗口弹窗预览，未保存的改动、草稿也能看">预览</button>
+                        <?php endif; ?>
                         <a class="btn" href="<?php echo e(admin_url('article')); ?>">取消</a>
                         <span class="kbd-hint"><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>S</kbd> 保存</span>
                     </div>

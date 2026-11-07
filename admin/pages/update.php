@@ -338,7 +338,8 @@ $hasPass  = (string) setting('mail_pass', '') !== '';
                 <div class="hint">主机禁用了 <code>mail()</code>，或收不到信，就换成 SMTP。下面几项只在 SMTP 时用得上。</div>
             </div>
 
-            <div id="smtp-box">
+            <details id="smtp-box">
+            <summary class="hint" style="cursor:pointer">SMTP 配置（点开填写）</summary>
             <div class="form-row">
                 <label for="mail_host">SMTP 服务器</label>
                 <input class="input" type="text" id="mail_host" name="mail_host" value="<?php echo e($mailCfg['host']); ?>" placeholder="smtp.qq.com">
@@ -385,8 +386,7 @@ $hasPass  = (string) setting('mail_pass', '') !== '';
                 </span>
             </label>
 
-            <details style="margin:10px 0">
-                <summary class="hint" style="cursor:pointer">常用邮箱参数（点开）</summary>
+            <div class="hint" style="margin-top:10px"><b>常用邮箱参数</b></div>
                 <table class="table" style="margin-top:8px;font-size:12px">
                     <tr><th>邮箱</th><th>服务器</th><th>端口</th><th>加密</th></tr>
                     <tr><td>QQ / 腾讯企业邮</td><td><code>smtp.qq.com</code></td><td>465</td><td>SSL</td></tr>
@@ -397,7 +397,6 @@ $hasPass  = (string) setting('mail_pass', '') !== '';
                 </table>
                 <div class="hint" style="margin-top:6px">账号填完整邮箱；密码一栏填授权码。QQ 邮箱在「设置 → 账号 → POP3/IMAP/SMTP 服务」里生成。</div>
             </details>
-            </div>
 
             <label class="check-row" style="display:flex;gap:8px;align-items:flex-start;margin:10px 0">
                 <input type="checkbox" name="update_auto_check" value="1" <?php echo update_auto_check() ? 'checked' : ''; ?> style="margin-top:3px">

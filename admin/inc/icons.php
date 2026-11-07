@@ -15,6 +15,7 @@ function cms_icon_map()
 {
     return array(
         'square'    => '<rect x="4.5" y="4.5" width="15" height="15" rx="4.5"/>',
+        'plus'      => '<circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/>',
         'dashboard' => '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>',
         'article'   => '<path d="M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z"/><path d="M14 3.5V8h4.5"/><path d="M9 12.5h6M9 16.5h4"/>',
         'write'     => '<path d="M4 20h4L18 10a2.5 2.5 0 0 0-3.5-3.5L4.5 16.5z"/><path d="M13.5 6.5l4 4"/>',

@@ -40,7 +40,7 @@ $runSub  = $allOk
 
 /* 快捷入口：纯线性图标 + 标签；10 项正好两行 */
 $QUICK = array(
-    array('写文章', admin_url('article', array('action' => 'new')), '#i-write'),
+    array('添加文章', admin_url('article', array('action' => 'new')), '#i-write'),
     array('栏目管理', admin_url('category'), '#i-category'),
     array('单页管理', admin_url('page'), '#i-page'),
     array('媒体信息', admin_url('media'), '#i-media'),
