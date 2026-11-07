@@ -5,7 +5,7 @@ if (!defined('CMS_ADMIN')) {
     exit;
 }
 
-/** 系统设置：站点信息 / 管理员密码 / 目录权限 / 系统信息（数据备份在「数据系统」） */
+/** 系统设置：站点信息 / 目录权限自检 / 安全建议（修改密码与系统信息已移除，数据备份在「数据系统」） */
 
 if (is_post()) {
     csrf_verify();
@@ -36,25 +36,6 @@ if (is_post()) {
         redirect(admin_url('setting'));
     }
 
-    if ($do === 'password') {
-        $old  = post_str('oldpass');
-        $new  = post_str('newpass');
-        $new2 = post_str('newpass2');
-        $me   = auth_user();
-        $row  = one('SELECT * FROM {p}user WHERE id = ?', array((int) $me['id']));
-
-        if (!$row || !password_verify($old, $row['password'])) {
-            flash('当前密码不正确', 'err');
-        } elseif (strlen($new) < 6) {
-            flash('新密码至少 6 位', 'err');
-        } elseif ($new !== $new2) {
-            flash('两次输入的新密码不一致', 'err');
-        } else {
-            update_row('user', array('password' => password_hash($new, PASSWORD_DEFAULT)), 'id = ?', array((int) $row['id']));
-            flash('管理员密码已更新');
-        }
-        redirect(admin_url('setting'));
-    }
 }
 ?>
 <div class="card">
@@ -157,45 +138,6 @@ if (is_post()) {
         <code style="background:var(--card);border-radius:4px;padding:1px 5px">chmod -R a-w includes admin</code><br>
         只去写位，目录要保留 <code style="background:var(--card);border-radius:4px;padding:1px 5px">r-x</code>，否则标签注册表扫不到文件，前台会白屏。
     </div>
-</div>
-
-<div class="grid2 cards">
-<div class="card">
-    <div class="card-head"><h2>修改密码</h2></div>
-    <div class="card-body">
-        <form method="post" action="<?php echo e(admin_url('setting')); ?>">
-            <?php echo csrf_field(); ?>
-            <input type="hidden" name="do" value="password">
-            <div class="form-row">
-                <label for="oldpass">当前密码</label>
-                <input class="input" type="password" id="oldpass" name="oldpass" required>
-            </div>
-            <div class="form-row">
-                <label for="newpass">新密码</label>
-                <input class="input" type="password" id="newpass" name="newpass" required>
-            </div>
-            <div class="form-row">
-                <label for="newpass2">确认新密码</label>
-                <input class="input" type="password" id="newpass2" name="newpass2" required>
-            </div>
-            <button class="btn btn-primary btn-block" type="submit">更新密码</button>
-        </form>
-    </div>
-</div>
-<div class="card" id="sysinfo">
-    <div class="card-head"><h2>系统信息</h2></div>
-    <div class="card-body">
-        <div class="kv"><span>程序版本</span><span>CiciCMS <?php echo e(CMS_VERSION); ?></span></div>
-        <div class="kv"><span>PHP</span><span><?php echo e(PHP_VERSION); ?></span></div>
-        <div class="kv"><span>MySQL</span><span><?php echo e((string) val('SELECT VERSION()')); ?></span></div>
-        <div class="kv"><span>当前模板</span><span><?php echo e(theme_name()); ?></span></div>
-        <div class="kv"><span>自动生成</span><span><?php echo setting('auto_build', '1') === '1' ? '开启' : '关闭'; ?></span></div>
-        <div class="kv"><span>数据库主机</span><span><?php echo e(DB_HOST . ':' . DB_PORT); ?></span></div>
-        <div class="kv"><span>数据库名</span><span><?php echo e(DB_NAME); ?></span></div>
-        <div class="kv"><span>表前缀</span><span><?php echo e(DB_PREFIX); ?></span></div>
-        <div class="kv"><span>字符集</span><span><?php echo e(DB_CHARSET); ?></span></div>
-    </div>
-</div>
 </div>
 
 <div class="card">

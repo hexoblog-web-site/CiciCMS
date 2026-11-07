@@ -36,7 +36,7 @@ $SUBTITLE = array(
     'theme'     => '模板文件与代码块样式',
     'plugin'    => '启用、停用与插件自带的后台页面',
     'update'    => '把 GitHub 上的新版本装到本地',
-    'setting'   => '站点、账号与安全选项',
+    'setting'   => '站点与安全选项',
 );
 /* 插件可以增删菜单：cms_add_filter('admin_menu', function ($nav) { ... })
  * 菜单项格式为 key => array(标题, SVG 内联图标)；icon 省略时用默认方块，避免布局被撑坏。 */
