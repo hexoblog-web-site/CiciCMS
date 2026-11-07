@@ -109,14 +109,6 @@ if (is_post()) {
         redirect(admin_url('update'));
     }
 
-    if ($do === 'rotate') {
-        set_setting('update_cron_token', '');
-        update_cron_token();
-        log_msg('update cron token rotated');
-        flash('定时检查地址已重置，旧地址立即失效，记得去服务器改计划任务');
-        redirect(admin_url('update'));
-    }
-
     if ($do === 'check') {
         $r = update_check(true, $err);
         if (!$r['ok']) {
@@ -172,13 +164,27 @@ if (is_post()) {
         }
         redirect(admin_url('update'));
     }
+
+    if ($do === 'rollback_last') {
+        $bs = update_backups();
+        if (empty($bs)) {
+            flash('没有可用的备份，无法回滚', 'err');
+        } else {
+            $b = $bs[0]; // 最近一份（备份名 Ymd-His 字典序最新）
+            if (update_rollback($b['path'], $err)) {
+                flash('已回滚到 ' . $b['name'] . ' 的版本。刷新页面后生效。');
+            } else {
+                flash('回滚失败：' . $err, 'err');
+            }
+        }
+        redirect(admin_url('update'));
+    }
 }
 
 $state   = update_state_read();
 $remote  = isset($state['remote']) && is_array($state['remote']) ? $state['remote'] : array();
 $hasNew  = update_has_new($state);
 $backups = update_backups();
-$history = isset($state['history']) && is_array($state['history']) ? $state['history'] : array();
 $repo    = (string) setting('update_repo', 'hexoblog-web-site/CiciCMS');
 $branch  = update_branch();
 $lastErr = (string) (isset($state['error']) ? $state['error'] : '');
@@ -194,7 +200,6 @@ $nextCheck  = update_next_check_at();
 $notifiedAt = isset($state['notified_at']) ? (int) $state['notified_at'] : 0;
 $notifiedTo = isset($state['notified_to']) ? (string) $state['notified_to'] : '';
 $notifyErr  = isset($state['notify_error']) ? (string) $state['notify_error'] : '';
-$cronUrl    = update_cron_url();
 
 /* 发信配置 */
 $mailCfg  = cms_mail_config();
@@ -258,6 +263,20 @@ $hasPass  = (string) setting('mail_pass', '') !== '';
         <?php endif; ?>
         <div class="kv"><span>上次更新</span><span><?php echo !empty($state['last_update_at']) ? e(date('Y-m-d H:i', (int) $state['last_update_at'])) : '从未'; ?></span></div>
 
+        <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+            <div style="font-weight:600;margin-bottom:2px">系统回滚</div>
+            <div class="hint" style="margin-bottom:10px">一键恢复到最近一次更新前的备份（最新一份）。</div>
+            <?php if (empty($backups)): ?>
+                <div class="hint">还没有可用的备份。</div>
+            <?php else: ?>
+                <form method="post" action="<?php echo e(admin_url('update')); ?>" data-busy="回滚中…">
+                    <?php echo csrf_field(); ?>
+                    <input type="hidden" name="do" value="rollback_last">
+                    <button class="btn btn-danger" type="submit" data-confirm="确定回滚到最近一次备份（<?php echo e($backups[0]['name']); ?>）？当前程序文件会被覆盖，刷新后生效。">回滚到最近版本</button>
+                </form>
+            <?php endif; ?>
+        </div>
+
         <?php if ($hasNew): ?>
             <div style="display:flex;gap:8px;align-items:center;margin-top:14px;flex-wrap:wrap">
                 <form method="post" action="<?php echo e(admin_url('update')); ?>" data-busy="正在更新，请勿关闭页面…">
@@ -274,31 +293,6 @@ $hasPass  = (string) setting('mail_pass', '') !== '';
             <div class="hint" style="margin-top:10px">下载并覆盖需要几秒到几十秒，取决于服务器访问 GitHub 的速度。</div>
         <?php endif; ?>
     </div>
-</div>
-
-<div class="card">
-    <div class="card-head"><h2>更新记录</h2></div>
-    <?php if (empty($history)): ?>
-        <div class="card-body"><div class="empty">还没有通过后台更新过</div></div>
-    <?php else: ?>
-        <div class="card-body tight">
-            <table class="table">
-                    <thead>
-                        <tr><th style="width:150px">时间</th><th style="width:110px">版本</th><th>提交</th><th style="width:90px">文件数</th></tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($history as $h): ?>
-                            <tr>
-                                <td class="hint"><?php echo e(date('Y-m-d H:i', (int) $h['at'])); ?></td>
-                                <td><?php echo e($h['version']); ?></td>
-                                <td class="hint"><code><?php echo e($h['sha']); ?></code></td>
-                                <td class="hint"><?php echo (int) $h['files']; ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-            </table>
-        </div>
-    <?php endif; ?>
 </div>
 
 <div class="card">
@@ -442,61 +436,3 @@ $hasPass  = (string) setting('mail_pass', '') !== '';
     </div>
 </div>
 
-<div class="grid2 cards">
-<div class="card">
-    <div class="card-head"><h2>无人值守</h2></div>
-    <div class="card-body">
-        <p class="hint" style="margin-top:0;line-height:1.8">
-            后台不开也能查：把下面这个地址加到服务器的计划任务（宝塔 / 1Panel / crontab），
-            到点由服务器自己来访问，结果会写进状态并发出邮件。
-        </p>
-        <input class="input" type="text" id="cron-url" value="<?php echo e($cronUrl); ?>" readonly onclick="this.select()" style="font-size:11.5px">
-        <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="btn btn-sm" type="button" data-copy="#cron-url">复制地址</button>
-            <form method="post" action="<?php echo e(admin_url('update')); ?>" data-busy="重置中…">
-                <?php echo csrf_field(); ?>
-                <input type="hidden" name="do" value="rotate">
-                <button class="btn btn-sm" type="submit" data-confirm="重置后旧地址立即失效，服务器上的计划任务要同步修改。继续？">重置令牌</button>
-            </form>
-        </div>
-        <div class="hint" style="margin-top:10px;line-height:1.8">
-            命令示例：<br>
-            <code>curl -s "上面这个地址" &gt;/dev/null</code><br>
-            建议每 6 小时跑一次，和上面的检查间隔保持一致。
-        </div>
-    </div>
-</div>
-<div class="card">
-    <div class="card-head"><h2>更新了哪些东西</h2></div>
-    <div class="card-body">
-        <div class="kv"><span>会覆盖</span><span class="path-tags"><code>includes/</code><code>admin/</code><code>index.php</code><code>api.php</code><code>.htaccess</code></span></div>
-        <div class="kv"><span>绝不动</span><span class="path-tags"><code>content/</code><code>config.php</code><code>install/</code></span></div>
-        <div class="kv"><span>失败处理</span><span>整批回滚到更新前</span></div>
-        <div class="hint" style="margin-top:10px">
-            更新只换程序文件，数据库结构由程序下次访问时自行升级；静态页需要重新生成一次。
-        </div>
-    </div>
-</div>
-</div>
-
-<div class="card">
-    <div class="card-head"><h2>备份与回滚</h2></div>
-    <div class="card-body">
-        <?php if (empty($backups)): ?>
-            <div class="empty" style="padding:26px 0">更新前会自动备份到这个列表</div>
-        <?php else: ?>
-            <?php foreach ($backups as $b): ?>
-                <div style="padding:8px 0;border-bottom:1px solid var(--line)">
-                    <div style="font-size:12.5px"><?php echo e($b['name']); ?></div>
-                    <div class="hint" style="margin:3px 0 7px"><?php echo e(date('Y-m-d H:i', $b['time'])); ?></div>
-                    <form method="post" action="<?php echo e(admin_url('update')); ?>" data-busy="回滚中…">
-                        <?php echo csrf_field(); ?>
-                        <input type="hidden" name="do" value="rollback">
-                        <input type="hidden" name="name" value="<?php echo e($b['name']); ?>">
-                        <button class="btn btn-sm" type="submit" data-confirm="用这份备份覆盖当前程序文件？">回滚到这一份</button>
-                    </form>
-                </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
-    </div>
-</div>
