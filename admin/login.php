@@ -1,8 +1,33 @@
 <?php
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
+/* 会话超时被踢回登录页时，登录后回到原来那一页（比如正在编辑的文章），
+ * 而不是一律回仪表盘。只从 back 里取 query 参数再拼到 index.php，
+ * 不接受任意 URL，避免被人拿登录页做开放重定向。 */
+$back = isset($_POST['back']) ? (string) $_POST['back'] : (isset($_GET['back']) ? (string) $_GET['back'] : '');
+$backQuery = '';
+/* 只认指向后台入口 index.php 的相对地址；带协议、协议相对 URL 或其它脚本一律不采信 */
+if ($back !== '' && strpos($back, '//') !== 0 && !preg_match('/^[a-z][a-z0-9+.\-]*:/i', $back)) {
+    $path = @parse_url($back, PHP_URL_PATH);
+    $q    = @parse_url($back, PHP_URL_QUERY);
+    if ((!is_string($path) || $path === '' || substr($path, -9) === 'index.php') && is_string($q) && $q !== '') {
+        $parts = array();
+        parse_str($q, $parts);
+        $keep = array();
+        foreach (array('p', 'action', 'id', 'page', 'kw', 'cat', 'status', 'file', 'tab') as $k) {
+            if (isset($parts[$k]) && is_scalar($parts[$k])) {
+                $keep[$k] = (string) $parts[$k];
+            }
+        }
+        if ($keep) {
+            $backQuery = http_build_query($keep);
+        }
+    }
+}
+$afterLogin = 'index.php' . ($backQuery !== '' ? '?' . $backQuery : '');
+
 if (auth_check()) {
-    redirect('index.php');
+    redirect($afterLogin);
 }
 
 $err      = '';
@@ -22,7 +47,7 @@ if (is_post()) {
         $result = auth_login($username, $password);
         if ($result === true) {
             login_guard_clear();
-            redirect('index.php');
+            redirect($afterLogin);
         }
         login_guard_fail();
         $err = $result;
@@ -65,6 +90,7 @@ if (is_post()) {
     <?php if ($err !== ''): ?><div class="alert alert-err"><?php echo e($err); ?></div><?php endif; ?>
     <form method="post" action="login.php" autocomplete="off">
         <?php echo csrf_field(); ?>
+        <?php if ($back !== ''): ?><input type="hidden" name="back" value="<?php echo e($back); ?>"><?php endif; ?>
         <div class="form-row">
             <label for="username">管理员账号</label>
             <input class="input" type="text" id="username" name="username" value="<?php echo e($username); ?>" autofocus required>

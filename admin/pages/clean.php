@@ -159,11 +159,22 @@ $shown = array_slice($unused, 0, $limit);
     var form = document.getElementById('cleanForm');
     if (!form) { return; }
 
+    var submitBtn = document.getElementById('cleanSubmit');
+
     function refresh() {
         var n = 0;
         for (var i = 0; i < boxes.length; i++) { if (boxes[i].checked) { n++; } }
         if (count) { count.textContent = n; }
         if (all) { all.checked = n > 0 && n === boxes.length; }
+        /* 确认交给后台统一的 data-confirm 委派，文案带上实际选中数量；
+           一个都没勾时去掉确认，改由下面的 toast 提示，避免连弹两次框。 */
+        if (submitBtn) {
+            if (n > 0) {
+                submitBtn.setAttribute('data-confirm', '确定删除选中的 ' + n + ' 项？文件会从服务器上移除，无法恢复。');
+            } else {
+                submitBtn.removeAttribute('data-confirm');
+            }
+        }
     }
     if (all) {
         all.addEventListener('change', function () {
@@ -178,11 +189,8 @@ $shown = array_slice($unused, 0, $limit);
         for (var i = 0; i < boxes.length; i++) { if (boxes[i].checked) { n++; } }
         if (n === 0) {
             ev.preventDefault();
-            alert('请先勾选要删除的文件');
-            return;
-        }
-        if (!confirm('确定删除选中的 ' + n + ' 项？文件会从服务器上移除，无法恢复。')) {
-            ev.preventDefault();
+            if (window.cmsToast) { window.cmsToast('请先勾选要删除的文件'); }
+            else { alert('请先勾选要删除的文件'); }
         }
     });
     refresh();

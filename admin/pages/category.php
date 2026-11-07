@@ -77,7 +77,7 @@ if (is_post()) {
             update_row('category', $data, 'id = ?', array($id));
             $msg = '栏目已更新';
         } else {
-            insert_row('category', $data);
+            $id = insert_row('category', $data);
             $msg = '栏目已创建';
         }
 
@@ -113,8 +113,12 @@ if (is_post()) {
             }
         }
         flash($msg);
-        // 改完停在设置页，能立刻看到横幅预览和新地址；新建则回列表
-        redirect($id > 0 ? admin_url('category', array('action' => 'edit', 'id' => $id)) : admin_url('category'));
+        // 与文章、单页一致：保存后停在设置页，能立刻看到横幅预览和新地址
+        $go = post_str('go', 'stay');
+        if ($go === 'list') {
+            redirect(admin_url('category'));
+        }
+        redirect(admin_url('category', array('action' => 'edit', 'id' => $id)));
     }
 
     if ($do === 'delete') {
@@ -179,7 +183,7 @@ $siteBase  = rtrim(site_url(), '/');
                         <td><?php echo (int) $c['total']; ?></td>
                         <td><?php echo (int) $c['sort']; ?></td>
                         <td class="actions-cell">
-                            <a class="btn btn-sm" href="<?php echo e(admin_url('category', array('action' => 'edit', 'id' => $c['id']))); ?>">设置</a>
+                            <a class="btn btn-sm" href="<?php echo e(admin_url('category', array('action' => 'edit', 'id' => $c['id']))); ?>">编辑</a>
                             <form method="post" action="<?php echo e(admin_url('category')); ?>" style="display:inline">
                                 <?php echo csrf_field(); ?>
                                 <input type="hidden" name="do" value="delete">
@@ -267,7 +271,8 @@ $siteBase  = rtrim(site_url(), '/');
             </div>
 
             <div class="form-actions">
-                <button class="btn btn-primary" type="submit">保存栏目</button>
+                <button class="btn btn-primary" type="submit" name="go" value="stay">保存栏目</button>
+                <button class="btn" type="submit" name="go" value="list">保存并返回列表</button>
                 <?php if ($edit['id']): ?>
                     <a class="btn" href="<?php echo e(u_cat($edit)); ?>" target="_blank">查看栏目页</a>
                     <a class="btn" href="<?php echo e(admin_url('category')); ?>">取消</a>

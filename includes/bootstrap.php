@@ -25,7 +25,7 @@ define('CMS_DATA', CMS_CONTENT . '/data');
 /** 插件目录：content/plugins/<id>/，每个插件一个文件夹，升级不覆盖 */
 define('CMS_PLUGINS', CMS_CONTENT . '/plugins');
 
-define('CMS_VERSION', '2.1.8');
+define('CMS_VERSION', '2.1.9');
 
 if (!is_file(CMS_ROOT . '/config.php')) {
     $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');

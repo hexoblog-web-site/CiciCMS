@@ -126,12 +126,11 @@ $fmtSize  = function ($bytes) {
                         <td class="hint" style="white-space:nowrap"><?php echo $bt ? e(date('Y-m-d H:i', $bt)) : '—'; ?></td>
                         <td class="actions-cell" style="white-space:nowrap;text-align:right">
                             <a class="btn btn-sm" href="download.php?f=<?php echo e(urlencode($b)); ?>">下载</a>
-                            <form method="post" action="<?php echo e(admin_url('data')); ?>" style="display:inline"
-                                  onsubmit="return confirm('确定删除这个备份文件？');">
+                            <form method="post" action="<?php echo e(admin_url('data')); ?>" style="display:inline">
                                 <?php echo csrf_field(); ?>
                                 <input type="hidden" name="do" value="backup_delete">
                                 <input type="hidden" name="file" value="<?php echo e($b); ?>">
-                                <button class="btn btn-sm" type="submit">删除</button>
+                                <button class="btn btn-sm btn-danger" type="submit" data-confirm="确定删除这个备份文件？删除后无法恢复。">删除</button>
                             </form>
                         </td>
                     </tr>

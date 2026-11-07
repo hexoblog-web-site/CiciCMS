@@ -170,7 +170,14 @@ if (is_post()) {
         cms_do_action('article_saved', $id, $data, $oldRow ? false : true);
 
         flash($msg);
-        redirect(admin_url('article'));
+        /* 保存后默认留在编辑页：刚写完最常做的是再看一眼、微调或预览前台，
+         * 跳回列表再点进来纯属多两步。想回列表的人点「保存并返回列表」即可，
+         * 单页 / 栏目也统一成这套行为。 */
+        $go = post_str('go', 'stay');
+        if ($go === 'list') {
+            redirect(admin_url('article'));
+        }
+        redirect(admin_url('article', array('action' => 'edit', 'id' => $id)));
     }
 
     if ($do === 'delete') {
@@ -234,13 +241,12 @@ if ($action === 'new' || $action === 'edit') {
         }
     }
     ?>
-    <div class="card">
+    <div class="card has-action-bar">
         <div class="card-head">
             <h2><?php echo $row['id'] ? '编辑文章 #' . (int) $row['id'] : '写新文章'; ?></h2>
-            <a class="btn btn-sm" href="<?php echo e(admin_url('article')); ?>">返回列表</a>
         </div>
         <div class="card-body">
-            <form method="post" action="<?php echo e(admin_url('article')); ?>">
+            <form method="post" action="<?php echo e(admin_url('article')); ?>" data-edit-form>
                 <?php echo csrf_field(); ?>
                 <input type="hidden" name="do" value="save">
                 <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
@@ -366,7 +372,7 @@ if ($action === 'new' || $action === 'edit') {
                 <div class="card card-inset">
                     <div class="card-head"><h2>发布</h2></div>
                     <div class="card-body">
-                        <div class="form-row">
+                        <div class="form-row" style="margin-bottom:0">
                             <label for="status">发布状态</label>
                             <div class="inline">
                                 <select class="input" id="status" name="status" style="width:180px">
@@ -379,13 +385,18 @@ if ($action === 'new' || $action === 'edit') {
                                 </label>
                             </div>
                         </div>
-                        <div class="form-actions">
-                            <button class="btn btn-primary" type="submit">保存并生成</button>
-                            <?php $previewUrl = $row['id'] ? u_post_preview($row) : ''; ?>
-                            <button class="btn" type="button" data-preview="article" data-static-url="<?php echo e($previewUrl); ?>"
-                                    title="在当前窗口弹窗预览，未保存的改动、草稿也能看">预览</button>
-                            <a class="btn" href="<?php echo e(admin_url('article')); ?>">取消</a>
-                        </div>
+                    </div>
+                </div>
+
+                <div class="edit-action-bar">
+                    <div class="edit-action-inner">
+                        <button class="btn btn-primary" type="submit" name="go" value="stay">保存并生成</button>
+                        <button class="btn" type="submit" name="go" value="list">保存并返回列表</button>
+                        <?php $previewUrl = $row['id'] ? u_post_preview($row) : ''; ?>
+                        <button class="btn" type="button" data-preview="article" data-static-url="<?php echo e($previewUrl); ?>"
+                                title="在当前窗口弹窗预览，未保存的改动、草稿也能看">预览</button>
+                        <a class="btn" href="<?php echo e(admin_url('article')); ?>">取消</a>
+                        <span class="kbd-hint"><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>S</kbd> 保存</span>
                     </div>
                 </div>
             </form>
@@ -452,7 +463,17 @@ $rows  = all(
 
     <div class="card-body tight">
         <?php if (empty($rows)): ?>
-            <div class="empty">没有符合条件的文章</div>
+            <?php $filtered = ($kw !== '' || $fc > 0 || $fs !== ''); ?>
+            <div class="empty">
+                <?php echo $filtered ? '没有符合条件的文章' : '还没有文章'; ?>
+                <div class="empty-actions">
+                    <?php if ($filtered): ?>
+                        <a class="btn btn-sm" href="<?php echo e(admin_url('article')); ?>">清除筛选</a>
+                    <?php else: ?>
+                        <a class="btn btn-sm btn-primary" href="<?php echo e(admin_url('article', array('action' => 'new'))); ?>">写第一篇文章</a>
+                    <?php endif; ?>
+                </div>
+            </div>
         <?php else: ?>
             <table class="table">
                 <tr>

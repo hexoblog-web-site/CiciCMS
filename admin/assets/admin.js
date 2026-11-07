@@ -619,6 +619,53 @@
     sync();
   });
 
+  /* ================= 侧栏分组折叠 ================= */
+
+  var NAV_KEY = 'cici-nav-collapsed';
+
+  function navCollapsed() {
+    try {
+      var raw = localStorage.getItem(NAV_KEY) || '';
+      return raw ? raw.split(',') : [];
+    } catch (e) { return []; }
+  }
+  function navStore(list) {
+    try { localStorage.setItem(NAV_KEY, list.join(',')); } catch (e) {}
+  }
+
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-nav-toggle]');
+    if (!btn || btn.disabled) { return; }
+    var group = btn.closest('.nav-group');
+    if (!group) { return; }
+    var items = group.querySelector('.nav-group-items');
+    if (!items) { return; }
+    var key = group.getAttribute('data-nav-group');
+    var hide = !items.hidden;
+    items.hidden = hide;
+    btn.setAttribute('aria-expanded', hide ? 'false' : 'true');
+    var list = navCollapsed(), at = list.indexOf(key);
+    if (hide && at < 0) { list.push(key); }
+    if (!hide && at >= 0) { list.splice(at, 1); }
+    navStore(list);
+  });
+
+  /* ================= 编辑器快捷键 ================= */
+
+  /* Ctrl / ⌘ + S：直接保存并留在编辑页，写长文时不用滚到最下面 */
+  document.addEventListener('keydown', function (ev) {
+    if (!(ev.ctrlKey || ev.metaKey) || ev.altKey) { return; }
+    if ((ev.key || '').toLowerCase() !== 's') { return; }
+    if (document.querySelector('.cms-modal:not([hidden])')) { return; }
+    var form = document.querySelector('form[data-edit-form]');
+    if (!form) { return; }
+    var primary = form.querySelector('.edit-action-bar button[type="submit"][value="stay"]');
+    if (!primary) { return; }
+    ev.preventDefault();
+    if (form.requestSubmit) { form.requestSubmit(primary); }
+    else { primary.click(); }
+  });
+
   /* ================= 显示设置：主题与密度 ================= */
 
   var THEME_KEY = 'cici-theme', DENSITY_KEY = 'cici-density';

@@ -34,7 +34,7 @@ admin/*.php┘
 | `CMS_UPLOADS` | `content/uploads` | — |
 | `CMS_DATA` | `content/data` | 日志、缓存、备份 |
 | `CMS_PLUGINS` | `content/plugins` | — |
-| `CMS_VERSION` | `2.1.7` | 版本比对 |
+| `CMS_VERSION` | `2.1.9` | 版本比对 |
 | `CMS_ADMIN` | `true`（仅后台） | 判断"是否在后台上下文" |
 | `CMS_DEBUG` | `false` | 生产环境不暴露堆栈 |
 

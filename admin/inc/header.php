@@ -32,7 +32,7 @@ $SUBTITLE = array(
     'media'     => '图片与附件的上传、地址与大小',
     'flink'     => '首页友情链接位',
     'build'     => '把内容渲染为静态 HTML',
-    'clean'     => '清理无用附件与缓存',
+    'clean'     => '清理未被引用的图片与附件',
     'data'      => '数据库备份、恢复与导入',
     'theme'     => '模板文件与代码块样式',
     'plugin'    => '启用、停用与插件自带的后台页面',
@@ -42,6 +42,41 @@ $SUBTITLE = array(
 /* 插件可以增删菜单：cms_add_filter('admin_menu', function ($nav) { ... })
  * 菜单项格式为 key => array(标题, SVG 内联图标)；icon 省略时用默认方块，避免布局被撑坏。 */
 $NAV = (array) cms_apply_filters('admin_menu', $NAV);
+
+/* 侧栏分组：按「写内容 → 发静态 / 备数据 → 换外观 → 管系统」的工作流排布。
+ * $NAV 本身仍是扁平 key=>item，插件通过 admin_menu 插入的项不会失效：
+ * 未知 key 跟随它在数组中前一个已知项的分组（例如插在「文章管理」后面就归到内容组）。 */
+$NAV_GROUPS = array(
+    'content' => array('内容', array('dashboard', 'article', 'category', 'page', 'media', 'flink')),
+    'publish' => array('发布与维护', array('build', 'clean', 'data')),
+    'extend'  => array('外观与扩展', array('theme', 'plugin')),
+    'system'  => array('系统', array('update', 'setting')),
+);
+$groupOfKey = array();
+foreach ($NAV_GROUPS as $gk => $gv) {
+    foreach ($gv[1] as $nk) {
+        $groupOfKey[$nk] = $gk;
+    }
+}
+$groupedNav = array();
+$lastGroup = 'content';
+foreach ($NAV as $key => $item) {
+    if (isset($groupOfKey[$key])) {
+        $lastGroup = $groupOfKey[$key];
+    }
+    if (!isset($groupedNav[$lastGroup])) {
+        $groupedNav[$lastGroup] = array();
+    }
+    $groupedNav[$lastGroup][$key] = $item;
+}
+/* 当前组：核心页直接查表，插件后台页按菜单项实际落在哪一组判断 */
+$currentGroup = isset($groupOfKey[$p]) ? $groupOfKey[$p] : 'extend';
+foreach ($groupedNav as $gk => $items) {
+    if (isset($items[$p])) {
+        $currentGroup = $gk;
+        break;
+    }
+}
 
 $PLUGIN_PAGE = isset($PLUGIN_PAGE) ? $PLUGIN_PAGE : null;
 
@@ -56,20 +91,20 @@ if ($updateDot) {
 $pageTitle = isset($NAV[$p][0]) ? (string) $NAV[$p][0] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['title'] : '管理后台');
 $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['sub'] : '');
 
-/* 页头动作槽：每个页面的主操作统一放右上角，不再散落在各张卡片的 card-head 里。
- * 编辑/新建态不显示，避免和「返回列表」挤在一起。 */
+/* 页头动作槽：列表页放主操作；编辑/新建态换成「返回列表」，
+ * 页头不留空，也不和表单底部的保存按钮抢注意力。 */
 $curAction = isset($_GET['action']) ? (string) $_GET['action'] : '';
-$HEAD_ACTION = array(
-    'dashboard' => array('写文章',   admin_url('article',  array('action' => 'new'))),
-    'article'   => array('写文章',   admin_url('article',  array('action' => 'new'))),
-    'page'      => array('新建单页', admin_url('page',     array('action' => 'new'))),
-    'category'  => array('新建栏目', admin_url('category', array('action' => 'new'))),
-    'flink'     => array('新增链接', admin_url('flink',    array('action' => 'new'))),
+$HEAD_ACTIONS = array(
+    'dashboard' => array(array('写文章',   admin_url('article',  array('action' => 'new')), true)),
+    'article'   => array(array('写文章',   admin_url('article',  array('action' => 'new')), true)),
+    'page'      => array(array('新建单页', admin_url('page',     array('action' => 'new')), true)),
+    'category'  => array(array('新建栏目', admin_url('category', array('action' => 'new')), true)),
+    'flink'     => array(array('新增链接', admin_url('flink',    array('action' => 'new')), true)),
 );
 if ($curAction !== '' && $p !== 'dashboard') {
-    $HEAD_ACTION = array();
+    $HEAD_ACTIONS[$p] = array(array('← 返回列表', admin_url($p), false));
 }
-$headAct = isset($HEAD_ACTION[$p]) ? $HEAD_ACTION[$p] : null;
+$headActs = isset($HEAD_ACTIONS[$p]) ? $HEAD_ACTIONS[$p] : array();
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -109,19 +144,48 @@ $headAct = isset($HEAD_ACTION[$p]) ? $HEAD_ACTION[$p] : null;
                 <div class="brand-sub">静态化 CMS v<?php echo e(CMS_VERSION); ?></div>
             </div>
         </div>
-        <nav class="nav">
-            <?php foreach ($NAV as $key => $item):
-                $label = isset($item[0]) ? (string) $item[0] : (string) $key;
-                $icon  = isset($item[1]) && $item[1] !== '' ? (string) $item[1] : '#i-square';
-                $on    = ($p === $key) || ($PLUGIN_PAGE !== null && $key === 'plugin' && !isset($NAV[$p]));
+        <nav class="nav" aria-label="后台主导航">
+            <?php foreach ($NAV_GROUPS as $gk => $gv):
+                if (empty($groupedNav[$gk])) { continue; }
+                $isCur = ($gk === $currentGroup);
             ?>
-                <a class="<?php echo $on ? 'on' : ''; ?>" href="<?php echo e(admin_url($key)); ?>">
-                    <?php echo cms_icon($icon); ?>
-                    <span><?php echo e($label); ?></span>
-                    <?php if ($key === 'update' && $updateDot): ?><i class="nav-dot" title="有新版本"></i><?php endif; ?>
-                </a>
+                <div class="nav-group<?php echo $isCur ? ' is-current' : ''; ?>" data-nav-group="<?php echo e($gk); ?>">
+                    <button class="nav-group-title" type="button" data-nav-toggle="<?php echo e($gk); ?>"
+                            aria-expanded="true" aria-controls="nav-g-<?php echo e($gk); ?>"
+                            <?php echo $isCur ? 'disabled title="当前所在分组"' : 'title="折叠 / 展开这一组"'; ?>>
+                        <span><?php echo e($gv[0]); ?></span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <div class="nav-group-items" id="nav-g-<?php echo e($gk); ?>">
+                        <?php foreach ($groupedNav[$gk] as $key => $item):
+                            $label = isset($item[0]) ? (string) $item[0] : (string) $key;
+                            $icon  = isset($item[1]) && $item[1] !== '' ? (string) $item[1] : '#i-square';
+                            $on    = ($p === $key) || ($PLUGIN_PAGE !== null && $key === 'plugin' && !isset($NAV[$p]));
+                        ?>
+                            <a class="<?php echo $on ? 'on' : ''; ?>" href="<?php echo e(admin_url($key)); ?>"<?php echo $on ? ' aria-current="page"' : ''; ?>>
+                                <?php echo cms_icon($icon); ?>
+                                <span><?php echo e($label); ?></span>
+                                <?php if ($key === 'update' && $updateDot): ?><i class="nav-dot" title="有新版本"></i><?php endif; ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             <?php endforeach; ?>
         </nav>
+        <script>
+        /* 折叠状态在导航渲染完立刻恢复，避免刷新时菜单闪一下再收起 */
+        (function () {
+            try {
+                var list = (localStorage.getItem('cici-nav-collapsed') || '').split(',');
+                Array.prototype.forEach.call(document.querySelectorAll('.nav-group:not(.is-current)'), function (g) {
+                    if (list.indexOf(g.getAttribute('data-nav-group')) < 0) { return; }
+                    var t = g.querySelector('[data-nav-toggle]'), items = g.querySelector('.nav-group-items');
+                    if (items) { items.hidden = true; }
+                    if (t) { t.setAttribute('aria-expanded', 'false'); }
+                });
+            } catch (e) {}
+        })();
+        </script>
         <div class="sidebar-foot">
             <div class="build-hint">
                 已生成 <b><?php echo (int) static_files_count(); ?></b> 个静态文件
@@ -140,7 +204,10 @@ $headAct = isset($HEAD_ACTION[$p]) ? $HEAD_ACTION[$p] : null;
             <button class="menu-btn" type="button" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
             <div>
                 <h1><?php echo e($pageTitle); ?></h1>
-                <?php if ($pageSub !== ''): ?><div class="page-sub"><?php echo e($pageSub); ?></div><?php endif; ?>
+                <div class="page-sub">
+                    <span class="crumb-group"><?php echo e($NAV_GROUPS[$currentGroup][0]); ?></span>
+                    <?php if ($pageSub !== ''): ?><?php echo e($pageSub); ?><?php endif; ?>
+                </div>
             </div>
             <div class="top-actions">
                 <?php if ($updateDot): ?>
@@ -149,9 +216,11 @@ $headAct = isset($HEAD_ACTION[$p]) ? $HEAD_ACTION[$p] : null;
                     </a>
                 <?php endif; ?>
                 <a class="link" href="<?php echo e(site_url()); ?>" target="_blank">访问站点 ↗</a>
-                <?php if ($headAct): ?>
+                <?php if ($headActs): ?>
                     <div class="page-actions">
-                        <a class="btn btn-sm btn-primary" href="<?php echo e($headAct[1]); ?>"><?php echo e($headAct[0]); ?></a>
+                        <?php foreach ($headActs as $act): ?>
+                            <a class="btn btn-sm<?php echo $act[2] ? ' btn-primary' : ''; ?>" href="<?php echo e($act[1]); ?>"><?php echo e($act[0]); ?></a>
+                        <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
                 <button class="icon-btn i-theme" type="button" data-theme-toggle title="切换深浅主题" aria-label="切换深浅主题">

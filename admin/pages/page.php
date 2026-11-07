@@ -76,7 +76,12 @@ if (is_post()) {
             }
         }
         flash($msg);
-        redirect(admin_url('page'));
+        /* 与文章一致：保存后留在编辑页，另有「保存并返回列表」 */
+        $go = post_str('go', 'stay');
+        if ($go === 'list') {
+            redirect(admin_url('page'));
+        }
+        redirect(admin_url('page', array('action' => 'edit', 'id' => $id)));
     }
 
     if ($do === 'delete') {
@@ -110,13 +115,12 @@ if ($action === 'new' || $action === 'edit') {
         $row = array('id' => 0, 'title' => '', 'slug' => '', 'content' => '', 'content_src' => '', 'status' => 1, 'sort' => 0);
     }
     ?>
-    <div class="card">
+    <div class="card has-action-bar">
         <div class="card-head">
             <h2><?php echo $row['id'] ? '编辑单页 #' . (int) $row['id'] : '新建单页'; ?></h2>
-            <a class="btn btn-sm" href="<?php echo e(admin_url('page')); ?>">返回列表</a>
         </div>
         <div class="card-body">
-            <form method="post" action="<?php echo e(admin_url('page')); ?>">
+            <form method="post" action="<?php echo e(admin_url('page')); ?>" data-edit-form>
                 <?php echo csrf_field(); ?>
                 <input type="hidden" name="do" value="save">
                 <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
@@ -154,15 +158,22 @@ if ($action === 'new' || $action === 'edit') {
                             <input class="input" type="text" id="slug" name="slug" value="<?php echo e($row['slug']); ?>" placeholder="about">
                             <div class="hint">生成 /about.html；留空使用 ID</div>
                         </div>
-                        <div class="form-row">
+                        <div class="form-row" style="margin-bottom:0">
                             <label for="sort">排序</label>
                             <input class="input" type="number" id="sort" name="sort" value="<?php echo (int) $row['sort']; ?>">
                         </div>
-                        <button class="btn btn-primary btn-block" type="submit">保存并生成</button>
+                    </div>
+                </div>
+
+                <div class="edit-action-bar">
+                    <div class="edit-action-inner">
+                        <button class="btn btn-primary" type="submit" name="go" value="stay">保存并生成</button>
+                        <button class="btn" type="submit" name="go" value="list">保存并返回列表</button>
                         <?php $previewUrl = $row['id'] ? u_page_preview($row) : ''; ?>
-                        <button class="btn btn-block" style="margin-top:8px" type="button"
-                                data-preview="page" data-static-url="<?php echo e($previewUrl); ?>"
+                        <button class="btn" type="button" data-preview="page" data-static-url="<?php echo e($previewUrl); ?>"
                                 title="在当前窗口弹窗预览，未保存的改动、草稿也能看">预览</button>
+                        <a class="btn" href="<?php echo e(admin_url('page')); ?>">取消</a>
+                        <span class="kbd-hint"><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>S</kbd> 保存</span>
                     </div>
                 </div>
             </form>
