@@ -1,26 +1,30 @@
 <?php if (!defined('CMS_ADMIN')) { http_response_code(404); exit; } ?>
-        </div>
+    <div class="zb-footer">
+        <?php echo e(setting('site_name', 'CiciCMS')); ?> v<?php echo e(CMS_VERSION); ?>
+        &nbsp;·&nbsp; 已生成 <?php echo (int) static_files_count(); ?> 个静态文件
+        &nbsp;·&nbsp; <a href="<?php echo e(admin_url('build')); ?>">重新生成</a>
     </div>
-</div>
+    </div><!-- /#divMain -->
+</section><!-- /.main -->
 <script src="<?php echo e(site_url('admin/assets/admin.js')); ?>?v=<?php echo (int) @filemtime(CMS_ROOT . '/admin/assets/admin.js'); ?>"></script>
 <?php
 /* 自动更新检查：到点才发一次请求；发现新版且开了「自动更新」，就在那次请求里装完 */
-$upPage = isset($_GET['p']) ? (string) $_GET['p'] : 'dashboard';
-/* 后台任意页面都检查：只读状态文件判断是否到点，真正联网还是在后台异步请求里做，
-   所以不会拖慢任何一个页面的打开速度 */
 $upDue = update_auto_due();
 if ($upDue):
 ?>
 <script>
 (function () {
     function showBadge(text) {
-        var bar = document.querySelector('.top-actions');
-        if (!bar || bar.querySelector('.top-ver')) { return; }
+        var bar = document.getElementById('topmenu');
+        if (!bar || bar.querySelector('.zb-update')) { return; }
+        var li = document.createElement('li');
+        li.className = 'zb-update';
         var a = document.createElement('a');
-        a.className = 'top-ver';
         a.href = <?php echo json_encode(admin_url('update')); ?>;
-        a.textContent = text;
-        bar.insertBefore(a, bar.firstChild);
+        a.innerHTML = '<i class="icon-cloud-download"></i><span></span>';
+        a.querySelector('span').textContent = text;
+        li.appendChild(a);
+        bar.appendChild(li);
     }
 
     var fd = new FormData();
@@ -53,13 +57,12 @@ if ($upDue):
 </script>
 <?php endif; ?>
 <?php
-/* 有没跑完的静态生成任务时，在后台任意页面静默续跑，
-   这样保存内容后不用盯着进度条，也不用担心任务半途停下。 */
+/* 有没跑完的静态生成任务时，在后台任意页面静默续跑 */
 $bpPending = (isset($_GET['p']) && $_GET['p'] === 'build') ? null : build_pending();
 if (!empty($bpPending)):
 ?>
-<div id="bg-build" style="position:fixed;right:20px;bottom:20px;z-index:9999;background:var(--card);color:var(--text);padding:12px 18px;border-radius:var(--r-pill);font-size:12.5px;box-shadow:var(--shadow-float);border:1px solid var(--line);display:flex;align-items:center;gap:9px">
-    <span id="bg-build-dot" style="width:7px;height:7px;border-radius:50%;background:var(--brand);flex:0 0 7px"></span>
+<div id="bg-build" class="zb-float">
+    <span id="bg-build-dot" class="zb-float-dot"></span>
     <span id="bg-build-text">正在生成静态页 <?php echo (int) $bpPending['pos']; ?>/<?php echo (int) $bpPending['total']; ?></span>
 </div>
 <script>
@@ -80,8 +83,8 @@ if (!empty($bpPending)):
             .then(function (d) {
                 if (d.errors && d.errors.length) {
                     txt.textContent = '静态生成出错：' + d.errors[0];
-                    txt.style.color = 'var(--state-err)';
-                    dot.style.background = 'var(--state-err)';
+                    txt.style.color = '#d60000';
+                    dot.style.background = '#d60000';
                     stop = true;
                     return;
                 }
@@ -89,8 +92,8 @@ if (!empty($bpPending)):
                 if (d.finished) {
                     stop = true;
                     txt.textContent = '静态页已全部更新（' + (d.files || 0) + ' 个文件）';
-                    txt.style.color = 'var(--state-ok)';
-                    dot.style.background = 'var(--state-ok)';
+                    txt.style.color = '#277723';
+                    dot.style.background = '#277723';
                     setTimeout(function () { box.style.display = 'none'; }, 2500);
                     return;
                 }

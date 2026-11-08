@@ -1,0 +1,417 @@
+@charset "utf-8";
+/* ==========================================================================
+   Z-BlogPHP 后台皮肤兼容层（CiciCMS）
+   --------------------------------------------------------------------------
+   加载顺序（见 admin/inc/header.php）：
+     1. zblog/css/admin2.css          官方后台主样式（1:1 原样）
+     2. zblog/image/icon/icon.css     官方图标字体
+     3. admin.css                     CiciCMS 原有布局规则（保留，不动）
+     4. zblog-skin.css                本文件：把令牌与组件重绘成 Z-Blog 观感
+   本文件不改动任何业务页面 HTML，只负责「外壳 + 组件外观」。
+   Z-Blog 调色板：#3a6ea5 主蓝 / #3399cc 亮蓝 / #b0cdee 淡蓝
+                  #1d4c7d 链接 / #d60000 hover / #ededed 灰 / #F4F4F4 斑马
+   ========================================================================== */
+
+/* ---------- 1. 令牌覆盖：用 html:root 的优先级压过 admin.css 里的
+   [data-theme="dark"] / [data-accent="*"]，保证永远是 Z-Blog 原版配色 ---------- */
+html:root,
+html[data-theme="light"],
+html[data-theme="dark"],
+html[data-accent="blue"],
+html[data-accent="teal"],
+html[data-accent="green"],
+html[data-accent="purple"],
+html[data-accent="amber"] {
+  color-scheme: light;
+
+  --canvas: #ffffff;
+  --surface: #ffffff;
+  --surface-sub: #f4f4f4;
+  --surface-head: #ededed;
+  --surface-hover: #ffffdd;
+  --code-bg: #f8f8f8;
+  --code-fg: #333333;
+  --code-line: #e0e0e0;
+
+  --line: #e0e0e0;
+  --line-soft: #efefef;
+  --line-strong: #cccccc;
+
+  --text: #333333;
+  --text-2: #444444;
+  --text-3: #666666;
+  --text-disabled: #999999;
+
+  --brand: #3a6ea5;
+  --brand-hover: #3399cc;
+  --brand-weak: #dbe3ff;
+  --brand-line: #b0cdee;
+  --on-brand: #ffffff;
+  --on-scrim: #ffffff;
+
+  --state-ok: #277723;
+  --state-ok-soft: #e9fde5;
+  --state-ok-line: #a8de9e;
+  --state-warn: #8a6d1a;
+  --state-warn-soft: #fffbe8;
+  --state-warn-line: #e6d59a;
+  --state-err: #b52b1c;
+  --state-err-soft: #fce0e0;
+  --state-err-line: #e1a9a9;
+  --state-info: #4e6b9e;
+  --state-info-soft: #e4eafd;
+  --state-info-line: #aab7e6;
+
+  /* 旧变量别名：主题模板、插件里可能还会用到 */
+  --bg: #ffffff;
+  --card: #ffffff;
+  --card-soft: #f4f4f4;
+  --row-hover: #ffffdd;
+  --line-2: #cccccc;
+  --brand-strong: #1d4c7d;
+  --brand-soft: #b0cdee;
+  --brand-grad: #3a6ea5;
+  --r-sm: 0px;
+  --r-md: 0px;
+  --r-lg: 0px;
+  --r-xl: 2px;
+  --green: #277723;
+  --green-soft: #e9fde5;
+  --amber: #8a6d1a;
+  --amber-soft: #fffbe8;
+  --red: #b52b1c;
+  --red-soft: #fce0e0;
+  --bg-glass: #ffffff;
+  --topbar-bg: #3a6ea5;
+  --icon: #3a6ea5;
+  --dot: #d60000;
+  --overlay: rgba(0, 0, 0, .35);
+  --cover-scrim: rgba(58, 110, 165, .85);
+
+  --r-card: 0px;
+  --r-ctl: 0px;
+  --r-float: 2px;
+  --r-pill: 2px;
+  --gap: 10px;
+  --row-gap: 10px;
+  --pad-x: 10px;
+  --pad-y: 8px;
+  --cell-y: 8px;
+  --sidebar-w: 140px;
+  --topbar-h: 85px;
+
+  --shadow-card: 0 0 0.1em rgba(0, 0, 0, .3);
+  --shadow-float: 0 2px 8px rgba(0, 0, 0, .25);
+  --shadow-tab: 0 0 0.1em rgba(0, 0, 0, .3);
+  --focus-ring: 0 0 0 2px rgba(58, 110, 165, .22);
+  --content-max: none;
+  --font-ui: "Microsoft YaHei", STHeiti, "Hiragino Sans GB", "WenQuanYi Micro Hei", "Heiti SC", NSimSun, SimSun, Arial, Helvetica, sans-serif;
+}
+
+/* ---------- 2. 全局：回到 Z-Blog 官方的字体与链接色 ---------- */
+body {
+  background: #ffffff;
+  color: #333333;
+  font-family: "Microsoft YaHei", STHeiti, "Hiragino Sans GB", "WenQuanYi Micro Hei", "Heiti SC", NSimSun, SimSun, Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: auto;
+}
+a { color: #1d4c7d; text-decoration: none; }
+a:hover { color: #d60000; text-decoration: none; }
+:focus-visible { outline: 2px solid #3a6ea5; outline-offset: 1px; }
+h1, h2, h3 { font-weight: bold; }
+
+/* ---------- 3. 骨架：Z-Blog 官方三段式 ---------- */
+section.main {
+  display: block;
+  float: none;
+  width: auto;
+  min-width: 0;
+  padding-left: 150px;
+  padding-right: 10px;
+}
+#divMain { min-height: 420px; }
+
+.header { background: #3a6ea5; }
+.menu ul li.on { font-weight: bold; }
+.menu ul li.on a { background: #b0cdee; color: #1d4c7d; }
+.menu ul li.zb-update a { background: #ffffdd; color: #8a5200; }
+.menu ul li i { font-size: 15px; }
+
+.left { top: 90px; }
+.left #leftmenu li.sub { margin-bottom: 0; border-bottom: 5px solid #fff; }
+.left #leftmenu li.sub span {
+  font-weight: bold;
+  color: #3a6ea5;
+  background: #ffffff;
+  padding-left: 8px;
+  width: 116px;
+  margin-left: 0;
+}
+.left #leftmenu li span i { font-size: 14px; color: #3a6ea5; vertical-align: middle; }
+.left #leftmenu li.on span i,
+.left #leftmenu li.on a:hover span i { color: #ffffff; }
+.left #leftmenu .nav-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  margin-left: 4px;
+  background: #d60000;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.left #leftmenu a:hover { color: #000000; background: #b0cdee; }
+
+/* 官方 .divHeader 的图标与标题对齐；保留它原本 1.5em 的字号与留白 */
+#divMain > .divHeader { margin-bottom: 0; }
+#divMain > .divHeader i { font-size: 20px; color: #3a6ea5; }
+
+/* 页头工具条：Z-Blog form.search 的白底细阴影风格 */
+.zb-pagebar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 43px;
+  margin: 0 0 .8em 0;
+  padding: 5px 1em;
+  background: #ffffff;
+  border-radius: 0;
+  box-shadow: 0 0 0.1em rgba(0, 0, 0, .3);
+}
+.zb-pagebar-sub { flex: 1 1 auto; color: #666666; font-size: 12px; line-height: 1.6; }
+.zb-pagebar-acts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.zb-pagebar .btn { height: 29px; padding: 0 14px; font-size: 14px; }
+
+/* Z-Blog 官方提示条 div.hint p.*（规则来自 admin2.css），补齐页面里的独立 .hint */
+.hint { font-size: 12px; color: #666666; }
+div.hint p { font-size: 14px; color: #333333; border: 1px solid transparent; }
+div.hint p.hint_good, div.hint p.hint_succeed { border-color: #a8de9e; background: #e9fde5; }
+div.hint p.hint_bad, div.hint p.hint_failed { border-color: #e1a9a9; background: #fce0e0; }
+div.hint p.hint_tips { border-color: #aab7e6; background: #e4eafd; }
+
+/* 页脚与右下浮动状态框 */
+.zb-footer {
+  clear: both;
+  margin: 2em 0 1em 0;
+  padding: 8px 0 0 0;
+  border-top: 1px solid #e0e0e0;
+  color: #888888;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.zb-footer a { color: #1d4c7d; }
+.zb-float {
+  position: fixed; right: 20px; bottom: 20px; z-index: 9999;
+  background: #ffffff; color: #333333;
+  padding: 10px 16px; border: 1px solid #cccccc; border-radius: 2px;
+  font-size: 12.5px; box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+  display: flex; align-items: center; gap: 9px;
+}
+.zb-float-dot { width: 7px; height: 7px; border-radius: 50%; background: #3a6ea5; flex: 0 0 7px; }
+
+/* ---------- 4. 组件：把 CiciCMS 原有类名重绘成 Z-Blog 观感 ---------- */
+
+/* 卡片 = Z-Blog 的内容块：白底、直角、细阴影、灰标题条 */
+.card {
+  border: 1px solid #e0e0e0;
+  border-radius: 0;
+  box-shadow: 0 0 0.1em rgba(0, 0, 0, .3);
+  background: #ffffff;
+  margin-bottom: 10px;
+}
+.card-head {
+  background: #ededed;
+  border-bottom: 1px solid #e0e0e0;
+  min-height: 34px;
+  padding: 6px 10px;
+}
+.card-head h2 { font-size: 14px; font-weight: bold; color: #333333; letter-spacing: 0; }
+.card-body { padding: 10px; }
+.card-body.tight { padding: 0; }
+.card-foot { background: #f4f4f4; border-top: 1px solid #e0e0e0; padding: 8px 10px; }
+.card-inset > .card-head { background: #f4f4f4; }
+.card-inset > .card-body { padding: 10px; }
+.card-inset > .card-foot { background: transparent; }
+
+/* 按钮：对齐官方 input.button 的 29px 蓝色矩形 */
+.btn {
+  height: 29px;
+  padding: 0 14px;
+  border: 1px solid #cccccc;
+  border-radius: 0;
+  background: #ffffff;
+  color: #333333;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1;
+}
+.btn:hover { color: #1d4c7d; border-color: #3a6ea5; background: #b0cdee; }
+.btn-primary,
+.btn-primary:hover {
+  background: #3a6ea5;
+  border: 1px solid #046190;
+  color: #ffffff;
+}
+.btn-primary:hover { background: #3399cc; border-color: #3399cc; }
+.btn-danger, .btn-danger:hover { background: #ffffff; border-color: #e1a9a9; color: #b52b1c; }
+.btn-danger:hover { background: #fce0e0; border-color: #b52b1c; }
+.btn-sm { height: 26px; padding: 0 10px; font-size: 12px; }
+.btn-block { width: 100%; height: 29px; }
+.btn[disabled] { background: #eeeeee; color: #999999; border-color: #cccccc; opacity: 1; }
+/* 官方 admin2.css 的 #divMain a 是 ID 选择器，优先级高于 .btn-*，
+   会把按钮文字染成链接蓝，这里显式提权还原按钮前景色 */
+#divMain a.btn, #divMain .btn { color: #333333; }
+#divMain a.btn:hover, #divMain .btn:hover { color: #1d4c7d; }
+#divMain a.btn-primary, #divMain .btn-primary,
+#divMain a.btn-primary:hover, #divMain .btn-primary:hover { color: #ffffff; }
+#divMain a.btn-danger, #divMain .btn-danger,
+#divMain a.btn-danger:hover, #divMain .btn-danger:hover { color: #b52b1c; }
+#divMain a.btn[disabled], #divMain .btn[disabled] { color: #999999; }
+
+/* 没有 .btn 的原生提交按钮走官方规则，这里只压一下圆角 */
+input[type="submit"], input[type="button"], input.button, button {
+  border-radius: 0;
+  font-family: inherit;
+}
+
+/* 表单：Z-Blog 的 1px #ccc、33px 高、直角 */
+.form-row { margin-bottom: 10px; }
+.form-row > label {
+  display: block;
+  font-size: 14px;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 5px;
+}
+.input, textarea.input, select.input {
+  min-height: 33px;
+  padding: 5px 10px;
+  border: 1px solid #cccccc;
+  border-radius: 0;
+  background: #ffffff;
+  color: #333333;
+  font-size: 14px;
+  box-shadow: none;
+}
+.input:focus { border-color: #3a6ea5; box-shadow: none; outline: none; }
+select.input { background-image: none; padding-right: 10px; appearance: auto; -webkit-appearance: auto; }
+textarea.input { min-height: 240px; font-size: 13px; line-height: 1.7; }
+input[readonly].input, input[disabled].input { background: #eeeeee; color: #808080; }
+.check { accent-color: #3a6ea5; }
+.filter-bar { padding: 5px 10px; background: #ffffff; box-shadow: 0 0 0.1em rgba(0, 0, 0, .3); margin-bottom: 10px; }
+.filter-bar .input { height: 33px; min-height: 33px; }
+.form-actions { padding-top: 6px; }
+
+/* 推荐位标签 */
+.flag-chip > span { height: 29px; padding: 0 12px; border: 1px solid #cccccc; border-radius: 0; font-size: 13px; }
+.flag-chip:hover > span { border-color: #3a6ea5; color: #1d4c7d; }
+.flag-chip input:checked + span { background: #dbe3ff; border-color: #3a6ea5; color: #1d4c7d; }
+
+/* 表格：官方斑马纹 + 淡黄 hover + 灰色表头 */
+.table {
+  border-collapse: collapse;
+  border: none;
+  line-height: 1.8;
+  margin: .5em 0;
+  box-shadow: 0 0 0.1em rgba(0, 0, 0, .3);
+  font-size: 14px;
+}
+.table th, .table td {
+  padding: .5em;
+  border: none;
+  border-right: 1px solid #efefef;
+  border-bottom: none;
+  vertical-align: middle;
+}
+.table th:last-child, .table td:last-child { border-right: none; }
+.table th {
+  background: #ededed;
+  color: #333333;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: left;
+}
+.table tbody tr:nth-of-type(odd) { background: #f4f4f4; }
+.table tbody tr:nth-of-type(even) { background: #ffffff; }
+.table tbody tr:hover td, .table tr:hover td { background-color: #ffffdd; }
+.table tr:last-child td { border-bottom: 0; }
+.table .actions-cell a, .table .actions-cell button { color: #1d4c7d; }
+.cell-sub { color: #666666; }
+.empty { padding: 30px 20px; color: #666666; }
+
+/* 徽标：Z-Blog 的小色块，不用胶囊 */
+.badge { height: 20px; padding: 0 7px; border-radius: 2px; font-size: 12px; font-weight: normal; }
+.badge-green { background: #e9fde5; color: #277723; border: 1px solid #a8de9e; }
+.badge-gray { background: #ededed; color: #666666; border: 1px solid #e0e0e0; }
+.badge-blue { background: #dbe3ff; color: #1d4c7d; border: 1px solid #aab7e6; }
+.badge-amber { background: #fffbe8; color: #8a6d1a; border: 1px solid #e6d59a; }
+
+/* 提示块：对应官方 div.hint p 的圆角色块 */
+.alert, .notice {
+  border-radius: 4px;
+  border: 1px solid transparent;
+  border-left-width: 1px;
+  padding: 6px 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+.alert-ok, .notice-ok { background: #e9fde5; color: #277723; border-color: #a8de9e; }
+.alert-err, .notice-err { background: #fce0e0; color: #b52b1c; border-color: #e1a9a9; }
+.alert-warn, .notice-warn { background: #e4eafd; color: #4e6b9e; border-color: #aab7e6; }
+.update-banner { border-radius: 4px; }
+
+/* 统计卡与两栏：保留栅格，改成 Z-Blog 的表格化外观 */
+.stats { gap: 10px; margin-bottom: 10px; }
+.stat { border: 1px solid #e0e0e0; border-radius: 0; padding: 10px 12px; box-shadow: 0 0 0.1em rgba(0, 0, 0, .3); }
+.stat .label { font-size: 12px; color: #666666; }
+.stat .num { font-size: 22px; font-weight: bold; color: #3a6ea5; letter-spacing: 0; }
+.stat .sub { font-size: 12px; color: #666666; }
+.stat-icon { width: 24px; height: 24px; flex: 0 0 24px; border-radius: 0; background: #dbe3ff; color: #3a6ea5; }
+.dash-grid { gap: 10px; }
+.kv { padding: 7px 0; border-bottom: 1px solid #efefef; font-size: 13px; }
+.grid2, .grid3 { gap: 10px 16px; }
+
+/* 长表单保存条、代码块、分页、封面与附件 */
+.edit-action-bar { border: 1px solid #3a6ea5; border-radius: 0; background: #ffffff; box-shadow: 0 -1px 4px rgba(0, 0, 0, .12); }
+.edit-action-inner { padding: 8px 10px; }
+.code-block { border: 1px solid #e0e0e0; border-radius: 0; background: #f8f8f8; color: #333333; font: 12px/1.7 Consolas, Menlo, monospace; }
+.pager { padding: 1em 0 2em 0; }
+.pager a, .pager span { border: 1px solid #efefef; border-radius: 2px; padding: 3px 7px; margin: 0 2px; color: #333333; }
+.pager a:hover { border-color: #cccccc; color: #d60000; }
+.pager .on, .pager span.on { background: #3a6ea5; color: #ffffff; border-color: #046190; font-weight: bold; }
+.cover-pick, .attach-clear, .cat-thumb, .clean-thumb, .banner-preview { border-radius: 0; }
+.cat-thumb { border-radius: 0; }
+.media-item { border: 1px solid #e0e0e0; border-radius: 0; box-shadow: 0 0 0.1em rgba(0, 0, 0, .3); }
+
+/* 弹窗与 toast：白底 + 蓝色标题条，直角 */
+.cms-modal-mask { background: rgba(0, 0, 0, .35); }
+.cms-modal-panel { border: 1px solid #3a6ea5; border-radius: 0; box-shadow: 0 4px 18px rgba(0, 0, 0, .3); background: #ffffff; }
+.cms-modal-head { background: #3a6ea5; color: #ffffff; border-bottom: 1px solid #046190; border-radius: 0; padding: 8px 12px; }
+.cms-modal-head h3, .cms-modal-head h2 { color: #ffffff; font-size: 14px; }
+.cms-modal-x { color: #ffffff; }
+.cms-modal-foot { border-top: 1px solid #e0e0e0; background: #f4f4f4; border-radius: 0; }
+.cms-modal-tabs { background: #ededed; border-bottom: 1px solid #e0e0e0; }
+.cms-toast { border: 1px solid #3a6ea5; border-radius: 2px; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); background: #ffffff; color: #333333; }
+.cms-bar { background: #ffffff; border-bottom: 1px solid #e0e0e0; }
+.cms-drop { border: 1px solid #cccccc; border-radius: 0; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+
+/* 主题 / 密度 / 配色切换在 Z-Blog 皮肤下不再出现，残留属性一律无害化 */
+[data-theme="dark"] .edit-action-bar { box-shadow: 0 -1px 4px rgba(0, 0, 0, .12); }
+[data-density="compact"] .card-head { min-height: 34px; padding-top: 6px; padding-bottom: 6px; }
+
+/* ---------- 5. 窄屏兜底（桌面保持官方 140px 侧栏不变） ---------- */
+@media screen and (max-width: 800px) {
+  .header .user { width: 300px; }
+  .menu ul li a { padding: 0 8px; }
+  .left { position: static; width: 100%; float: none; }
+  .left #leftmenu { display: block; }
+  .left #leftmenu li { float: none; display: inline-block; width: auto; min-width: 118px; }
+  .left #leftmenu li.sub { display: block; width: 100%; }
+  .left #leftmenu li.sub span { width: 100%; }
+  section.main { padding-left: 0; padding-right: 0; }
+  #divMain { padding: 0 10px; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dash-grid { grid-template-columns: minmax(0, 1fr); }
+}

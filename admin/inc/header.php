@@ -6,9 +6,41 @@ if (!defined('CMS_ADMIN')) {
 }
 require_once __DIR__ . '/icons.php';
 
+/* 后台外观按 Z-BlogPHP 官方后台复刻：
+ *   body > header.header(.logo/.user/.menu#topmenu)
+ *        > aside.left#leftmenu
+ *        > section.main > #divMain > .divHeader + 页面内容
+ * 官方 admin2.css / icon.css / admin.css(登录) 原样放在 assets/zblog 下，
+ * 这里只负责输出与官方模板一致的 DOM，业务逻辑与路由一律不动。
+ */
 $user = auth_user();
 
-/* 图标统一 24 视图框、线性描边，由 CSS 控制尺寸与颜色 */
+/* CiciCMS 的 SVG 图标 id → Z-Blog 图标字体 class。
+ * 插件仍按老约定传 '#i-xxx' 或内联 path；识别不到时回落到通用图标。 */
+$ZICON = array(
+    '#i-dashboard' => 'icon-house',
+    '#i-category'  => 'icon-folder',
+    '#i-page'      => 'icon-file-earmark-text',
+    '#i-media'     => 'icon-image',
+    '#i-flink'     => 'icon-link',
+    '#i-build'     => 'icon-arrow-repeat',
+    '#i-clean'     => 'icon-trash',
+    '#i-data'      => 'icon-archive',
+    '#i-theme'     => 'icon-brush',
+    '#i-plugin'    => 'icon-plug',
+    '#i-update'    => 'icon-cloud-download',
+    '#i-setting'   => 'icon-gear',
+    '#i-write'     => 'icon-pencil-square',
+    '#i-article'   => 'icon-card-text',
+    '#i-square'    => 'icon-app-indicator',
+);
+$zicon = function ($ref) use ($ZICON) {
+    if (is_string($ref) && isset($ref[0]) && $ref[0] === '#' && isset($ZICON[$ref])) {
+        return $ZICON[$ref];
+    }
+    return 'icon-app-indicator';
+};
+
 $NAV = array(
     'dashboard' => array('仪表盘', '#i-dashboard'),
     'category'  => array('栏目管理', '#i-category'),
@@ -38,13 +70,10 @@ $SUBTITLE = array(
     'update'    => '把 GitHub 上的新版本装到本地',
     'setting'   => '站点与安全选项',
 );
-/* 插件可以增删菜单：cms_add_filter('admin_menu', function ($nav) { ... })
- * 菜单项格式为 key => array(标题, SVG 内联图标)；icon 省略时用默认方块，避免布局被撑坏。 */
+/* 插件可以增删菜单：cms_add_filter('admin_menu', function ($nav) { ... }) */
 $NAV = (array) cms_apply_filters('admin_menu', $NAV);
 
-/* 侧栏分组。$NAV 的 key 必须对应 admin/pages/{key}.php，插件的 admin_menu 钩子也按这个结构来，
- * 所以「文章列表」这种带 action 的地址不进 $NAV，只在这里用 article-list 这个虚拟 key 占位。
- * 分组只影响显示顺序，未出现在任何分组的 key（插件新增项）会自动落到「扩展」组，不会丢。 */
+/* 左侧菜单分组，与 Z-Blog 的 li.sub 分组标题一一对应 */
 $NAV_GROUPS = array(
     '工作台' => array('dashboard'),
     '内容'   => array('article-list', 'category', 'page', 'media', 'flink'),
@@ -58,7 +87,7 @@ foreach ($NAV_GROUPS as $gk => $gv) {
 
 $PLUGIN_PAGE = isset($PLUGIN_PAGE) ? $PLUGIN_PAGE : null;
 
-/* 有新版时菜单上打个点；只读本地状态文件，不联网 */
+/* 有新版时顶部菜单打点；只读本地状态文件，不联网 */
 $updateDot = function_exists('update_available_cached') ? update_available_cached() : false;
 $updateVer = '';
 if ($updateDot) {
@@ -70,8 +99,6 @@ $curAction = isset($_GET['action']) ? (string) $_GET['action'] : '';
 
 $pageTitle = isset($NAV[$p][0]) ? (string) $NAV[$p][0] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['title'] : '管理后台');
 $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['sub'] : '');
-/* article 已从 $NAV 移除，页面标题必须单独给，否则列表态会 fallback 成「管理后台」。
- * 新建 / 编辑 / 列表三态各给一个准确名字，与侧栏条目对得上。 */
 if ($p === 'article') {
     if ($curAction === 'new') {
         $pageTitle = '添加文章';
@@ -84,36 +111,52 @@ if ($p === 'article') {
         $pageSub   = '从列表选一篇文章修改，也可检索与管理';
     }
 }
-/* 文章页的侧栏高亮：新建态亮主按钮，其余亮「编辑文章」 */
 $actionOn = '';
 if ($p === 'article') {
     $actionOn = ($curAction === 'new') ? 'new' : 'list';
 }
 
-/* 页头动作槽：放「本页专属」的操作，常态用普通按钮，不抢视觉。
- * 文章列表放「添加文章」——不用主色、不做侧栏大按钮，就压在列表上方当普通入口；
- * 编辑/新建态统一换成「返回列表」，页头不留空，也不和表单底部的保存按钮抢注意力。 */
+/* 页头动作槽：功能入口必须保留，样式由 Z-Blog 皮肤承接 */
 $HEAD_ACTIONS = array(
-    'article'   => array(array('添加文章', admin_url('article',  array('action' => 'new')), false)),
-    'page'      => array(array('新建单页', admin_url('page',     array('action' => 'new')), true)),
-    'category'  => array(array('新建栏目', admin_url('category', array('action' => 'new')), true)),
-    'flink'     => array(array('新增链接', admin_url('flink',    array('action' => 'new')), true)),
+    'article'  => array(array('添加文章', admin_url('article',  array('action' => 'new')), false)),
+    'page'     => array(array('新建单页', admin_url('page',     array('action' => 'new')), true)),
+    'category' => array(array('新建栏目', admin_url('category', array('action' => 'new')), true)),
+    'flink'    => array(array('新增链接', admin_url('flink',    array('action' => 'new')), true)),
 );
 if ($curAction !== '' && $p !== 'dashboard') {
     $HEAD_ACTIONS[$p] = array(array('← 返回列表', admin_url($p), false));
 }
 $headActs = isset($HEAD_ACTIONS[$p]) ? $HEAD_ACTIONS[$p] : array();
 
-/**
- * 渲染一个侧栏条目。
- * $key 为 article-list 时代理「编辑文章」列表页，其余按 $NAV 取标题与图标。
- */
-$renderNavItem = function ($key) use ($NAV, $p, $PLUGIN_PAGE, $updateDot, $actionOn) {
+/* 顶部主菜单：与 Z-Blog 的 #topmenu 一致，白底 tab 靠右 */
+$TOPMENU = array(
+    array('首页',     'icon-house',            admin_url('dashboard'), 'dashboard'),
+    array('新建文章', 'icon-pencil-square',   admin_url('article', array('action' => 'new')), 'article-new'),
+    array('文章管理', 'icon-file-earmark-text', admin_url('article'), 'article'),
+    array('分类管理', 'icon-folder',          admin_url('category'), 'category'),
+    array('附件管理', 'icon-image',           admin_url('media'), 'media'),
+    array('生成静态', 'icon-arrow-repeat',    admin_url('build'),  'build'),
+    array('应用管理', 'icon-plug',            admin_url('plugin'), 'plugin'),
+    array('网站设置', 'icon-gear',            admin_url('setting'), 'setting'),
+);
+$TOP_ALIAS = array(
+    'dashboard' => 'dashboard', 'article' => 'article', 'category' => 'category',
+    'page' => 'category', 'media' => 'media', 'flink' => 'media',
+    'build' => 'build', 'clean' => 'build', 'theme' => 'plugin',
+    'plugin' => 'plugin', 'data' => 'setting', 'update' => 'setting', 'setting' => 'setting',
+);
+$topOn = isset($TOP_ALIAS[$p]) ? $TOP_ALIAS[$p] : '';
+if ($p === 'article' && $curAction === 'new') {
+    $topOn = 'article-new';
+}
+
+/** 渲染一个 Z-Blog 原生左侧菜单 li */
+$renderNavItem = function ($key) use ($NAV, $p, $PLUGIN_PAGE, $updateDot, $actionOn, $zicon) {
     if ($key === 'article-list') {
         $isOn = ($actionOn === 'list');
-        return '<a class="' . ($isOn ? 'on' : '') . '" href="' . e(admin_url('article')) . '"'
+        return '<li' . ($isOn ? ' class="on"' : '') . '><a href="' . e(admin_url('article')) . '"'
              . ($isOn ? ' aria-current="page"' : '') . '>'
-             . cms_icon('#i-write') . '<span>编辑文章</span></a>';
+             . '<span><i class="icon-pencil-square"></i>编辑文章</span></a></li>';
     }
     if (!isset($NAV[$key])) {
         return '';
@@ -122,12 +165,16 @@ $renderNavItem = function ($key) use ($NAV, $p, $PLUGIN_PAGE, $updateDot, $actio
     $label = isset($item[0]) ? (string) $item[0] : (string) $key;
     $icon  = isset($item[1]) && $item[1] !== '' ? (string) $item[1] : '#i-square';
     $on    = ($p === $key) || ($PLUGIN_PAGE !== null && $key === 'plugin' && !isset($NAV[$p]));
-    return '<a class="' . ($on ? 'on' : '') . '" href="' . e(admin_url($key)) . '"'
+    return '<li' . ($on ? ' class="on"' : '') . '><a href="' . e(admin_url($key)) . '"'
          . ($on ? ' aria-current="page"' : '') . '>'
-         . cms_icon($icon) . '<span>' . e($label) . '</span>'
+         . '<span><i class="' . e($zicon($icon)) . '"></i>' . e($label) . '</span>'
          . ($key === 'update' && $updateDot ? '<i class="nav-dot" title="有新版本"></i>' : '')
-         . '</a>';
+         . '</a></li>';
 };
+
+$pageIcon = isset($NAV[$p][1]) ? $zicon($NAV[$p][1]) : 'icon-house';
+if ($p === 'article') { $pageIcon = 'icon-pencil-square'; }
+$zb = site_url('admin/assets/zblog');
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -136,145 +183,95 @@ $renderNavItem = function ($key) use ($NAV, $p, $PLUGIN_PAGE, $updateDot, $actio
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="cms-token" content="<?php echo e(csrf_token()); ?>">
 <meta name="cms-upload" content="upload.php">
-<title><?php echo e($pageTitle); ?> - CiciCMS 管理后台</title>
-<script>
-/* 主题与密度在样式表加载前定好，避免刷新时闪一下白底 */
-(function () {
-    try {
-        var t = localStorage.getItem('cici-theme');
-        if (t !== 'light' && t !== 'dark') {
-            t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-        }
-        var d = localStorage.getItem('cici-density') === 'compact' ? 'compact' : 'comfortable';
-        var a = localStorage.getItem('cici-accent');
-        if (['blue', 'teal', 'green', 'purple', 'amber'].indexOf(a) < 0) { a = 'blue'; }
-        document.documentElement.setAttribute('data-theme', t);
-        document.documentElement.setAttribute('data-density', d);
-        document.documentElement.setAttribute('data-accent', a);
-    } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.documentElement.setAttribute('data-accent', 'blue');
-    }
-})();
-</script>
+<title><?php echo e($pageTitle); ?> - <?php echo e(setting('site_name', 'CiciCMS')); ?> 管理后台</title>
+<link rel="stylesheet" href="<?php echo e($zb . '/css/admin2.css'); ?>">
+<link rel="stylesheet" href="<?php echo e($zb . '/image/icon/icon.css'); ?>">
 <link rel="stylesheet" href="<?php echo e(site_url('admin/assets/admin.css')); ?>?v=<?php echo (int) @filemtime(CMS_ROOT . '/admin/assets/admin.css'); ?>">
+<link rel="stylesheet" href="<?php echo e(site_url('admin/assets/zblog-skin.css')); ?>?v=<?php echo (int) @filemtime(CMS_ROOT . '/admin/assets/zblog-skin.css'); ?>">
 <?php cms_do_action('admin_head'); ?>
 </head>
-<body>
+<body class="body-admin admin-<?php echo e($p); ?>">
 <?php echo cms_icon_sprite(); ?>
-<div class="app">
-    <aside class="sidebar" id="sidebar">
-        <div class="brand">
-            <span class="logo-mark">C</span>
-            <div>
-                <div class="brand-name">CiciCMS</div>
-                <div class="brand-sub">静态化 CMS v<?php echo e(CMS_VERSION); ?></div>
-            </div>
+<header class="header">
+    <div class="logo">
+        <a href="<?php echo e(site_url()); ?>" title="<?php echo e(setting('site_name', 'CiciCMS')); ?>" target="_blank">
+            <img src="<?php echo e($zb . '/image/admin/none.gif'); ?>" alt="Z-Blog" />
+        </a>
+    </div>
+    <div class="user">
+        <img src="<?php echo e($zb . '/image/admin/avatar.png'); ?>" width="40" height="40" id="avatar" alt="Avatar" />
+        <div class="username"><span>管理员：<?php echo e($user['username']); ?></span></div>
+        <div class="userbtn">
+            <a class="profile" href="<?php echo e(site_url()); ?>" target="_blank"><i class="icon-globe2"></i> <span>返回网站</span></a>
+            <a class="logout" href="#" onclick="document.getElementById('zb-logout').submit();return false;"><i class="icon-power"></i> <span>退出登录</span></a>
         </div>
-
-        <nav class="nav" aria-label="后台主导航">
-            <?php foreach ($NAV_GROUPS as $groupLabel => $groupKeys): ?>
-                <?php
-                $visible = array();
-                foreach ($groupKeys as $gk) {
-                    if ($gk === 'article-list' || isset($NAV[$gk])) {
-                        $visible[] = $gk;
-                    }
-                }
-                if (!$visible) {
-                    continue;   /* 插件把整组菜单都删了，就不输出空分组标题 */
-                }
-                ?>
-                <div class="nav-group"><?php echo e($groupLabel); ?></div>
-                <?php foreach ($visible as $gk) { echo $renderNavItem($gk); } ?>
+    </div>
+    <div class="menu">
+        <ul id="topmenu">
+            <?php foreach ($TOPMENU as $ti): ?>
+                <li<?php echo $topOn === $ti[3] ? ' class="on"' : ''; ?>>
+                    <a href="<?php echo e($ti[2]); ?>"><i class="<?php echo e($ti[1]); ?>"></i><span><?php echo e($ti[0]); ?></span></a>
+                </li>
             <?php endforeach; ?>
+            <?php if ($updateDot): ?>
+                <li class="zb-update"><a href="<?php echo e(admin_url('update')); ?>"><i class="icon-cloud-download"></i><span>发现新版本<?php echo $updateVer !== '' ? ' ' . e($updateVer) : ''; ?></span></a></li>
+            <?php endif; ?>
+        </ul>
+    </div>
+</header>
+<form method="post" action="index.php" id="zb-logout" style="display:none">
+    <?php echo csrf_field(); ?>
+    <input type="hidden" name="do" value="logout">
+</form>
 
+<aside class="left">
+    <ul id="leftmenu">
+        <?php foreach ($NAV_GROUPS as $groupLabel => $groupKeys): ?>
             <?php
-            /* 插件新增但没归到任何分组的菜单，兜底放在「扩展」里，保证入口不丢 */
-            $restKeys = array();
-            foreach ($NAV as $nk => $nv) {
-                if (!in_array($nk, $groupedKeys, true)) {
-                    $restKeys[] = $nk;
+            $visible = array();
+            foreach ($groupKeys as $gk) {
+                if ($gk === 'article-list' || isset($NAV[$gk])) {
+                    $visible[] = $gk;
                 }
             }
-            if ($restKeys):
+            if (!$visible) { continue; }
             ?>
-                <div class="nav-group">扩展</div>
-                <?php foreach ($restKeys as $rk) { echo $renderNavItem($rk); } ?>
+            <li class="sub"><span><?php echo e($groupLabel); ?></span></li>
+            <?php foreach ($visible as $gk) { echo $renderNavItem($gk); } ?>
+        <?php endforeach; ?>
+
+        <?php
+        $restKeys = array();
+        foreach ($NAV as $nk => $nv) {
+            if (!in_array($nk, $groupedKeys, true)) {
+                $restKeys[] = $nk;
+            }
+        }
+        if ($restKeys):
+        ?>
+            <li class="sub"><span>扩展</span></li>
+            <?php foreach ($restKeys as $rk) { echo $renderNavItem($rk); } ?>
+        <?php endif; ?>
+    </ul>
+</aside>
+
+<section class="main">
+<div id="divMain">
+    <div class="divHeader"><i class="<?php echo e($pageIcon); ?>"></i><span><?php echo e($pageTitle); ?></span></div>
+
+    <?php if ($pageSub !== '' || $headActs): ?>
+        <div class="zb-pagebar">
+            <?php if ($pageSub !== ''): ?><span class="zb-pagebar-sub"><?php echo e($pageSub); ?></span><?php endif; ?>
+            <?php if ($headActs): ?>
+                <span class="zb-pagebar-acts">
+                    <?php foreach ($headActs as $act): ?>
+                        <a class="btn<?php echo $act[2] ? ' btn-primary' : ''; ?>" href="<?php echo e($act[1]); ?>"><?php echo e($act[0]); ?></a>
+                    <?php endforeach; ?>
+                </span>
             <?php endif; ?>
-        </nav>
-
-        <div class="sidebar-foot">
-            <div class="build-hint">
-                已生成 <b><?php echo (int) static_files_count(); ?></b> 个静态文件
-                <a href="<?php echo e(admin_url('build')); ?>">去生成 →</a>
-            </div>
-            <form method="post" action="index.php" onsubmit="return true;">
-                <?php echo csrf_field(); ?>
-                <input type="hidden" name="do" value="logout">
-                <button class="logout" type="submit">退出登录</button>
-            </form>
         </div>
-    </aside>
-    <div class="sidebar-mask" id="sidebar-mask"
-         onclick="document.getElementById('sidebar').classList.remove('open');this.classList.remove('on')"></div>
+    <?php endif; ?>
 
-    <div class="main">
-        <header class="topbar">
-            <button class="menu-btn" type="button" aria-label="展开导航"
-                    onclick="document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-mask').classList.toggle('on')">☰</button>
-            <div>
-                <h1><?php echo e($pageTitle); ?></h1>
-                <div class="page-sub">
-                    <?php if ($pageSub !== ''): ?><span class="page-sub-text"><?php echo e($pageSub); ?></span><?php endif; ?>
-                </div>
-            </div>
-            <div class="top-actions">
-                <?php if ($updateDot): ?>
-                    <a class="top-ver" href="<?php echo e(admin_url('update')); ?>" title="有新版本，去系统更新查看">
-                        发现新版本<?php echo $updateVer !== '' ? ' ' . e($updateVer) : ''; ?>
-                    </a>
-                <?php endif; ?>
-                <a class="link" href="<?php echo e(site_url()); ?>" target="_blank">访问站点 ↗</a>
-                <?php if ($headActs): ?>
-                    <div class="page-actions">
-                        <?php foreach ($headActs as $act): ?>
-                            <a class="btn btn-sm<?php echo $act[2] ? ' btn-primary' : ''; ?>" href="<?php echo e($act[1]); ?>"><?php echo e($act[0]); ?></a>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-                <button class="icon-btn i-theme" type="button" data-theme-toggle title="切换深浅主题" aria-label="切换深浅主题">
-                    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
-                    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-                </button>
-                <button class="icon-btn i-density" type="button" data-density-toggle title="切换紧凑 / 舒适密度" aria-label="切换紧凑或舒适密度" aria-pressed="false">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-                </button>
-                <?php /* 配色切换：只换品牌色令牌，和深浅主题、密度互不影响 */ ?>
-                <div class="top-pop">
-                    <button class="icon-btn i-accent" type="button" data-accent-toggle aria-haspopup="true" aria-expanded="false" title="切换配色方案" aria-label="切换配色方案">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.9-.8 1.9-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-3.9-4-7-9-7z"/>
-                            <circle cx="8.2" cy="10.2" r="1" fill="currentColor" stroke="none"/>
-                            <circle cx="12" cy="7.8" r="1" fill="currentColor" stroke="none"/>
-                            <circle cx="15.8" cy="10.2" r="1" fill="currentColor" stroke="none"/>
-                        </svg>
-                    </button>
-                    <div class="accent-menu" data-accent-menu hidden>
-                        <div class="menu-cap">配色方案</div>
-                        <?php foreach (array('blue' => '经典蓝', 'teal' => '青碧', 'green' => '松绿', 'purple' => '雅紫', 'amber' => '琥珀') as $ak => $an): ?>
-                            <button class="accent-item" type="button" data-accent-set="<?php echo e($ak); ?>" aria-pressed="false">
-                                <span class="accent-dot" aria-hidden="true"></span>
-                                <span><?php echo e($an); ?></span>
-                                <svg class="accent-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>
-                            </button>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <span class="user-chip"><i class="user-dot" aria-hidden="true"></i><span class="user-name"><?php echo e($user['username']); ?></span></span>
-            </div>
-        </header>
-        <div class="content">
-            <?php foreach (flashes() as $f): ?>
-                <div class="alert <?php echo $f['type'] === 'err' ? 'alert-err' : 'alert-ok'; ?>"><?php echo e($f['msg']); ?></div>
-            <?php endforeach; ?>
+    <?php foreach (flashes() as $f): ?>
+        <div class="hint"><p class="<?php echo $f['type'] === 'err' ? 'hint_bad' : 'hint_good'; ?>"><?php echo e($f['msg']); ?></p></div>
+    <?php endforeach; ?>

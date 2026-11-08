@@ -6,7 +6,6 @@ require_once dirname(__DIR__) . '/includes/bootstrap.php';
  * 不接受任意 URL，避免被人拿登录页做开放重定向。 */
 $back = isset($_POST['back']) ? (string) $_POST['back'] : (isset($_GET['back']) ? (string) $_GET['back'] : '');
 $backQuery = '';
-/* 只认指向后台入口 index.php 的相对地址；带协议、协议相对 URL 或其它脚本一律不采信 */
 if ($back !== '' && strpos($back, '//') !== 0 && !preg_match('/^[a-z][a-z0-9+.\-]*:/i', $back)) {
     $path = @parse_url($back, PHP_URL_PATH);
     $q    = @parse_url($back, PHP_URL_QUERY);
@@ -53,88 +52,49 @@ if (is_post()) {
         $err = $result;
     }
 }
+$zb = site_url('admin/assets/zblog');
 ?>
-<!DOCTYPE html>
+<!DOCTYPE HTML>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>登录 - CiciCMS 管理后台</title>
-<script>
-(function () {
-    try {
-        var t = localStorage.getItem('cici-theme');
-        if (t !== 'light' && t !== 'dark') {
-            t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-        }
-        var d = localStorage.getItem('cici-density') === 'compact' ? 'compact' : 'comfortable';
-        var a = localStorage.getItem('cici-accent');
-        if (['blue', 'teal', 'green', 'purple', 'amber'].indexOf(a) < 0) { a = 'blue'; }
-        document.documentElement.setAttribute('data-theme', t);
-        document.documentElement.setAttribute('data-density', d);
-        document.documentElement.setAttribute('data-accent', a);
-    } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.documentElement.setAttribute('data-accent', 'blue');
-    }
-})();
-</script>
-<link rel="stylesheet" href="<?php echo e(site_url('admin/assets/admin.css')); ?>">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="robots" content="none" />
+<meta name="viewport" content="width=device-width,viewport-fit=cover" />
+<meta name="renderer" content="webkit" />
+<title><?php echo e(setting('site_name', 'CiciCMS')); ?> - 登录</title>
+<link rel="stylesheet" href="<?php echo e($zb . '/css/admin.css'); ?>" type="text/css" media="screen" />
 </head>
-<body class="login-body">
-<button class="icon-btn login-theme" type="button" data-theme-toggle title="切换深浅主题" aria-label="切换深浅主题">
-    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
-    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-</button>
-
-<div class="login-shell">
-    <aside class="login-aside">
-        <div class="login-logo">
-            <span class="logo-mark">C</span>
-            <div>
-                <b>CiciCMS</b>
-                <span>静态化内容管理系统</span>
-            </div>
-        </div>
-        <div class="login-aside-body">
-            <h2>把内容，<br>发布成静态页。</h2>
-            <p>保存即生成 HTML，不需要常驻数据库和常驻进程，普通虚拟主机也能跑得很快。</p>
-            <ul class="login-points">
-                <li>静态发布，访问快、抗压好</li>
-                <li>模板与插件按需扩展</li>
-                <li>一键备份与恢复数据</li>
-            </ul>
-        </div>
-        <div class="login-aside-foot">管理后台 · v<?php echo e(CMS_VERSION); ?></div>
-    </aside>
-
-    <div class="login-panel">
-        <div class="login-head">
-            <h1 class="login-title">登录</h1>
-            <p class="login-sub">请输入管理员账号与密码</p>
-        </div>
-
-        <?php if ($err !== ''): ?><div class="alert alert-err"><?php echo e($err); ?></div><?php endif; ?>
-
-        <form method="post" action="login.php" autocomplete="off">
-            <?php echo csrf_field(); ?>
-            <?php if ($back !== ''): ?><input type="hidden" name="back" value="<?php echo e($back); ?>"><?php endif; ?>
-            <div class="form-row">
-                <label for="username">管理员账号</label>
-                <input class="input" type="text" id="username" name="username" value="<?php echo e($username); ?>" autofocus required>
-            </div>
-            <div class="form-row">
-                <label for="password">密码</label>
-                <input class="input" type="password" id="password" name="password" required>
-            </div>
-            <button class="btn btn-primary btn-block" type="submit">登 录</button>
-        </form>
-
-        <div class="login-foot">
-            <a href="<?php echo e(site_url()); ?>" target="_blank">查看站点 →</a>
-            <span>CiciCMS v<?php echo e(CMS_VERSION); ?></span>
-        </div>
-    </div>
+<body class="body-login">
+<div class="bg">
+<div id="wrapper">
+  <div class="logo"><img src="<?php echo e($zb . '/image/admin/none.gif'); ?>" title="<?php echo e(setting('site_name', 'CiciCMS')); ?>" alt="Z-Blog" /></div>
+  <div class="login">
+    <?php if ($err !== ''): ?>
+      <div style="width:600px;margin:0 auto 10px;padding:6px 10px;background:#fce0e0;border:1px solid #e1a9a9;color:#b52b1c;font-size:13px;line-height:1.6"><?php echo e($err); ?></div>
+    <?php endif; ?>
+    <form method="post" action="login.php" autocomplete="off">
+      <?php echo csrf_field(); ?>
+      <?php if ($back !== ''): ?><input type="hidden" name="back" value="<?php echo e($back); ?>"><?php endif; ?>
+      <dl>
+        <dt></dt>
+        <dd class="username"><label for="edtUserName">管理员账号</label><input type="text" id="edtUserName" name="username" size="20" value="<?php echo e($username); ?>" tabindex="1" autofocus required /></dd>
+      </dl>
+      <dl>
+        <dt></dt>
+        <dd class="password"><label for="edtPassWord">密码</label><input type="password" id="edtPassWord" name="password" size="20" tabindex="2" required /></dd>
+      </dl>
+      <dl>
+        <dt></dt>
+        <dd class="checkbox"><label style="width:auto;float:none;text-align:left;line-height:32px;color:#666;font-size:13px"><a href="<?php echo e(site_url()); ?>" target="_blank">查看站点 →</a></label></dd>
+        <dd class="submit"><input id="btnPost" name="btnPost" type="submit" value="登 录" class="button" tabindex="99" /></dd>
+      </dl>
+    </form>
+  </div>
+  <div style="width:600px;margin:20px auto 0;text-align:center;color:#888;font-size:12px;line-height:1.8">
+    <?php echo e(setting('site_name', 'CiciCMS')); ?> v<?php echo e(CMS_VERSION); ?>
+  </div>
+</div>
 </div>
 </body>
 </html>
