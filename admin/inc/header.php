@@ -90,10 +90,11 @@ if ($p === 'article') {
     $actionOn = ($curAction === 'new') ? 'new' : 'list';
 }
 
-/* 页头动作槽：只放「本页专属」的主操作。
- * 仪表盘与文章列表不放「添加文章」——侧栏顶部已经有同一个主按钮，重复一遍只是噪音；
+/* 页头动作槽：放「本页专属」的操作，常态用普通按钮，不抢视觉。
+ * 文章列表放「添加文章」——不用主色、不做侧栏大按钮，就压在列表上方当普通入口；
  * 编辑/新建态统一换成「返回列表」，页头不留空，也不和表单底部的保存按钮抢注意力。 */
 $HEAD_ACTIONS = array(
+    'article'   => array(array('添加文章', admin_url('article',  array('action' => 'new')), false)),
     'page'      => array(array('新建单页', admin_url('page',     array('action' => 'new')), true)),
     'category'  => array(array('新建栏目', admin_url('category', array('action' => 'new')), true)),
     'flink'     => array(array('新增链接', admin_url('flink',    array('action' => 'new')), true)),
@@ -170,11 +171,6 @@ $renderNavItem = function ($key) use ($NAV, $p, $PLUGIN_PAGE, $updateDot, $actio
                 <div class="brand-sub">静态化 CMS v<?php echo e(CMS_VERSION); ?></div>
             </div>
         </div>
-
-        <?php /* 全站唯一的主操作位：写文章。其余入口都归到下面的分组菜单里。 */ ?>
-        <a class="side-cta" href="<?php echo e(admin_url('article', array('action' => 'new'))); ?>">
-            <?php echo cms_icon('#i-plus'); ?><span>添加文章</span>
-        </a>
 
         <nav class="nav" aria-label="后台主导航">
             <?php foreach ($NAV_GROUPS as $groupLabel => $groupKeys): ?>
