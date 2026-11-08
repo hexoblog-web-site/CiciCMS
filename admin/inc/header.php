@@ -42,14 +42,19 @@ $SUBTITLE = array(
  * 菜单项格式为 key => array(标题, SVG 内联图标)；icon 省略时用默认方块，避免布局被撑坏。 */
 $NAV = (array) cms_apply_filters('admin_menu', $NAV);
 
-/* 侧栏两个高频动作入口。单独定义而不塞进 $NAV：
- * $NAV 的 key 必须对应 admin/pages/{key}.php，插件的 admin_menu 钩子也按这个结构来，
- * 带 action 参数的动作项混进去会同时破坏路由分发和第三方插件。
- * 「文章管理」已从 $NAV 移除：文章列表由「编辑文章」承担，不再让两个菜单指向同一地址。 */
-$NAV_ACTIONS = array(
-    array('添加文章', '#i-plus',  admin_url('article', array('action' => 'new')), 'new'),
-    array('编辑文章', '#i-write', admin_url('article'),                          'list'),
+/* 侧栏分组。$NAV 的 key 必须对应 admin/pages/{key}.php，插件的 admin_menu 钩子也按这个结构来，
+ * 所以「文章列表」这种带 action 的地址不进 $NAV，只在这里用 article-list 这个虚拟 key 占位。
+ * 分组只影响显示顺序，未出现在任何分组的 key（插件新增项）会自动落到「扩展」组，不会丢。 */
+$NAV_GROUPS = array(
+    '工作台' => array('dashboard'),
+    '内容'   => array('article-list', 'category', 'page', 'media', 'flink'),
+    '站点'   => array('build', 'theme', 'plugin'),
+    '系统'   => array('data', 'clean', 'update', 'setting'),
 );
+$groupedKeys = array();
+foreach ($NAV_GROUPS as $gk => $gv) {
+    $groupedKeys = array_merge($groupedKeys, $gv);
+}
 
 $PLUGIN_PAGE = isset($PLUGIN_PAGE) ? $PLUGIN_PAGE : null;
 
@@ -66,7 +71,7 @@ $curAction = isset($_GET['action']) ? (string) $_GET['action'] : '';
 $pageTitle = isset($NAV[$p][0]) ? (string) $NAV[$p][0] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['title'] : '管理后台');
 $pageSub   = isset($SUBTITLE[$p]) ? $SUBTITLE[$p] : ($PLUGIN_PAGE !== null ? $PLUGIN_PAGE['sub'] : '');
 /* article 已从 $NAV 移除，页面标题必须单独给，否则列表态会 fallback 成「管理后台」。
- * 新建 / 编辑 / 列表三态各给一个准确名字，与侧栏动作入口对得上。 */
+ * 新建 / 编辑 / 列表三态各给一个准确名字，与侧栏条目对得上。 */
 if ($p === 'article') {
     if ($curAction === 'new') {
         $pageTitle = '添加文章';
@@ -79,25 +84,16 @@ if ($p === 'article') {
         $pageSub   = '从列表选一篇文章修改，也可检索与管理';
     }
 }
-/* 动作入口高亮：新建态亮「添加文章」，其余文章页亮「编辑文章」 */
+/* 文章页的侧栏高亮：新建态亮主按钮，其余亮「编辑文章」 */
 $actionOn = '';
 if ($p === 'article') {
     $actionOn = ($curAction === 'new') ? 'new' : 'list';
 }
-/* 两个动作入口的 HTML：插在仪表盘之后、其余菜单之前，顺序固定 添加 → 编辑 */
-$actionsHtml = '';
-foreach ($NAV_ACTIONS as $act) {
-    $on = ($actionOn === $act[3]);
-    $actionsHtml .= '<a class="nav-action' . ($on ? ' on' : '') . '" href="' . e($act[2]) . '"'
-                  . ($on ? ' aria-current="page"' : '') . '>'
-                  . cms_icon($act[1]) . '<span>' . e($act[0]) . '</span></a>';
-}
 
-/* 页头动作槽：列表页放主操作；编辑/新建态换成「返回列表」，
- * 页头不留空，也不和表单底部的保存按钮抢注意力。 */
+/* 页头动作槽：只放「本页专属」的主操作。
+ * 仪表盘与文章列表不放「添加文章」——侧栏顶部已经有同一个主按钮，重复一遍只是噪音；
+ * 编辑/新建态统一换成「返回列表」，页头不留空，也不和表单底部的保存按钮抢注意力。 */
 $HEAD_ACTIONS = array(
-    'dashboard' => array(array('添加文章', admin_url('article',  array('action' => 'new')), true)),
-    'article'   => array(array('添加文章', admin_url('article',  array('action' => 'new')), true)),
     'page'      => array(array('新建单页', admin_url('page',     array('action' => 'new')), true)),
     'category'  => array(array('新建栏目', admin_url('category', array('action' => 'new')), true)),
     'flink'     => array(array('新增链接', admin_url('flink',    array('action' => 'new')), true)),
@@ -106,6 +102,31 @@ if ($curAction !== '' && $p !== 'dashboard') {
     $HEAD_ACTIONS[$p] = array(array('← 返回列表', admin_url($p), false));
 }
 $headActs = isset($HEAD_ACTIONS[$p]) ? $HEAD_ACTIONS[$p] : array();
+
+/**
+ * 渲染一个侧栏条目。
+ * $key 为 article-list 时代理「编辑文章」列表页，其余按 $NAV 取标题与图标。
+ */
+$renderNavItem = function ($key) use ($NAV, $p, $PLUGIN_PAGE, $updateDot, $actionOn) {
+    if ($key === 'article-list') {
+        $isOn = ($actionOn === 'list');
+        return '<a class="' . ($isOn ? 'on' : '') . '" href="' . e(admin_url('article')) . '"'
+             . ($isOn ? ' aria-current="page"' : '') . '>'
+             . cms_icon('#i-write') . '<span>编辑文章</span></a>';
+    }
+    if (!isset($NAV[$key])) {
+        return '';
+    }
+    $item  = $NAV[$key];
+    $label = isset($item[0]) ? (string) $item[0] : (string) $key;
+    $icon  = isset($item[1]) && $item[1] !== '' ? (string) $item[1] : '#i-square';
+    $on    = ($p === $key) || ($PLUGIN_PAGE !== null && $key === 'plugin' && !isset($NAV[$p]));
+    return '<a class="' . ($on ? 'on' : '') . '" href="' . e(admin_url($key)) . '"'
+         . ($on ? ' aria-current="page"' : '') . '>'
+         . cms_icon($icon) . '<span>' . e($label) . '</span>'
+         . ($key === 'update' && $updateDot ? '<i class="nav-dot" title="有新版本"></i>' : '')
+         . '</a>';
+};
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -124,10 +145,14 @@ $headActs = isset($HEAD_ACTIONS[$p]) ? $HEAD_ACTIONS[$p] : array();
             t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
         }
         var d = localStorage.getItem('cici-density') === 'compact' ? 'compact' : 'comfortable';
+        var a = localStorage.getItem('cici-accent');
+        if (['blue', 'teal', 'green', 'purple', 'amber'].indexOf(a) < 0) { a = 'blue'; }
         document.documentElement.setAttribute('data-theme', t);
         document.documentElement.setAttribute('data-density', d);
+        document.documentElement.setAttribute('data-accent', a);
     } catch (e) {
         document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.setAttribute('data-accent', 'blue');
     }
 })();
 </script>
@@ -145,22 +170,44 @@ $headActs = isset($HEAD_ACTIONS[$p]) ? $HEAD_ACTIONS[$p] : array();
                 <div class="brand-sub">静态化 CMS v<?php echo e(CMS_VERSION); ?></div>
             </div>
         </div>
+
+        <?php /* 全站唯一的主操作位：写文章。其余入口都归到下面的分组菜单里。 */ ?>
+        <a class="side-cta" href="<?php echo e(admin_url('article', array('action' => 'new'))); ?>">
+            <?php echo cms_icon('#i-plus'); ?><span>添加文章</span>
+        </a>
+
         <nav class="nav" aria-label="后台主导航">
-            <?php /* 插件万一移除了 dashboard，动作入口仍要显示，兜底放在最前 */ ?>
-            <?php if (!isset($NAV['dashboard'])): ?><?php echo $actionsHtml; ?><?php endif; ?>
-            <?php foreach ($NAV as $key => $item):
-                $label = isset($item[0]) ? (string) $item[0] : (string) $key;
-                $icon  = isset($item[1]) && $item[1] !== '' ? (string) $item[1] : '#i-square';
-                $on    = ($p === $key) || ($PLUGIN_PAGE !== null && $key === 'plugin' && !isset($NAV[$p]));
-            ?>
-                <a class="<?php echo $on ? 'on' : ''; ?>" href="<?php echo e(admin_url($key)); ?>"<?php echo $on ? ' aria-current="page"' : ''; ?>>
-                    <?php echo cms_icon($icon); ?>
-                    <span><?php echo e($label); ?></span>
-                    <?php if ($key === 'update' && $updateDot): ?><i class="nav-dot" title="有新版本"></i><?php endif; ?>
-                </a>
-                <?php if ($key === 'dashboard'): ?><?php echo $actionsHtml; ?><?php endif; ?>
+            <?php foreach ($NAV_GROUPS as $groupLabel => $groupKeys): ?>
+                <?php
+                $visible = array();
+                foreach ($groupKeys as $gk) {
+                    if ($gk === 'article-list' || isset($NAV[$gk])) {
+                        $visible[] = $gk;
+                    }
+                }
+                if (!$visible) {
+                    continue;   /* 插件把整组菜单都删了，就不输出空分组标题 */
+                }
+                ?>
+                <div class="nav-group"><?php echo e($groupLabel); ?></div>
+                <?php foreach ($visible as $gk) { echo $renderNavItem($gk); } ?>
             <?php endforeach; ?>
+
+            <?php
+            /* 插件新增但没归到任何分组的菜单，兜底放在「扩展」里，保证入口不丢 */
+            $restKeys = array();
+            foreach ($NAV as $nk => $nv) {
+                if (!in_array($nk, $groupedKeys, true)) {
+                    $restKeys[] = $nk;
+                }
+            }
+            if ($restKeys):
+            ?>
+                <div class="nav-group">扩展</div>
+                <?php foreach ($restKeys as $rk) { echo $renderNavItem($rk); } ?>
+            <?php endif; ?>
         </nav>
+
         <div class="sidebar-foot">
             <div class="build-hint">
                 已生成 <b><?php echo (int) static_files_count(); ?></b> 个静态文件
@@ -173,10 +220,13 @@ $headActs = isset($HEAD_ACTIONS[$p]) ? $HEAD_ACTIONS[$p] : array();
             </form>
         </div>
     </aside>
+    <div class="sidebar-mask" id="sidebar-mask"
+         onclick="document.getElementById('sidebar').classList.remove('open');this.classList.remove('on')"></div>
 
     <div class="main">
         <header class="topbar">
-            <button class="menu-btn" type="button" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+            <button class="menu-btn" type="button" aria-label="展开导航"
+                    onclick="document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-mask').classList.toggle('on')">☰</button>
             <div>
                 <h1><?php echo e($pageTitle); ?></h1>
                 <div class="page-sub">
@@ -204,6 +254,27 @@ $headActs = isset($HEAD_ACTIONS[$p]) ? $HEAD_ACTIONS[$p] : array();
                 <button class="icon-btn i-density" type="button" data-density-toggle title="切换紧凑 / 舒适密度" aria-label="切换紧凑或舒适密度" aria-pressed="false">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
                 </button>
+                <?php /* 配色切换：只换品牌色令牌，和深浅主题、密度互不影响 */ ?>
+                <div class="top-pop">
+                    <button class="icon-btn i-accent" type="button" data-accent-toggle aria-haspopup="true" aria-expanded="false" title="切换配色方案" aria-label="切换配色方案">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.9-.8 1.9-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-3.9-4-7-9-7z"/>
+                            <circle cx="8.2" cy="10.2" r="1" fill="currentColor" stroke="none"/>
+                            <circle cx="12" cy="7.8" r="1" fill="currentColor" stroke="none"/>
+                            <circle cx="15.8" cy="10.2" r="1" fill="currentColor" stroke="none"/>
+                        </svg>
+                    </button>
+                    <div class="accent-menu" data-accent-menu hidden>
+                        <div class="menu-cap">配色方案</div>
+                        <?php foreach (array('blue' => '经典蓝', 'teal' => '青碧', 'green' => '松绿', 'purple' => '雅紫', 'amber' => '琥珀') as $ak => $an): ?>
+                            <button class="accent-item" type="button" data-accent-set="<?php echo e($ak); ?>" aria-pressed="false">
+                                <span class="accent-dot" aria-hidden="true"></span>
+                                <span><?php echo e($an); ?></span>
+                                <svg class="accent-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
                 <span class="user-chip"><i class="user-dot" aria-hidden="true"></i><span class="user-name"><?php echo e($user['username']); ?></span></span>
             </div>
         </header>

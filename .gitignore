@@ -39,5 +39,6 @@ Thumbs.db
 *.tmp
 
 # ---- 设计预览稿（本地看样式用，不进发布包）----
+/_preview/
 /_preview_*.html
 /docs/_preview/

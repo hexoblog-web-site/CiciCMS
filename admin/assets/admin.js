@@ -637,7 +637,8 @@
 
   /* ================= 显示设置：主题与密度 ================= */
 
-  var THEME_KEY = 'cici-theme', DENSITY_KEY = 'cici-density';
+  var THEME_KEY = 'cici-theme', DENSITY_KEY = 'cici-density', ACCENT_KEY = 'cici-accent';
+  var ACCENTS = ['blue', 'teal', 'green', 'purple', 'amber'];
 
   function store(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
   function read(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
@@ -653,9 +654,52 @@
       b.setAttribute('aria-pressed', compact ? 'true' : 'false');
       b.setAttribute('title', compact ? '切回舒适密度' : '切换到紧凑密度');
     });
+    var accent = document.documentElement.getAttribute('data-accent');
+    if (ACCENTS.indexOf(accent) < 0) { accent = 'blue'; }
+    Array.prototype.forEach.call(document.querySelectorAll('[data-accent-set]'), function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-accent-set') === accent ? 'true' : 'false');
+    });
+  }
+
+  /* 配色浮层：点图标开合、点色块应用、点别处或按 Esc 收起 */
+  function accentMenu() { return document.querySelector('[data-accent-menu]'); }
+
+  function closeAccentMenu() {
+    var m = accentMenu();
+    if (!m || m.hidden) { return; }
+    m.hidden = true;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-accent-toggle]'), function (b) {
+      b.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function setAccent(v) {
+    if (ACCENTS.indexOf(v) < 0) { v = 'blue'; }
+    document.documentElement.setAttribute('data-accent', v);
+    store(ACCENT_KEY, v);
+    syncDisplayButtons();
   }
 
   document.addEventListener('click', function (ev) {
+    var acc = ev.target.closest('[data-accent-set]');
+    if (acc) {
+      setAccent(acc.getAttribute('data-accent-set'));
+      closeAccentMenu();
+      return;
+    }
+    var accBtn = ev.target.closest('[data-accent-toggle]');
+    if (accBtn) {
+      var m = accentMenu();
+      if (m) {
+        var open = m.hidden;
+        m.hidden = !open;
+        accBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      return;
+    }
+    /* 点到浮层与按钮之外就收起，避免它一直挂在页头上 */
+    if (!ev.target.closest('.accent-menu') && !ev.target.closest('.top-pop')) { closeAccentMenu(); }
+
     var t = ev.target.closest('[data-theme-toggle]');
     if (t) {
       var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -671,6 +715,15 @@
       store(DENSITY_KEY, nextD);
       syncDisplayButtons();
     }
+  });
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape') { return; }
+    var m = accentMenu();
+    if (!m || m.hidden) { return; }
+    closeAccentMenu();
+    var btn = document.querySelector('[data-accent-toggle]');
+    if (btn) { btn.focus(); }
   });
 
   /* 用户没手动选过主题时，跟随系统切换 */
