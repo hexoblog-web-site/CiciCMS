@@ -170,12 +170,22 @@
 | `id` | int PK | — |
 | `path` | varchar(255) | 相对路径 |
 | `name` | varchar(200) | 原始文件名 |
+| `alt` | varchar(200) | 替代文本（v8），构建 `<img alt>` 用；上传时按文件名兜一个，可逐张改 |
 | `mime` | varchar(80) | 真实 MIME |
 | `size` | int | 字节数 |
+| `content_id` | int | 被哪篇文章使用（v8），0 = 还没被引用；保存文章时回填 |
+| `deleted_at` | int | 媒体回收站（v8），0 = 正常；>0 为删除时间戳，文件仍在磁盘 |
 | `created_at` | int | — |
+
+**索引**：`PRIMARY(id)`、`KEY(content_id)`、`KEY(deleted_at)`
 
 ::: warning 附件（pdf/zip）不进这张表
 这张表是**图片画廊**的数据源。附件存在文章的 `attachment` 字段里，靠系统清理按文件名扫描来保证不被误删。
+:::
+
+::: tip content_id 只是索引，不是判定依据
+清理未引用附件走的是「文件名是否出现在任何正文里」的全站检索，`content_id` 只是让媒体列表能反查
+「这张图被哪篇文章用了」。所以它允许为空、允许不准，绑定失败也不影响保存。
 :::
 
 ## 表之间的关系

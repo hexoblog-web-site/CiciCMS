@@ -9,7 +9,7 @@
 /** 当前数据结构版本，每次改表时 +1（唯一数据源，bootstrap 不再另设常量） */
 function cms_schema_version()
 {
-    return 7;
+    return 8;
 }
 
 /**
@@ -104,6 +104,60 @@ function cms_upgrade()
         if (empty($col)) {
             q("ALTER TABLE {p}article ADD COLUMN `attach_show` tinyint NOT NULL DEFAULT 0 AFTER `attach_size`");
             log_msg('schema: article.attach_show added');
+        }
+
+        /* 8. 附件元信息（v8）：
+              · alt        构建 <img> 时的替代文本，没有它无障碍与图片搜索都吃亏
+              · content_id 这张图被哪篇内容使用；0 = 还没被任何内容引用
+              · deleted_at 媒体回收站：删除只打时间戳，文件留在磁盘，可以恢复 */
+        $col = all("SHOW COLUMNS FROM {p}attachment LIKE 'alt'");
+        if (empty($col)) {
+            q("ALTER TABLE {p}attachment ADD COLUMN `alt` varchar(200) NOT NULL DEFAULT '' AFTER `name`");
+            log_msg('schema: attachment.alt added');
+        }
+        $col = all("SHOW COLUMNS FROM {p}attachment LIKE 'content_id'");
+        if (empty($col)) {
+            q("ALTER TABLE {p}attachment ADD COLUMN `content_id` int unsigned NOT NULL DEFAULT 0 AFTER `size`");
+            try {
+                q("ALTER TABLE {p}attachment ADD KEY `content_id` (`content_id`)");
+            } catch (Throwable $ex) {
+                log_msg('schema: attachment.content_id 索引跳过：' . $ex->getMessage());
+            }
+            log_msg('schema: attachment.content_id added');
+        }
+        $col = all("SHOW COLUMNS FROM {p}attachment LIKE 'deleted_at'");
+        if (empty($col)) {
+            q("ALTER TABLE {p}attachment ADD COLUMN `deleted_at` int unsigned NOT NULL DEFAULT 0 AFTER `content_id`");
+            try {
+                q("ALTER TABLE {p}attachment ADD KEY `deleted_at` (`deleted_at`)");
+            } catch (Throwable $ex) {
+                log_msg('schema: attachment.deleted_at 索引跳过：' . $ex->getMessage());
+            }
+            log_msg('schema: attachment.deleted_at added');
+        }
+
+        /* 9. 正文源文回填（v8）：
+              早期文章只有渲染后的 content，没有 content_src。这种行在后台编辑时
+              拿到的是 HTML，一保存就把代码块围栏丢了（教程类文章会坏）。
+              把 content 原样复制到 content_src，之后编辑就以源文为准。
+              只补空值，不覆盖任何已有内容。 */
+        try {
+            $n = (int) val("SELECT COUNT(*) FROM {p}article
+                            WHERE (content_src IS NULL OR content_src = '') AND content <> ''");
+            if ($n > 0) {
+                q("UPDATE {p}article SET content_src = content
+                   WHERE (content_src IS NULL OR content_src = '') AND content <> ''");
+                log_msg('schema: article.content_src 回填 ' . $n . ' 条');
+            }
+            $n = (int) val("SELECT COUNT(*) FROM {p}page
+                            WHERE (content_src IS NULL OR content_src = '') AND content <> ''");
+            if ($n > 0) {
+                q("UPDATE {p}page SET content_src = content
+                   WHERE (content_src IS NULL OR content_src = '') AND content <> ''");
+                log_msg('schema: page.content_src 回填 ' . $n . ' 条');
+            }
+        } catch (Throwable $ex) {
+            log_msg('schema: content_src 回填跳过：' . $ex->getMessage());
         }
 
         if (ensure_dir(CMS_DATA)) {

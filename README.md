@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v2.2.1-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
+[![Release](https://img.shields.io/badge/release-v2.2.2-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -521,6 +521,59 @@ rm -rf install                       # 装完删掉安装目录
 
 - 无数据库迁移，`includes/upgrade.php` 不新增步骤；`content/` 下的主题、插件文件本轮也没有改动。
 - 升级包按惯例**不含 `content/` 与 `docs/`**，程序功能不受影响。
+
+### 3.28 从 2.2.1 升级到 2.2.2（安全收口：并发限速、更新包签名、正文白名单、阅读数频控、媒体回收站）
+
+这一版是代码审查后的一次集中加固，**没有 URL 规则变化、没有模板标签变化**；
+数据库结构升到 v8（附件表加三列），`includes/upgrade.php` 会自动补齐，不需要手工执行 SQL。
+
+**登录与账号**
+
+1. 登录失败限速改用 `flock` 包住「读 → 改 → 写」。旧版只是写文件时加锁，并发 20 个请求会全部读到 `n=0`，
+   「15 分钟 8 次」实际等于「每轮只记 1 次」。现在判断与记账在同一把锁里。
+2. 增加全站失败速率：5 分钟内全站失败超过 200 次，暂停登录 10 分钟（按 IP 限速对一批肉鸡无效）。
+3. 退出登录补上 `session_destroy()` 与 cookie 过期，不再把已登出的会话留在服务器上。
+
+**自动更新**
+
+4. 更新源改成**硬编码白名单**（`update_allowed_repos()`），后台把仓库改成任何 `owner/repo` 都不生效。
+5. 更新包必须通过完整性校验才落盘：配了发布公钥就走 Ed25519 签名清单（`update-manifest.json`），
+   逐文件比对 sha256；没配公钥才退到 SHA256 白名单。后台「系统更新」页会显示当前校验方式。
+6. 新增 `tools/sign-release.php`（本地签名工具）与 `docs/dev/update-sign.md`（发布流程）。
+
+**正文净化**
+
+7. `clean_html()` 从黑名单改为**标签/属性白名单**重建：不在表里的标签去标签留文字，
+   属性逐个过（URL 属性解实体后再判协议，`srcset` 逐段检查，`target=_blank` 自动补 `rel=noopener`）。
+   Markdown 能产出的标签（标题、表格、代码块、任务清单、视频、图片）都在白名单里，正常文章渲染结果不变。
+
+**阅读数**
+
+8. `api.php` 接受 POST（`sendBeacon`），保留 GET 兼容老主题；预取/预渲染请求不计数；
+   同 IP 同文章 10 分钟只算一次；响应加 `no-store`，避免被 CDN 缓存后数字不涨。
+9. 默认主题 `footer.html` 的计数脚本改为 `sendBeacon`，后台预览页按标记注释整段剔除，预览不再可能计数。
+
+**媒体**
+
+10. 附件表新增 `alt`（替代文本）、`content_id`（被哪篇文章使用）、`deleted_at`（回收站）。
+11. 「媒体信息」支持逐张编辑替代文本；删除改为**移入回收站**，可以恢复或彻底删除；
+    系统清理会把回收站里的文件当作「有人管」，不会误删到无法恢复。
+12. 保存文章时回填 `content_id`，媒体列表里可以直接跳到使用它的文章。
+
+**后台预览**
+
+13. `u_post_preview()` / `u_page_preview()` 不再在页面渲染时现场生成静态页
+    （管理员登录状态下，一个指向列表页的空 `<img>` 就能让服务器反复写盘）。
+    静态页不存在时，列表页的「预览」退回后台动态预览，不落盘。
+
+**升级提示**
+
+- **有数据库迁移**：`cms_schema_version()` 升到 8，自动为 `attachment` 添加 `alt` / `content_id` / `deleted_at`
+  并补索引，同时把只有 `content` 没有 `content_src` 的老文章、老单页回填源文（只补空值，不覆盖）。
+- 主题 `footer.html` 有改动（计数脚本），升级包**不含 `content/`**：如果用的是默认主题，
+  需要手工把 `content/themes/default/footer.html` 的计数脚本换成新版，否则阅读数仍走老的 GET 方式
+  （功能不受影响，只是没有服务端频控那一层）。
+- 后台「系统更新」页会显示「仅来源白名单」直到你按 `docs/dev/update-sign.md` 生成并填好发布公钥。
 
 ---
 
@@ -1180,4 +1233,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：2.2.1
+版本：2.2.2

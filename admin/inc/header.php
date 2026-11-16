@@ -195,7 +195,7 @@ $zb = site_url('admin/assets/zblog');
 <header class="header">
     <div class="logo">
         <a href="<?php echo e(site_url()); ?>" title="<?php echo e(setting('site_name', 'CiciCMS')); ?>" target="_blank">
-            <img src="<?php echo e($zb . '/image/admin/none.gif'); ?>" alt="Z-Blog" />
+            <img src="<?php echo e($zb . '/image/admin/none.gif'); ?>" alt="CiciCms" />
         </a>
     </div>
     <div class="user">

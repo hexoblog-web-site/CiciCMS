@@ -267,44 +267,82 @@ function u_post($post)
     return $rel !== '' ? site_url($rel) : '#';
 }
 
-/** 后台「预览」按钮用的地址：静态页没生成就现场生成该页，然后给真实静态地址。
- *  纯静态站点不再提供动态预览；草稿（status=0）不生成静态页，返回空串由调用方隐藏按钮。 */
+/**
+ * 后台「打开静态页」用的地址
+ *
+ * 早期版本在静态页不存在时现场 build_incremental()：管理员已登录时，
+ * 任何指向后台列表页的 GET（比如攻击页里一个空 <img>）都会让服务器反复写盘。
+ * 现在只判断文件在不在，不构建 —— 生成由保存、发布、生成页那条明确链路负责。
+ * 没有静态文件时返回空串，调用方据此隐藏「打开静态页」。
+ */
 function u_post_preview($post)
 {
     if (is_array($post) && isset($post['status']) && (int) $post['status'] !== 1) {
         return '';
     }
     $rel = post_static_rel($post);
-    if ($rel === '') {
+    if ($rel === '' || !is_file(CMS_ROOT . '/' . $rel)) {
         return '';
-    }
-    if (!is_file(CMS_ROOT . '/' . $rel)) {
-        $id = is_array($post) && isset($post['id']) ? (int) $post['id'] : 0;
-        if ($id > 0) {
-            build_incremental(array('post_id' => $id, 'no_home' => true));
-        }
     }
     return site_url($rel);
 }
 
-/** 单页「预览」按钮：同理，没生成就现场生成 /slug.html */
+/** 单页的静态地址：同样只判断，不构建 */
 function u_page_preview($page)
 {
     if (is_array($page) && isset($page['status']) && (int) $page['status'] !== 1) {
         return '';
     }
     $slug = is_array($page) ? (string) $page['slug'] : (string) $page;
-    $rel  = rawurlencode($slug) . '.html';
     if ($slug === '') {
         return '';
     }
+    $rel = rawurlencode($slug) . '.html';
     if (!is_file(CMS_ROOT . '/' . $rel)) {
-        $id = is_array($page) && isset($page['id']) ? (int) $page['id'] : 0;
-        if ($id > 0) {
-            build_incremental(array('page_id' => $id, 'no_home' => true));
-        }
+        return '';
     }
     return site_url($rel);
+}
+
+/** 后台动态预览地址：不落盘，草稿也能看，权限靠 preview.php 里的 require_login */
+function u_admin_preview($type, $id)
+{
+    $id = (int) $id;
+    if ($id <= 0) {
+        return '';
+    }
+    return site_url('admin/preview.php?type=' . urlencode((string) $type) . '&id=' . $id);
+}
+
+/**
+ * 列表页的「预览」链接：静态页在就用静态页，不在就退回后台动态预览
+ *
+ * 两者对读者都是一次真实的页面渲染，区别只是后者的 HTML 是现场拼的、带 noindex。
+ */
+function u_post_preview_link($post)
+{
+    if (is_array($post) && isset($post['status']) && (int) $post['status'] !== 1) {
+        return '';
+    }
+    $static = u_post_preview($post);
+    if ($static !== '') {
+        return $static;
+    }
+    $id = is_array($post) && isset($post['id']) ? (int) $post['id'] : 0;
+    return u_admin_preview('article', $id);
+}
+
+function u_page_preview_link($page)
+{
+    if (is_array($page) && isset($page['status']) && (int) $page['status'] !== 1) {
+        return '';
+    }
+    $static = u_page_preview($page);
+    if ($static !== '') {
+        return $static;
+    }
+    $id = is_array($page) && isset($page['id']) ? (int) $page['id'] : 0;
+    return u_admin_preview('page', $id);
 }
 
 /** 分类静态地址：<目录>/index.html、<目录>/page/N/index.html */
@@ -470,6 +508,61 @@ function upload_url($path)
 }
 
 /**
+ * 从一段正文里抽出「本站在用的上传文件」的相对路径
+ *
+ * 只认 uploads/年/月日/文件名 这种由上传器生成的形状，避免把外链图片也算进来。
+ */
+function attachment_refs_in($text)
+{
+    $out = array();
+    $re  = '#uploads/([0-9]{4}/[0-9A-Za-z/._-]+?\.(?:jpe?g|png|gif|webp|bmp|avif|svg|ico|pdf|zip|rar|7z|txt|docx?|xlsx?|pptx?|mp3|mp4))#i';
+    if (!preg_match_all($re, (string) $text, $m)) {
+        return $out;
+    }
+    foreach ($m[1] as $rel) {
+        if (strpos($rel, '..') === false) {
+            $out[$rel] = true;
+        }
+    }
+    return array_keys($out);
+}
+
+/**
+ * 把正文引用到的图片登记到 attachment.content_id
+ *
+ * 只是「哪篇文章在用这张图」的快速索引，媒体信息里能反查；
+ * 清理未引用附件**不依赖**它（清理走全站文件名检索，更保守）。
+ * 所以这里允许失败、允许重复执行，绝不因为绑定失败影响保存。
+ */
+function attachment_bind_content($articleId, $text)
+{
+    $articleId = (int) $articleId;
+    if ($articleId <= 0) {
+        return;
+    }
+    try {
+        q('UPDATE {p}attachment SET content_id = 0 WHERE content_id = ?', array($articleId));
+        $rels = attachment_refs_in($text);
+        if (!$rels) {
+            return;
+        }
+        $paths = array();
+        foreach ($rels as $rel) {
+            $paths[] = CMS_CONTENT_REL . '/uploads/' . $rel;
+            $paths[] = 'uploads/' . $rel;
+            $paths[] = $rel;
+        }
+        $in = implode(',', array_fill(0, count($paths), '?'));
+        q(
+            'UPDATE {p}attachment SET content_id = ? WHERE path IN (' . $in . ')',
+            array_merge(array($articleId), $paths)
+        );
+    } catch (Throwable $ex) {
+        log_msg('attachment bind failed: ' . $ex->getMessage());
+    }
+}
+
+/**
  * 渲染一个 PHP 模板文件，$vars 直接成为模板内的变量。
  */
 function render_php_file($file, $vars = array())
@@ -619,68 +712,327 @@ function unique_slug($table, $slug, $id = 0)
     return $base . '-' . time();
 }
 
+/* ============ 正文净化 ============ */
+
+/**
+ * 正文允许的标签与属性
+ *
+ * 之前是黑名单（列一堆要删的东西），黑名单天生列举不完：每出一个新属性、
+ * 一种新协议就要补一条，漏一次就是存储型 XSS。这里反过来写：只承认
+ * Markdown 正文可能产出的标签，其余去标签留文字；属性同理。
+ *
+ * 白名单比渲染器能力略宽一点（视频、任务清单、代码块复制按钮都在里面），
+ * 目的是「净化之后不改变正常文章的渲染结果」，不是尽可能多删。
+ */
+function cms_html_tags()
+{
+    static $map = null;
+    if ($map !== null) {
+        return $map;
+    }
+    $head = array('id');
+    $map  = array(
+        'a'          => array('href', 'title', 'target', 'rel', 'download', 'hreflang', 'type'),
+        'img'        => array('src', 'alt', 'title', 'width', 'height', 'loading', 'decoding', 'srcset', 'sizes'),
+        'p'          => array(),
+        'br'         => array(),
+        'hr'         => array(),
+        'h1'         => $head,
+        'h2'         => $head,
+        'h3'         => $head,
+        'h4'         => $head,
+        'h5'         => $head,
+        'h6'         => $head,
+        'strong'     => array(),
+        'b'          => array(),
+        'em'         => array(),
+        'i'          => array(),
+        'u'          => array(),
+        's'          => array(),
+        'del'        => array(),
+        'ins'        => array(),
+        'mark'       => array(),
+        'small'      => array(),
+        'sub'        => array(),
+        'sup'        => array(),
+        'cite'       => array(),
+        'q'          => array('cite'),
+        'code'       => array('class'),
+        'pre'        => array('class'),
+        'kbd'        => array(),
+        'samp'       => array(),
+        'var'        => array(),
+        'blockquote' => array('cite'),
+        'ul'         => array('start', 'reversed', 'type'),
+        'ol'         => array('start', 'reversed', 'type'),
+        'li'         => array('value'),
+        'dl'         => array(),
+        'dt'         => array(),
+        'dd'         => array(),
+        'table'      => array('width', 'border', 'cellpadding', 'cellspacing', 'summary', 'align'),
+        'caption'    => array(),
+        'colgroup'   => array('span'),
+        'col'        => array('span', 'width'),
+        'thead'      => array(),
+        'tbody'      => array(),
+        'tfoot'      => array(),
+        'tr'         => array('align', 'valign'),
+        'th'         => array('colspan', 'rowspan', 'scope', 'align', 'valign', 'width'),
+        'td'         => array('colspan', 'rowspan', 'align', 'valign', 'width'),
+        'figure'     => array(),
+        'figcaption' => array(),
+        'div'        => array(),
+        'span'       => array(),
+        'details'    => array('open'),
+        'summary'    => array(),
+        'video'      => array('src', 'poster', 'controls', 'loop', 'muted', 'playsinline', 'preload', 'width', 'height'),
+        'audio'      => array('src', 'controls', 'loop', 'muted', 'preload'),
+        'source'     => array('src', 'srcset', 'type', 'media', 'sizes'),
+        'track'      => array('src', 'kind', 'srclang', 'label', 'default'),
+        'picture'    => array(),
+        'input'      => array('type', 'checked', 'disabled'),
+        'button'     => array('type', 'aria-label'),
+        'time'       => array('datetime'),
+        'style'      => array('media'),
+    );
+    return $map;
+}
+
+/** 全局属性：任何白名单标签都能带 */
+function cms_html_global_attrs()
+{
+    return array('id', 'class', 'title', 'style', 'role', 'lang', 'dir');
+}
+
+/** 空元素：不需要闭合标签，也不能写成 <img></img> */
+function cms_html_void_tags()
+{
+    return array('br', 'hr', 'img', 'input', 'source', 'track', 'col');
+}
+
+/**
+ * 与浏览器一致的属性值归一化
+ *
+ * 浏览器解析 URL 前会先把 HTML5 命名实体（&Tab; &NewLine; &colon; …）还原成
+ * 字符、再去掉控制字符与空白，所以 java&#09;script: 是能执行的。
+ * 这里先解实体、再剥控制字符，判断一定落在「浏览器真正看到的那个串」上。
+ */
+function cms_html_attr_decode($val)
+{
+    $v = html_entity_decode((string) $val, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    return str_replace(array("\0"), '', $v);
+}
+
+/** URL 属性能否放行：只挡「能执行代码」与「能变成文档」的写法 */
+function cms_html_url_safe($val)
+{
+    $v = (string) $val;
+    // 去掉所有空白与控制字符后再判协议（与浏览器解析一致）
+    $probe = preg_replace('/[\x00-\x20\x7f]+/', '', $v);
+    if ($probe === '') {
+        return true;
+    }
+    if (preg_match('#^(javascript|vbscript|livescript|mocha)\s*:#i', $probe)) {
+        return false;
+    }
+    if (preg_match('#^data\s*:#i', $probe)) {
+        // 只允许几种位图；data:text/html 与 data:image/svg+xml 都是直接的 XSS
+        return (bool) preg_match('#^data:image/(png|jpe?g|gif|webp);base64,#i', $probe);
+    }
+    return true;
+}
+
+/** style 属性里能执行代码的老写法 */
+function cms_html_css_clean($css)
+{
+    $css = preg_replace('/expression\s*\(/i', '', (string) $css);
+    $css = preg_replace('/behaviou?r\s*:/i', '', $css);
+    $css = preg_replace('#@import[^;]*;?#i', '', $css);
+    $css = preg_replace('#url\s*\(\s*[\'"]?\s*(javascript|vbscript|data)\s*:[^)]*\)#i', 'none', $css);
+    return $css;
+}
+
+/**
+ * 重建一个开始标签的属性串
+ *
+ * @param string $tag     小写标签名
+ * @param string $attrStr 原始属性部分（不含标签名）
+ * @param array  $allowed 该标签允许的属性
+ */
+function cms_html_attrs($tag, $attrStr, $allowed)
+{
+    $attrStr = (string) $attrStr;
+    if (trim($attrStr) === '') {
+        return '';
+    }
+    if (!preg_match_all(
+        '#([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*("([^"]*)"|\'([^\']*)\'|([^\s"\'`=<>]+)))?#',
+        $attrStr,
+        $mm,
+        PREG_SET_ORDER
+    )) {
+        return '';
+    }
+
+    $global  = cms_html_global_attrs();
+    $urlAttr = array('href', 'src', 'srcset', 'poster', 'cite', 'data', 'background', 'formaction', 'action', 'longdesc', 'ping', 'xlink:href', 'usemap');
+    $out     = array();
+    $seen    = array();
+
+    foreach ($mm as $a) {
+        $name = strtolower($a[1]);
+        if (isset($seen[$name])) {
+            continue; // 重复属性只保留第一个，避免后面的覆盖前面的
+        }
+        $allowedHere = in_array($name, $global, true)
+            || strpos($name, 'data-') === 0
+            || strpos($name, 'aria-') === 0
+            || in_array($name, $allowed, true);
+        if (!$allowedHere) {
+            continue;
+        }
+
+        $hasVal = isset($a[2]) && $a[2] !== '';
+        if (!$hasVal) {
+            // 布尔属性：controls / checked / open / disabled / reversed ……
+            // 只允许该标签白名单里的，避免凭空加上 download 之类
+            if (in_array($name, $allowed, true)) {
+                $out[]       = $name;
+                $seen[$name] = true;
+            }
+            continue;
+        }
+
+        $val = '';
+        if (isset($a[3]) && $a[3] !== '') {
+            $val = $a[3];
+        } elseif (isset($a[4]) && $a[4] !== '') {
+            $val = $a[4];
+        } elseif (isset($a[5])) {
+            $val = $a[5];
+        }
+        $val = cms_html_attr_decode($val);
+
+        if (in_array($name, $urlAttr, true)) {
+            if ($name === 'srcset') {
+                $ok = true;
+                foreach (explode(',', $val) as $part) {
+                    $bits = preg_split('/\s+/', trim($part));
+                    if (!empty($bits[0]) && !cms_html_url_safe($bits[0])) {
+                        $ok = false;
+                        break;
+                    }
+                }
+                if (!$ok) {
+                    continue;
+                }
+            } elseif (!cms_html_url_safe($val)) {
+                continue;
+            }
+        }
+
+        if ($name === 'style') {
+            $val = cms_html_css_clean($val);
+            if (trim($val) === '') {
+                continue;
+            }
+        }
+
+        // 正文里的 input 只可能是任务清单的复选框，别的类型一律按 checkbox 处理
+        if ($tag === 'input' && $name === 'type') {
+            $val = 'checkbox';
+        }
+        // 复选框只能是禁用的（否则访客能改状态，看着像坏了）
+        if ($tag === 'input' && $name === 'disabled') {
+            $out[]       = 'disabled';
+            $seen[$name] = true;
+            continue;
+        }
+
+        $out[]       = $name . '="' . htmlspecialchars($val, ENT_QUOTES, 'UTF-8') . '"';
+        $seen[$name] = true;
+    }
+
+    /* 新窗口打开的链接补 rel：不加 noopener 时，目标页可以用 window.opener 改本页地址 */
+    if ($tag === 'a' && !empty($seen['target']) && !empty($seen['rel'])) {
+        return implode(' ', $out);
+    }
+    if ($tag === 'a' && !empty($seen['target']) && !isset($seen['rel'])) {
+        foreach ($out as $pair) {
+            if (stripos($pair, 'target=') === 0 && stripos($pair, '_blank') !== false) {
+                $out[] = 'rel="noopener noreferrer"';
+                break;
+            }
+        }
+    }
+
+    return implode(' ', $out);
+}
+
 /** 过滤正文中的脚本与事件属性（防存储型 XSS） */
 function clean_html($html)
 {
     $html = (string) $html;
+    if (trim($html) === '') {
+        return '';
+    }
 
-    // 1) 危险标签：连内容一起删（这些标签内部可以执行脚本或加载外部资源）
-    $kill = 'script|iframe|frame|frameset|object|embed|applet|svg|math|template|noscript';
+    // 1) 危险标签：连内容一起删（内部可以执行脚本或加载外部资源）
+    $kill = 'script|iframe|frame|frameset|object|embed|applet|svg|math|template|noscript|form|base|meta|link';
     $html = preg_replace('#<(' . $kill . ')\b[^>]*>.*?</\1\s*>#is', '', $html);
     // 没有闭合的残留标签也一并清掉
     $html = preg_replace('#</?(' . $kill . ')\b[^>]*>#is', '', $html);
-    // 只去标签、保留内容（正文里出现这些标签只会破坏页面结构）
-    $html = preg_replace('#</?(form|base|meta|link|body|html|head)\b[^>]*>#is', '', $html);
-    // style 标签保留（正文里可能自定义样式），只清掉其中能执行代码的写法
-    $html = preg_replace('#@import[^;]*;?#i', '', $html);
-    $html = preg_replace('/expression\s*\(/i', '', $html);
-    $html = preg_replace('/behaviou?r\s*:/i', '', $html);
+    // 文档级标签：只去标签，内容可能还要
+    $html = preg_replace('#</?(body|html|head)\b[^>]*>#is', '', $html);
 
-    // 2) 事件属性：onerror=、onload=、onclick=…（带双引号 / 单引号 / 不带引号三种写法）
-    $html = preg_replace('#\son[a-z]+\s*=\s*"[^"]*"#i', '', $html);
-    $html = preg_replace("#\son[a-z]+\s*=\s*'[^']*'#i", '', $html);
-    $html = preg_replace('#\son[a-z]+\s*=\s*[^\s"\'>]+#i', '', $html);
+    // 2) 注释整段丢弃：IE 条件注释已死，注释是夹带 <script> 的经典位置
+    $html = preg_replace('#<!--.*?-->#s', '', $html);
 
-    // 3) 危险协议：逐个检查链接类属性的值
-    //
-    //    这里必须无条件执行，不能像早期版本那样先用「全文是否出现过 javascript:」
-    //    做前置判断：浏览器会把 &Tab; &NewLine; &colon; 这类 HTML5 命名实体
-    //    还原成控制字符和冒号，而全文正则匹配不到拆分后的写法，前置判断一为假，
-    //    整段防护就被跳过（java&#09;script:alert(1) 可直接落地）。
+    // 3) <style> 摘出来单独消毒：CSS 里的尖括号不该被当成标签重写
+    $styles = array();
+    $html   = preg_replace_callback('#<style\b[^>]*>(.*?)</style>#is', function ($m) use (&$styles) {
+        $css = cms_html_css_clean((string) $m[1]);
+        $css = str_replace('</style', '&lt;/style', $css);
+        $key = "\x02ST" . count($styles) . "\x03";
+        $styles[$key] = '<style>' . $css . '</style>';
+        return $key;
+    }, $html);
+
+    // 4) 标签重写：白名单内重建，白名单外去标签留文字
+    $tags = cms_html_tags();
+    $void = cms_html_void_tags();
     $html = preg_replace_callback(
-        '#\b(href|src|action|formaction|poster|background|xlink:href|data)\s*=\s*("([^"]*)"|\'([^\']*)\'|([^\s>\'"]+))#i',
-        function ($m) {
-            $val = '';
-            if (isset($m[3]) && $m[3] !== '') {
-                $val = $m[3];
-            } elseif (isset($m[4]) && $m[4] !== '') {
-                $val = $m[4];
-            } elseif (isset($m[5])) {
-                $val = $m[5];
+        '#<(/)?([a-zA-Z][a-zA-Z0-9]*)((?:[^>"\']|"[^"]*"|\'[^\']*\')*)>#',
+        function ($m) use ($tags, $void) {
+            $name = strtolower($m[2]);
+            if (!isset($tags[$name])) {
+                return ''; // 未知标签：标签去掉，里面的文字保留
             }
-            // 与浏览器一致的归一化：解 HTML5 命名实体，再去掉控制字符与所有空白
-            $dec = html_entity_decode($val, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            $dec = preg_replace('/[\x00-\x20\x7f]+/', '', $dec);
-            if (preg_match('/^(javascript|vbscript|livescript):/i', $dec)
-                || preg_match('/^data:(text\/html|image\/svg)/i', $dec)) {
-                return $m[1] . '="#"';
+            if ($m[1] === '/') {
+                return in_array($name, $void, true) ? '' : '</' . $name . '>';
             }
-            return $m[0];
+            if (in_array($name, $void, true)) {
+                $attr = cms_html_attrs($name, isset($m[3]) ? $m[3] : '', $tags[$name]);
+                return '<' . $name . ($attr !== '' ? ' ' . $attr : '') . '>';
+            }
+            $attr = cms_html_attrs($name, isset($m[3]) ? $m[3] : '', $tags[$name]);
+            return '<' . $name . ($attr !== '' ? ' ' . $attr : '') . '>';
         },
         $html
     );
 
-    // 属性之外的残留写法（注释、CSS、非法属性位置）再清一遍
+    // 5) 属性之外残留的危险写法（纯文本里的伪协议、被实体拆开的协议）
     $html = preg_replace('/j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i', '', $html);
     $html = preg_replace('/v\s*b\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i', '', $html);
     $html = preg_replace('/l\s*i\s*v\s*e\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i', '', $html);
     $html = preg_replace('/data\s*:\s*text\/html/i', '', $html);
     $html = preg_replace('/data\s*:\s*image\/svg/i', '', $html);
-
-    // 4) CSS 里的表达式与老 IE 行为
     $html = preg_replace('/expression\s*\(/i', '', $html);
-    $html = preg_replace('/behavior\s*:/i', '', $html);
-    $html = preg_replace('#@import#i', '', $html);
+
+    // 6) 还原 style 块
+    if ($styles) {
+        $html = strtr($html, $styles);
+    }
 
     return $html;
 }

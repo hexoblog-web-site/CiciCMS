@@ -159,12 +159,22 @@ function cms_clean_scan()
 {
     $index   = cms_clean_index();
     $records = array();
-    foreach (all('SELECT id, path, name, mime, size, created_at FROM {p}attachment') as $r) {
+    /* deleted_at 是 v8 才加的：老库没升级时不能因为这一列把整段扫描带崩 */
+    $hasDel  = !empty(all("SHOW COLUMNS FROM {p}attachment LIKE 'deleted_at'"));
+    $cols    = 'id, path, name, mime, size, created_at' . ($hasDel ? ', deleted_at' : '');
+    foreach (all('SELECT ' . $cols . ' FROM {p}attachment') as $r) {
         $rel = upload_rel($r['path']);
         if ($rel !== '') {
             $records[$rel] = $r;
         }
     }
+
+    /* 回收站里的文件由「媒体 → 回收站」负责删除，这里一律当作「有人管」，
+       否则扫描页会把它们列成可删项，用户顺手清掉后回收站就恢复不出来了 */
+    $trashRef = array(array('type' => '回收站', 'label' => '媒体回收站'));
+    $inTrash  = function ($rec) use ($hasDel) {
+        return $hasDel && is_array($rec) && isset($rec['deleted_at']) && (int) $rec['deleted_at'] > 0;
+    };
 
     $files = array();
     $root  = CMS_UPLOADS;
@@ -184,8 +194,9 @@ function cms_clean_scan()
                 if ($rel === '' || strpos($rel, '..') !== false || cms_clean_skip($rel)) {
                     continue;
                 }
-                $rec = isset($records[$rel]) ? $records[$rel] : null;
-                $refs = cms_clean_refs($rel, $index);
+                $rec   = isset($records[$rel]) ? $records[$rel] : null;
+                $trash = $inTrash($rec);
+                $refs  = $trash ? $trashRef : cms_clean_refs($rel, $index);
                 $files[$rel] = array(
                     'rel'      => $rel,
                     'url'      => upload_url(CMS_CONTENT_REL . '/uploads/' . $rel),
@@ -197,6 +208,7 @@ function cms_clean_scan()
                     'missing'  => false,
                     'used'     => $refs !== array(),
                     'refs'     => $refs,
+                    'trash'    => $trash,
                     'is_image' => $rec ? strpos((string) $rec['mime'], 'image/') === 0 : cms_clean_is_image_name($rel),
                 );
             }
@@ -210,6 +222,7 @@ function cms_clean_scan()
         if (isset($files[$rel])) {
             continue;
         }
+        $trash = $inTrash($rec);
         $files[$rel] = array(
             'rel'      => $rel,
             'url'      => upload_url(CMS_CONTENT_REL . '/uploads/' . $rel),
@@ -219,8 +232,9 @@ function cms_clean_scan()
             'mtime'    => 0,
             'id'       => (int) $rec['id'],
             'missing'  => true,
-            'used'     => false,
-            'refs'     => array(),
+            'used'     => $trash,
+            'refs'     => $trash ? $trashRef : array(),
+            'trash'    => $trash,
             'is_image' => strpos((string) $rec['mime'], 'image/') === 0,
         );
     }
@@ -293,6 +307,17 @@ function cms_clean_delete_many($paths)
         }
     }
 
+    /* 回收站里的文件不在这条链路删：删了回收站就恢复不出来了 */
+    $trash = array();
+    if (!empty(all("SHOW COLUMNS FROM {p}attachment LIKE 'deleted_at'"))) {
+        foreach (all('SELECT path FROM {p}attachment WHERE deleted_at > 0') as $r) {
+            $k = upload_rel($r['path']);
+            if ($k !== '') {
+                $trash[$k] = true;
+            }
+        }
+    }
+
     foreach ((array) $paths as $p) {
         $raw = str_replace('\\', '/', trim((string) $p));
         // 只接受 uploads 内的相对路径：绝对路径与 .. 一律拒绝
@@ -312,6 +337,10 @@ function cms_clean_delete_many($paths)
         }
 
         $abs = upload_path($rel);
+        if (isset($trash[$rel])) {
+            $skip[] = $rel;
+            continue;
+        }
         // 文件本来就不在：有入库记录才清掉，否则说明这是个无效路径，不算成功
         if (!is_file($abs)) {
             if (isset($known[$rel])) {

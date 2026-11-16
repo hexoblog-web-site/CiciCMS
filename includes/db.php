@@ -82,23 +82,70 @@ function cms_table($table)
 function insert_row($table, $data)
 {
     $cols = array_keys($data);
+    foreach ($cols as $c) {
+        cms_col_check($c);
+    }
     $sql  = 'INSERT INTO {p}' . cms_table($table) . ' (`' . implode('`,`', $cols) . '`) VALUES ('
           . implode(',', array_fill(0, count($cols), '?')) . ')';
     q($sql, array_values($data));
     return (int) CmsDb::pdo()->lastInsertId();
 }
 
+/**
+ * 列名必须是纯标识符
+ *
+ * 列名进的是 SQL 标识符位置，占位符保护不到。现在所有调用都是代码里写死的，
+ * 但这层校验能让「某天有人用变量拼列名」直接报错，而不是悄悄变成注入点。
+ */
+function cms_col_check($col)
+{
+    if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]{0,63}$/', (string) $col)) {
+        throw new InvalidArgumentException('非法的列名：' . (string) $col);
+    }
+    return true;
+}
+
+/**
+ * WHERE 片段只允许「占位符 + 标识符 + 比较符」这类结构
+ *
+ * update_row / delete_row 的 $where 是直接拼进 SQL 的字符串，占位符只能保护值，
+ * 保护不了片段本身。这里收窄到白名单字符，并要求至少有一个 ?：
+ *   · 正常写法 'id = ?'、'id IN (?,?)'、'slug = ? AND status = 1' 都能通过
+ *   · 注释符、语句分隔符、引号一律拒绝 —— 引号被拒绝，字符串字面量就只能走占位符
+ *
+ * 参数个数是否与 ? 个数相等，交给 PDO 报错（不在这里重复实现 SQL 词法分析）。
+ */
+function cms_where_check($where)
+{
+    $w = trim((string) $where);
+    if ($w === '') {
+        throw new InvalidArgumentException('WHERE 片段为空');
+    }
+    if (strpos($w, '--') !== false || strpos($w, ';') !== false || strpos($w, '/*') !== false) {
+        throw new InvalidArgumentException('WHERE 片段含注释或语句分隔符：' . $w);
+    }
+    // 允许：字母数字下划线、空格、点、反引号、比较符、逗号、括号、问号、减号（负数）
+    // 不允许引号：所有字符串值都必须通过 ? 传入
+    if (preg_match('#[^A-Za-z0-9_\s.`<>=!,?()\-]#', $w)) {
+        throw new InvalidArgumentException('WHERE 片段含非法字符：' . $w);
+    }
+    return true;
+}
+
 function update_row($table, $data, $where, $whereParams = array())
 {
     $set = array();
     foreach (array_keys($data) as $c) {
+        cms_col_check($c);
         $set[] = '`' . $c . '`=?';
     }
+    cms_where_check($where);
     $sql = 'UPDATE {p}' . cms_table($table) . ' SET ' . implode(',', $set) . ' WHERE ' . $where;
     return q($sql, array_merge(array_values($data), $whereParams))->rowCount();
 }
 
 function delete_row($table, $where, $params = array())
 {
+    cms_where_check($where);
     return q('DELETE FROM {p}' . cms_table($table) . ' WHERE ' . $where, $params)->rowCount();
 }

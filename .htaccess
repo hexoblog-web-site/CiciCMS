@@ -12,6 +12,25 @@ ErrorDocument 404 /404.html
 
 AddDefaultCharset UTF-8
 
+# 发布签名工具只在命令行用，Web 访问一律拒绝
+# （用 RewriteRule - [F] 而不是 RedirectMatch：站点装在子目录时路径也对）
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^tools/ - [F,L]
+</IfModule>
+
+<IfModule mod_authz_core.c>
+    <FilesMatch "^(update-manifest\.json)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+    <FilesMatch "^(update-manifest\.json)$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>
+
 # 保护配置文件与日志、备份文件
 <IfModule mod_authz_core.c>
     <FilesMatch "^(config\.php)$">

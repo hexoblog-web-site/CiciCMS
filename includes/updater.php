@@ -15,6 +15,74 @@
  * 开关存在 config 表：update_repo / update_branch / update_interval / update_auto_check / update_auto_apply。
  */
 
+/* ---------------- 信任根：只信这几个常量 ---------------- */
+
+/**
+ * 允许的更新源
+ *
+ * 后台设置里能改 update_repo，如果代码不限制，改一个 owner/repo 就能让站点
+ * 从任意仓库拉 PHP 到服务器上执行 —— 这是整条更新链里最省事的一种攻击。
+ * 所以允许的仓库硬编码在这里，设成别的仓库一律不生效。
+ */
+function update_allowed_repos()
+{
+    return array('hexoblog-web-site/CiciCMS');
+}
+
+/** 仓库是否在允许列表里（大小写不敏感，GitHub 本身也不区分） */
+function update_repo_allowed($repo)
+{
+    $repo = strtolower(trim((string) $repo));
+    if ($repo === '') {
+        return false;
+    }
+    foreach (update_allowed_repos() as $r) {
+        if (strtolower($r) === $repo) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * 发布包 SHA256 白名单：版本号 => 小写 sha256
+ *
+ * 没有签名私钥时的最低成本防线：发布时用 tools/sign-release.php 算出 zip 的
+ * sha256 填进这里，用户下载到被替换过的包就会比对失败。
+ *
+ * 注意 GitHub 的 zip 是现场打包的，压缩库版本变化可能改变字节，
+ * 所以更稳的做法是配置下面的签名公钥 —— 签名校验的是「文件内容」，与打包方式无关。
+ */
+function update_trusted_hashes()
+{
+    return array(
+        // '2.2.2' => '在这里填 64 位小写 sha256',
+    );
+}
+
+/**
+ * 发布公钥（Ed25519，64 位小写 hex）
+ *
+ * 生成方式：php tools/sign-release.php keygen
+ * 私钥自己收好（不入库、不进服务器），公钥填在这里。填了之后：
+ *   · 更新包里必须有 update-manifest.json，且签名必须验得过
+ *   · 每个待写入文件的 sha256 必须与清单一致
+ * 也就是说，即使 GitHub 账号被拿走、攻击者推了恶意提交，拿不到私钥就签不出包，
+ * 服务器不会执行任何未签名的代码。
+ *
+ * 留空表示该站点不做签名校验（仍受仓库白名单与发布哈希约束）。
+ */
+function update_public_key()
+{
+    return '';
+}
+
+/** 签名校验是否可用：配了公钥 + 有 sodium 扩展 */
+function update_sign_ready()
+{
+    return update_public_key() !== '' && function_exists('sodium_crypto_sign_verify_detached');
+}
+
 /** 状态文件 */
 function update_state_file()
 {
@@ -46,11 +114,28 @@ function update_state_write($state)
 
 /* ---------------- 配置 ---------------- */
 
-/** 仓库，格式 owner/repo；不合法返回空串 */
+/** 仓库，格式 owner/repo；不在允许列表里返回空串 */
 function update_repo()
 {
     $r = trim((string) setting('update_repo', 'hexoblog-web-site/CiciCMS'));
-    return update_repo_valid($r) ? $r : '';
+    if (!update_repo_valid($r) || !update_repo_allowed($r)) {
+        return '';
+    }
+    return $r;
+}
+
+/** 更新源不可用时的具体原因，给后台显示 */
+function update_repo_error()
+{
+    $raw = trim((string) setting('update_repo', 'hexoblog-web-site/CiciCMS'));
+    if ($raw === '' || !update_repo_valid($raw)) {
+        return '仓库地址未设置或格式不正确，应为 owner/repo';
+    }
+    if (!update_repo_allowed($raw)) {
+        return '更新源 ' . $raw . ' 不在允许列表里。更新源是硬编码白名单（includes/updater.php 的 update_allowed_repos），'
+             . '后台改仓库地址不会生效，这是为了防止站点从任意仓库拉取 PHP 代码。';
+    }
+    return '';
 }
 
 function update_repo_valid($r)
@@ -439,7 +524,7 @@ function update_remote_info(&$err, $timeout = 90)
     $err = '';
     $repo = update_repo();
     if ($repo === '') {
-        $err = '仓库地址未设置或格式不正确，应为 owner/repo';
+        $err = update_repo_error();
         return false;
     }
     $branch = update_branch();
@@ -948,6 +1033,139 @@ function update_version_in($src)
     return '';
 }
 
+/* ---------------- 完整性与来源校验 ---------------- */
+
+/** 文件 sha256，小写；失败返回空串 */
+function update_sha256_file($path)
+{
+    $h = @hash_file('sha256', (string) $path);
+    return is_string($h) ? strtolower($h) : '';
+}
+
+/**
+ * 签名覆盖的规范载荷
+ *
+ * 顺序必须稳定，否则发布端签的和更新端验的不是同一串字节：
+ * files 按 key 排序，字段固定为 version / generated_at / files。
+ * 任何一端改了这里的结构，都要同时改 tools/sign-release.php。
+ */
+function update_sign_payload($manifest)
+{
+    $files = isset($manifest['files']) && is_array($manifest['files']) ? $manifest['files'] : array();
+    foreach ($files as $k => $v) {
+        $files[$k] = strtolower((string) $v);
+    }
+    ksort($files);
+    return json_encode(array(
+        'version'      => (string) (isset($manifest['version']) ? $manifest['version'] : ''),
+        'generated_at' => (string) (isset($manifest['generated_at']) ? $manifest['generated_at'] : ''),
+        'files'        => $files,
+    ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+}
+
+/** 清单签名是否有效（Ed25519，公钥见 update_public_key） */
+function update_manifest_signature_ok($manifest)
+{
+    if (!update_sign_ready()) {
+        return false;
+    }
+    if (empty($manifest['signature'])) {
+        return false;
+    }
+    $sig = @hex2bin((string) $manifest['signature']);
+    $key = @hex2bin((string) update_public_key());
+    if ($sig === false || $key === false) {
+        return false;
+    }
+    if (strlen($key) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES) {
+        return false;
+    }
+    return (bool) @sodium_crypto_sign_verify_detached($sig, update_sign_payload($manifest), $key);
+}
+
+/** 从压缩包里读 update-manifest.json；没有返回 null，坏了返回 false */
+function update_manifest_from_zip($zip, $prefix, &$err)
+{
+    $err  = '';
+    $name = $prefix . 'update-manifest.json';
+    $entries = $zip->entries();
+    if (!isset($entries[$name])) {
+        return null;
+    }
+    $raw = $zip->read($name);
+    if ($raw === false) {
+        $err = '读取发布清单失败：' . $zip->error();
+        return false;
+    }
+    $j = json_decode((string) $raw, true);
+    if (!is_array($j) || empty($j['files']) || !is_array($j['files'])) {
+        $err = '发布清单格式不正确（缺少 files）';
+        return false;
+    }
+    return $j;
+}
+
+/**
+ * 更新前的整体校验
+ *
+ * 三种结果：
+ *   signature —— 清单签名验过，且每个文件都有哈希（最强）
+ *   hash      —— 没配公钥，但该版本在 SHA256 白名单里，整包哈希对得上
+ *   none      —— 两者都没有：只靠仓库白名单，放行但记一条日志（后台会显示警告）
+ *
+ * @return array|false array('mode' => signature|hash|none, 'manifest' => array|null)
+ */
+function update_verify_package($zip, $zipPath, $prefix, $version, &$err)
+{
+    $err = '';
+
+    /* 1) 配了公钥：必须有清单、必须签名有效，缺一不可 */
+    if (update_public_key() !== '') {
+        if (!function_exists('sodium_crypto_sign_verify_detached')) {
+            $err = '站点已配置发布公钥，但服务器没有 sodium 扩展，无法校验签名。'
+                 . '请安装 sodium（PHP 7.2+ 通常自带），或清空 includes/updater.php 里的 update_public_key()。';
+            return false;
+        }
+        $manifest = update_manifest_from_zip($zip, $prefix, $merr);
+        if ($manifest === null) {
+            $err = '这个更新包没有 update-manifest.json，站点配置了签名校验，已拒绝安装。';
+            return false;
+        }
+        if ($manifest === false) {
+            $err = $merr;
+            return false;
+        }
+        if (!update_manifest_signature_ok($manifest)) {
+            $err = '发布清单签名校验失败：包里的内容与发布者签名不符，已拒绝安装。';
+            log_msg('update: manifest signature invalid');
+            return false;
+        }
+        if (isset($manifest['version']) && (string) $manifest['version'] !== (string) $version) {
+            $err = '发布清单版本（' . (string) $manifest['version'] . '）与程序版本（' . $version . '）不一致，已拒绝安装。';
+            return false;
+        }
+        return array('mode' => 'signature', 'manifest' => $manifest);
+    }
+
+    /* 2) 没配公钥：退到发布包哈希白名单 */
+    $pins = update_trusted_hashes();
+    if ($version !== '' && isset($pins[$version])) {
+        $want = strtolower((string) $pins[$version]);
+        $got  = update_sha256_file($zipPath);
+        if ($want === '' || $got === '' || !hash_equals($want, $got)) {
+            $err = '更新包 SHA256 与发布清单不一致（期望 ' . substr($want, 0, 12) . '…，实际 '
+                 . ($got !== '' ? substr($got, 0, 12) . '…' : '读取失败') . '），已拒绝安装。';
+            log_msg('update: sha256 mismatch for ' . $version);
+            return false;
+        }
+        return array('mode' => 'hash', 'manifest' => null);
+    }
+
+    /* 3) 都没有：放行，但要让人知道这次没做内容校验 */
+    log_msg('update: 未配置发布签名/哈希，本次更新只做了仓库白名单与结构校验（version=' . $version . '）');
+    return array('mode' => 'none', 'manifest' => null);
+}
+
 /**
  * 从 zip 安装更新
  *
@@ -994,6 +1212,29 @@ function update_install_zip($zipPath, $info, &$err)
         return false;
     }
 
+    /* 完整性校验必须在动任何文件之前做完 */
+    $verify = update_verify_package($zip, $zipPath, $prefix, $remoteVer, $verr);
+    if ($verify === false) {
+        $err = $verr;
+        return false;
+    }
+    $manifest = $verify['manifest'];
+    $mode     = $verify['mode'];
+
+    /* 有签名清单时：清单里列的每个文件都必须在包里，少一个就说明包不完整 */
+    if ($manifest !== null) {
+        $missing = array();
+        foreach (array_keys((array) $manifest['files']) as $rel) {
+            if (!isset($entries[$prefix . $rel])) {
+                $missing[] = $rel;
+            }
+        }
+        if ($missing) {
+            $err = '更新包不完整：清单里这些文件不在包里（' . implode('、', array_slice($missing, 0, 3)) . '）';
+            return false;
+        }
+    }
+
     /* 先备份，后动手 */
     $backup = update_backup_system($err);
     if ($backup === false) {
@@ -1022,6 +1263,18 @@ function update_install_zip($zipPath, $info, &$err)
         if ($data === false) {
             $failed[] = $rel . '（' . $zip->error() . '）';
             continue;
+        }
+        /* 签名清单里每个文件都有哈希，落盘前逐个比对 */
+        if ($manifest !== null) {
+            $want = isset($manifest['files'][$rel]) ? strtolower((string) $manifest['files'][$rel]) : '';
+            if ($want === '') {
+                $failed[] = $rel . '（发布清单里没有这个文件）';
+                continue;
+            }
+            if (!hash_equals($want, hash('sha256', $data))) {
+                $failed[] = $rel . '（内容与发布清单不一致）';
+                continue;
+            }
         }
         if (!update_write_file($rel, $data, $werr)) {
             $failed[] = $rel . '（' . $werr . '）';
@@ -1053,17 +1306,19 @@ function update_install_zip($zipPath, $info, &$err)
     $state['applied_version'] = $remoteVer;
     $state['last_update_at']  = time();
     $state['last_backup']     = $backup;
+    $state['last_verify']     = $mode;
     $history = isset($state['history']) && is_array($state['history']) ? $state['history'] : array();
     array_unshift($history, array(
         'at'      => time(),
         'version' => $remoteVer,
         'sha'     => substr((string) $info['sha'], 0, 12),
         'files'   => $written,
+        'verify'  => $mode,
     ));
     $state['history'] = array_slice($history, 0, 10);
     update_state_write($state);
 
-    return array('version' => $remoteVer, 'files' => $written, 'backup' => $backup);
+    return array('version' => $remoteVer, 'files' => $written, 'backup' => $backup, 'verify' => $mode);
 }
 
 /**

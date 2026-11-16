@@ -343,11 +343,21 @@ class Cms_Image_Uploader
 
         if ($this->register) {
             try {
+                /* 替代文本先按文件名兜一个：构建时 <img alt> 至少有内容，
+                   后台「媒体信息」里可以逐张改得更准确 */
+                $altText = $origName !== '' ? basename((string) $origName) : $name;
+                $altText = preg_replace('/\.[A-Za-z0-9]{1,6}$/', '', $altText);
+                $altText = trim((string) preg_replace('/[_\-\s]+/', ' ', (string) $altText));
+                $altText = $altText !== '' ? str_limit($altText, 200, '') : '';
+
                 insert_row('attachment', array(
                     'path'       => $rel,
                     'name'       => str_limit($origName !== '' ? basename($origName) : $name, 80),
+                    'alt'        => $altText,
                     'mime'       => $mime,
                     'size'       => (int) $size,
+                    'content_id' => 0,
+                    'deleted_at' => 0,
                     'created_at' => time(),
                 ));
             } catch (Throwable $ex) {

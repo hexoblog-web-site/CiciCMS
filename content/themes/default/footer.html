@@ -21,15 +21,28 @@
     </div>
 </footer>
 {cici:if $body_class == "single"}
+<!-- cici:view-counter -->
 <script>
 (function () {
-    var img = new Image();
-    img.src = '{cici:url}/api.php?act=view&id={cici:post.id}&t=' + Date.now();
-    img.style.display = 'none';
-    img.onload = img.onerror = function () { if (img.parentNode) { img.parentNode.removeChild(img); } };
-    document.body.appendChild(img);
+    var url  = '{cici:url}/api.php';
+    var body = 'act=view&id=' + {cici:post.id};
+    // 优先 sendBeacon：不阻塞渲染，页面立刻关闭也能发出去
+    try {
+        if (navigator.sendBeacon) {
+            var blob = new Blob([body], { type: 'application/x-www-form-urlencoded' });
+            if (navigator.sendBeacon(url, blob)) { return; }
+        }
+    } catch (e) {}
+    // 老浏览器兜底
+    try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.send(body);
+    } catch (e2) {}
 })();
 </script>
+<!-- /cici:view-counter -->
 {/cici:if}
 </body>
 </html>

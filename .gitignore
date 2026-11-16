@@ -42,3 +42,12 @@ Thumbs.db
 /_preview/
 /_preview_*.html
 /docs/_preview/
+
+# ---- 本地测试后门与临时入口（绝不入库）----
+/_autologin.php
+/admin/index-legacy.php
+/admin/assets/zblog/image/admin/logo_zblog.svg.bak
+
+# ---- 本地生成的静态页（含 localhost 链接，不入库）----
+/about.html
+/default/

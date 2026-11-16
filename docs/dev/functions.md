@@ -76,7 +76,7 @@ set_setting('site_name', '我的站');
 | `csrf_token()` | 生成/取当前令牌 |
 | `csrf_field()` | 输出 `<input type="hidden" name="_token">` |
 | `csrf_verify()` | 校验令牌，不符直接 403 并结束 |
-| `clean_html($html)` | 净化 HTML：去 `<script>`、`on*`、危险协议 |
+| `clean_html($html)` | 净化 HTML：按标签/属性白名单重建，非白名单标签去标签留文字 |
 | `cms_url_public_check($url)` | 是否公网地址，返回空串表示通过 |
 
 ```php

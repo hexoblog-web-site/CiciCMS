@@ -17,6 +17,10 @@ if (is_post()) {
             flash('仓库地址格式不对，应形如 owner/repo', 'err');
             redirect(admin_url('update'));
         }
+        if ($repo !== '' && !update_repo_allowed($repo)) {
+            flash('更新源只允许官方仓库（' . implode('、', update_allowed_repos()) . '），填别的地址不会生效', 'err');
+            redirect(admin_url('update'));
+        }
         $branch = trim(post_str('update_branch', 'main'));
         if ($branch === '' || strpos($branch, '..') !== false || !preg_match('#^[A-Za-z0-9._/-]+$#', $branch)) {
             flash('分支名不合法', 'err');
@@ -194,6 +198,12 @@ $remoteSha = isset($remote['sha']) ? (string) $remote['sha'] : '';
 $remoteMsg = isset($remote['msg']) ? (string) $remote['msg'] : '';
 $remoteAt  = isset($remote['date']) ? strtotime((string) $remote['date']) : 0;
 
+/* 更新包校验方式：签名 > 发布哈希 > 仅仓库白名单 */
+$pins       = update_trusted_hashes();
+$signReady  = update_sign_ready();
+$hasPin     = $remoteVer !== '' && isset($pins[$remoteVer]);
+$lastVerify = isset($state['last_verify']) ? (string) $state['last_verify'] : '';
+
 /* 自动检查与通知的状态 */
 $notifyTo   = update_notify_email();
 $nextCheck  = update_next_check_at();
@@ -262,6 +272,24 @@ $hasPass  = (string) setting('mail_pass', '') !== '';
             <div class="alert alert-err" style="margin-top:10px">上次发信失败：<?php echo e($notifyErr); ?></div>
         <?php endif; ?>
         <div class="kv"><span>上次更新</span><span><?php echo !empty($state['last_update_at']) ? e(date('Y-m-d H:i', (int) $state['last_update_at'])) : '从未'; ?></span></div>
+        <div class="kv"><span>更新包校验</span><span>
+            <?php if ($signReady): ?>
+                <span class="badge badge-green">签名校验已启用</span>
+                <span class="hint">未通过签名的包一律拒绝安装</span>
+            <?php elseif ($hasPin): ?>
+                <span class="badge badge-green">SHA256 白名单</span>
+                <span class="hint">该版本已登记发布包哈希</span>
+            <?php else: ?>
+                <span class="badge badge-amber">仅来源白名单</span>
+                <span class="hint">未配置发布公钥，本次更新只校验来源与结构，不校验内容</span>
+            <?php endif; ?>
+            <?php if ($lastVerify !== ''): ?>
+                <span class="hint">· 上次更新：<?php
+                    echo $lastVerify === 'signature' ? '签名通过'
+                        : ($lastVerify === 'hash' ? '哈希通过' : '未做内容校验');
+                ?></span>
+            <?php endif; ?>
+        </span></div>
 
         <div class="kv" style="align-items:center;margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
             <span>系统回滚</span>

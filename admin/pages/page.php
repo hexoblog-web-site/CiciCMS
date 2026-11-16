@@ -202,7 +202,7 @@ $rows = all('SELECT * FROM {p}page ORDER BY sort ASC, id ASC');
                         <td><?php echo ((int) $r['status'] === 1) ? '<span class="badge badge-green">已发布</span>' : '<span class="badge badge-gray">草稿</span>'; ?></td>
                         <td><?php echo (int) $r['sort']; ?></td>
                         <td class="actions-cell">
-                            <?php $pv = u_page_preview($r); ?>
+                            <?php $pv = u_page_preview_link($r); ?>
                             <?php if ($pv !== ''): ?>
                                 <a class="btn btn-sm" target="_blank" href="<?php echo e($pv); ?>">预览</a>
                             <?php else: ?>

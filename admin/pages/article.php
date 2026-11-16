@@ -119,6 +119,8 @@ if (is_post()) {
 
         // 改为草稿、换了分类：把旧的静态页删掉，避免仍能被访问
         $newRow = one('SELECT slug, cat_id, tags, status FROM {p}article WHERE id = ?', array($id));
+        // 登记「这些图被这篇文章用了」，媒体信息里能反查（失败不影响保存）
+        attachment_bind_content($id, $contentSrc . "\n" . $content);
         $stale  = array();
         if ($oldRow) {
             // 改版前的老地址，升级后第一次保存时顺手清掉
@@ -536,7 +538,7 @@ $rows  = all(
                         <td><?php echo (int) $r['views']; ?></td>
                         <td class="hint"><?php echo e(format_date($r['created_at'], 'Y-m-d H:i')); ?></td>
                         <td class="actions-cell">
-                            <?php $pv = u_post_preview($r); ?>
+                            <?php $pv = u_post_preview_link($r); ?>
                             <?php if ($pv !== ''): ?>
                                 <a class="btn btn-sm" target="_blank" href="<?php echo e($pv); ?>">预览</a>
                             <?php else: ?>

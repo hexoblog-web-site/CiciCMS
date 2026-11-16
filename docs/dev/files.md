@@ -121,14 +121,14 @@ function write_file_atomic($path, $data)
 | `render_content($src)` | 主入口：代码围栏 → HTML |
 | `code_block_html()` | 单个代码块转成 `<pre><code>` |
 | `code_lang_map()` | 语言标识映射（php / sql / js / py …） |
-| `clean_html($html)` | 净化：去 `<script>`、`on*`、危险协议 |
+| `clean_html($html)` | 净化：标签/属性白名单重建（`cms_html_tags()` 是唯一白名单） |
 | `content_plain($html)` | 提取纯文本（先摘掉代码块） |
 | `make_excerpt`（在 functions） | 自动摘要 |
 
 **处理顺序很关键**
 
 ```
-原文 → render_content()（围栏转代码块）→ clean_html()（净化）→ 入库 content
+原文 → render_content()（围栏转代码块）→ clean_html()（白名单重建）→ 入库 content
   └→ 原文同时存进 content_src
 ```
 

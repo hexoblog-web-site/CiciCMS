@@ -24,7 +24,10 @@ header('Cache-Control: no-store, private');
 function pv_strip_view_counter($html)
 {
     $html = (string) $html;
-    // 主题 footer 里是内联 script（无 src），整段剔除
+    // 主题用的是 POST + sendBeacon，不再是带 act=view 的 img 地址，
+    // 先按标记注释整段剔除（主题模板 footer.html 里的 cici:view-counter）
+    $html = preg_replace('#<!--\s*cici:view-counter\s*-->.*?<!--\s*/cici:view-counter\s*-->#is', '', $html);
+    // 老主题（或用户自己改过的模板）仍可能用 img 打点，按原规则再兜一遍
     $html = preg_replace(
         '#<script\b(?![^>]*\bsrc=)[^>]*>(?:(?!</script>).)*api\.php\?act=view(?:(?!</script>).)*</script>#is',
         '',
@@ -32,6 +35,7 @@ function pv_strip_view_counter($html)
     );
     // 兜底：主题换了写法也绝不能计数
     $html = str_replace('api.php?act=view', 'about:blank#no-view', $html);
+    $html = str_replace("'act=view&id='", "'act=preview-noop&id='", $html);
     // 只设 target 的 <base> 不改变 URL 基准，只让链接落在新窗口
     if (stripos($html, '</head>') !== false) {
         $html = preg_replace('#</head>#i', "<base target=\"_blank\">\n</head>", $html, 1);
