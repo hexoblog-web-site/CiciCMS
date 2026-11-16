@@ -5,9 +5,6 @@
 
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
-/* 新后台入口：删掉下面两行即回到老后台 */
-redirect('nebula/index.php');
-
 /* 退出登录：必须 POST + CSRF，避免 GET 被 CSRF 触发 */
 if (is_post() && post_str('do') === 'logout') {
     csrf_verify();

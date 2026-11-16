@@ -35,8 +35,7 @@ function require_login()
 {
     if (!auth_check()) {
         $back = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
-        // 统一用站点根目录绝对路径：新后台在 admin/nebula/ 子目录里，
-        // 相对 login.php 会被解析成 /admin/nebula/login.php（不存在）。
+        // 统一用站点根目录绝对路径，避免相对路径在不同目录层级下解析错误。
         redirect(site_url('admin/login.php') . ($back !== '' ? '?back=' . urlencode($back) : ''));
     }
 }
