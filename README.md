@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v2.2.2-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
+[![Release](https://img.shields.io/badge/release-v2.2.3-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -574,6 +574,27 @@ rm -rf install                       # 装完删掉安装目录
   需要手工把 `content/themes/default/footer.html` 的计数脚本换成新版，否则阅读数仍走老的 GET 方式
   （功能不受影响，只是没有服务端频控那一层）。
 - 后台「系统更新」页会显示「仅来源白名单」直到你按 `docs/dev/update-sign.md` 生成并填好发布公钥。
+
+### 3.29 从 2.2.2 升级到 2.2.3（后台样式回归：企业级骨架 + CiciCms 品牌）
+
+2.2.2 引入的 Nebula 独立后台与 Z-Blog 1:1 复刻皮肤已全部移除。**本次只换后台外观，
+代码逻辑与数据结构一行未动**，品牌统一为 **CiciCms**。
+
+**后台样式**
+
+1. 后台 header / footer 恢复「企业级骨架 + 五套配色」样式，登录页沿用同一套视觉。
+2. 删除 Z-BlogPHP 复刻皮肤资产与 Nebula 独立后台、适配层、7 表模型 DDL 及其文档、后台跳转与代码注释。
+3. 后台品牌文案统一为 `CiciCms`，与登录页、安装页保持一致。
+
+**保持不变**
+
+4. 2.2.2 的全部安全修复保留：登录并发限速、更新包校验、正文白名单、阅读数频控、媒体回收站。
+5. 无数据库迁移，无 URL 规则变化，无模板标签变化；主题与插件均未改动。
+6. 升级包按惯例不含 `content/` 与 `config.php`，直接覆盖 `includes/`、`admin/` 即可。
+
+**升级提示**
+
+- 老站点覆盖安装后刷新后台即可看到新样式；数据库、文章、设置不受影响。
 
 ---
 
@@ -1233,4 +1254,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：2.2.2
+版本：2.2.3

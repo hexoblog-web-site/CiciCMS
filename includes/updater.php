@@ -56,7 +56,7 @@ function update_repo_allowed($repo)
 function update_trusted_hashes()
 {
     return array(
-        // '2.2.2' => '在这里填 64 位小写 sha256',
+        // '2.2.3' => '在这里填 64 位小写 sha256',
     );
 }
 
