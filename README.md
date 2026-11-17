@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v2.2.3-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
+[![Release](https://img.shields.io/badge/release-v2.3.0-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -595,6 +595,33 @@ rm -rf install                       # 装完删掉安装目录
 **升级提示**
 
 - 老站点覆盖安装后刷新后台即可看到新样式；数据库、文章、设置不受影响。
+
+---
+
+### 3.30 从 2.2.3 升级到 2.3.0（后台界面整体换成可视化原型）
+
+2.2.3 只改了版本号、后台外观没变，这次是**真正换掉后台界面**：登录进后台看到的就是
+那套可视化原型——15 项分组侧栏、仪表盘数据卡片、Markdown 中分屏编辑器、媒体/标签/
+模板/回收站等页面。**数据结构、数据表、安全修复全部不动**，只替换后台界面层。
+
+**换了什么**
+
+1. `/admin/` 默认进入新版后台（分组侧栏 + 仪表盘卡片 + Markdown 中分屏编辑器 + 5 套配色）。
+2. 数据仍读写 CiciCMS 原始表（`article` / `page` / `category` / `attachment` / `config`），
+   通过适配层映射，不引入新表、不迁移数据。
+3. 新增 `admin/api.php`（state / save / upload / build / logout）为界面提供真实数据，
+   save 带防误删阀值，沿用登录会话与 CSRF。
+4. 界面可见品牌统一 `CiciCms`；老后台保留，访问 `/admin/?legacy=1` 可回退。
+
+**保持不变**
+
+5. 2.2.3 的全部安全修复与数据结构保留；前台静态页、URL 规则、模板标签均未改动。
+6. 升级包不含 `content/` 与 `config.php`，覆盖 `includes/`、`admin/` 即可，无需改库。
+
+**升级提示**
+
+- 覆盖安装后刷新 `/admin/` 即进入新界面；若需旧界面，访问 `/admin/?legacy=1`。
+- 文章、栏目、媒体、设置全部原样保留，首次打开会从数据库读取真实数据。
 
 ---
 
@@ -1254,4 +1281,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：2.2.3
+版本：2.3.0

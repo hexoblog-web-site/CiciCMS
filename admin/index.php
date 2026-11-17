@@ -5,11 +5,17 @@
 
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
-/* 退出登录：必须 POST + CSRF，避免 GET 被 CSRF 触发 */
+/* 退出登录：必须 POST + CSRF，避免 GET 被 CSRF 触发（须在入口跳转之前处理） */
 if (is_post() && post_str('do') === 'logout') {
     csrf_verify();
     auth_logout();
     redirect('login.php');
+}
+
+/* 新版后台入口：默认走原型界面；?p=legacy 或 ?legacy=1 可回退到原生后台 */
+if (get_str('legacy', '') !== '1' && get_str('p', '') !== 'legacy') {
+    require_login();
+    redirect('nebula/index.php');
 }
 
 require_login();

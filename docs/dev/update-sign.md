@@ -48,7 +48,7 @@ php tools/sign-release.php hash
 
 ```json
 {
-  "version": "2.2.3",
+  "version": "2.3.0",
   "generated_at": "2026-11-16T17:20:00+08:00",
   "files": { "includes/auth.php": "9f86d0…", "admin/index.php": "…" },
   "signature": "ede2…"
