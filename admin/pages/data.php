@@ -99,6 +99,51 @@ $fmtSize  = function ($bytes) {
     return $bytes . ' B';
 };
 ?>
+<?php
+// 数据完整性巡检（只读）：展示悬空引用、跨表 slug 冲突等隐患
+$health       = function_exists('cms_db_health_check') ? cms_db_health_check() : array();
+$healthIssues = 0;
+foreach (array('orphan_article_cat', 'orphan_attach', 'dup_slug_cross', 'empty_slug') as $hk) {
+    $healthIssues += count(isset($health[$hk]) ? $health[$hk] : array());
+}
+?>
+<div class="card" id="health">
+    <div class="card-head">
+        <h2>数据完整性巡检</h2>
+        <span class="badge <?php echo $healthIssues === 0 ? 'ok' : 'bad'; ?>"><?php echo $healthIssues === 0 ? '正常' : ($healthIssues . ' 项待处理'); ?></span>
+    </div>
+    <div class="card-body tight">
+        <p class="hint" style="margin:0 0 10px">只读检查，不修改任何数据。程序未使用物理外键，以下引用关系由应用层维护，建议定期查看。</p>
+        <table class="table">
+            <thead><tr><th>检查项</th><th>结果</th><th>说明</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td>文章栏目悬空</td>
+                    <td><?php $n = count($health['orphan_article_cat']); ?><span class="badge <?php echo $n ? 'bad' : 'ok'; ?>"><?php echo $n; ?></span></td>
+                    <td class="hint">cat_id 指向不存在的栏目</td>
+                </tr>
+                <tr>
+                    <td>附件引用悬空</td>
+                    <td><?php $n = count($health['orphan_attach']); ?><span class="badge <?php echo $n ? 'bad' : 'ok'; ?>"><?php echo $n; ?></span></td>
+                    <td class="hint">content_id 指向不存在的文章</td>
+                </tr>
+                <tr>
+                    <td>跨表 slug 冲突</td>
+                    <td><?php $n = count($health['dup_slug_cross']); ?><span class="badge <?php echo $n ? 'bad' : 'ok'; ?>"><?php echo $n; ?></span></td>
+                    <td class="hint">文章与单页使用了相同 slug（新代码已阻止产生）</td>
+                </tr>
+                <tr>
+                    <td>空 slug 记录</td>
+                    <td><?php $n = count($health['empty_slug']); ?><span class="badge <?php echo $n ? 'bad' : 'ok'; ?>"><?php echo $n; ?></span></td>
+                    <td class="hint">异常落库的空 slug（正常流程会自动填充）</td>
+                </tr>
+            </tbody>
+        </table>
+        <?php if (!empty($health['orphan_article_cat']) || !empty($health['dup_slug_cross'])): ?>
+            <p class="hint" style="margin-top:10px">发现悬空引用或 slug 冲突：请在「栏目管理」修正文章栏目；slug 冲突需手动编辑其中一方的自定义路径。</p>
+        <?php endif; ?>
+    </div>
+</div>
 <div class="card" id="backup">
     <div class="card-head">
         <h2>数据备份</h2>

@@ -693,16 +693,34 @@ function make_slug($str)
     return substr($str, 0, 60);
 }
 
+/**
+ * 生成全局唯一的 slug。
+ *
+ * 修复（跨表 slug 冲突）：文章与单页各自有 UNIQUE(slug)，但两表是分开的，
+ * 旧逻辑只查当前表，导致文章与单页可以占用同一个 slug。而前台按 slug 反查
+ * 文章、模板里 {cici:} 标签也可能按 slug 取内容，重名会带来歧义。
+ * 这里改为同时检查 article 与 page 两张表，保证全站 slug 唯一。
+ *
+ * 注意：本函数不改变入参为空串时的既有行为——空 slug 由调用方回退为
+ * tmp 随机串或文章 ID（见 admin/pages/article.php、page.php），此处原样返回。
+ */
 function unique_slug($table, $slug, $id = 0)
 {
     $table = in_array($table, array('article', 'page'), true) ? $table : 'article';
     if ($slug === '') {
         return '';
     }
+    $id = (int) $id;
     $base = $slug;
     $i    = 2;
     while ($i < 1000) {
-        $hit = val('SELECT id FROM {p}' . $table . ' WHERE slug = ? AND id <> ?', array($slug, (int) $id));
+        // 本表内查重（排除自身）
+        $hit = val('SELECT id FROM {p}' . $table . ' WHERE slug = ? AND id <> ?', array($slug, $id));
+        // 跨表查重：另一侧的同名 slug 也算冲突（另一侧不涉及自身 id）
+        if (!$hit) {
+            $other = $table === 'article' ? 'page' : 'article';
+            $hit   = val('SELECT id FROM {p}' . $other . ' WHERE slug = ?', array($slug));
+        }
         if (!$hit) {
             return $slug;
         }
@@ -710,6 +728,60 @@ function unique_slug($table, $slug, $id = 0)
         $i++;
     }
     return $base . '-' . time();
+}
+
+/**
+ * 数据库健康巡检（只读）：报告四类可能的数据完整性问题。
+ * 供运维/后台诊断使用，不修改任何数据。
+ *
+ * 返回 array：
+ *   - orphan_article_cat : 文章指向不存在的栏目（cat_id 无对应 category）
+ *   - orphan_attach      : 附件指向不存在的内容（content_id 非 0 但无对应 article）
+ *   - dup_slug_cross     : 文章与单页之间重复的 slug（跨表冲突）
+ *   - empty_slug         : slug 为空字符串的记录（正常流程不会产生，异常落库时会出现）
+ */
+function cms_db_health_check()
+{
+    $result = array(
+        'orphan_article_cat' => array(),
+        'orphan_attach'      => array(),
+        'dup_slug_cross'     => array(),
+        'empty_slug'         => array(),
+    );
+    try {
+        // 1. 文章的 cat_id 悬空（category 表无此 id，且 cat_id 非 0）
+        $result['orphan_article_cat'] = all(
+            'SELECT a.id, a.title, a.cat_id FROM {p}article a
+             LEFT JOIN {p}category c ON c.id = a.cat_id
+             WHERE a.cat_id <> 0 AND c.id IS NULL'
+        );
+    } catch (Throwable $ex) {
+    }
+    try {
+        // 2. 附件的 content_id 悬空（非 0 但找不到对应文章）
+        $result['orphan_attach'] = all(
+            'SELECT at.id, at.name, at.content_id FROM {p}attachment at
+             LEFT JOIN {p}article a ON a.id = at.content_id
+             WHERE at.content_id <> 0 AND a.id IS NULL'
+        );
+    } catch (Throwable $ex) {
+    }
+    try {
+        // 3. 跨表重复 slug（文章与单页用了同一个 slug）
+        $result['dup_slug_cross'] = all(
+            'SELECT a.slug, a.id AS article_id, p.id AS page_id
+             FROM {p}article a JOIN {p}page p ON p.slug = a.slug'
+        );
+    } catch (Throwable $ex) {
+    }
+    try {
+        // 4. 空 slug（应为空数组；非空说明有绕过程序直接写库的脏数据）
+        $r1 = all("SELECT id, title FROM {p}article WHERE slug = ''");
+        $r2 = all("SELECT id, title FROM {p}page WHERE slug = ''");
+        $result['empty_slug'] = array_merge($r1, $r2);
+    } catch (Throwable $ex) {
+    }
+    return $result;
 }
 
 /* ============ 正文净化 ============ */
