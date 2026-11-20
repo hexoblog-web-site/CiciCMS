@@ -15,6 +15,72 @@
  * 开关存在 config 表：update_repo / update_branch / update_interval / update_auto_check / update_auto_apply。
  */
 
+/* ---------------- 维护模式 ----------------
+ * 写系统区那一小段时间里，用户可能读到「新旧混合」的代码而 500。
+ * 用一个标记文件告诉前台/后台 API：更新中，请稍候。进程崩了也不会永久锁站——
+ * 标记超过 10 分钟自动失效。
+ */
+function update_maintenance_file()
+{
+    return CMS_DATA . '/.maintenance';
+}
+
+/** 打开维护模式（原子写，带时间戳） */
+function update_maintenance_on()
+{
+    $f = update_maintenance_file();
+    if (!ensure_dir(dirname($f))) {
+        return false;
+    }
+    return @file_put_contents($f, (string) time(), LOCK_EX) !== false;
+}
+
+/** 关闭维护模式 */
+function update_maintenance_off()
+{
+    @unlink(update_maintenance_file());
+}
+
+/**
+ * 是否处于维护模式（给前台入口/API 调用）
+ * 标记里的时间戳超过 10 分钟视为失效并自动清理，避免更新进程被杀后站点一直 503。
+ */
+function update_maintenance_active()
+{
+    $f = update_maintenance_file();
+    if (!is_file($f)) {
+        return false;
+    }
+    $ts = (int) @file_get_contents($f);
+    if ($ts > 0 && time() - $ts > 600) {
+        @unlink($f);
+        return false;
+    }
+    return true;
+}
+
+/** 维护期的友好提示页（前台与 API 共用） */
+function update_maintenance_page($json = false)
+{
+    $msg = '站点正在更新，预计几分钟内恢复，请稍后重试。';
+    if ($json) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(503);
+        echo json_encode(array('ok' => false, 'msg' => $msg), JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    http_response_code(503);
+    header('Retry-After: 60');
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
+       . '<meta name="robots" content="noindex"><title>更新中</title>'
+       . '<style>body{font:16px/1.7 system-ui,sans-serif;background:#f7f8fa;color:#333;'
+       . 'display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}'
+       . '.box{background:#fff;padding:36px 44px;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.06);text-align:center}'
+       . 'h1{font-size:20px;margin:0 0 10px}p{color:#666;margin:0}</style></head><body>'
+       . '<div class="box"><h1>站点更新中</h1><p>' . $msg . '</p></div></body></html>';
+}
+
 /* ---------------- 信任根：只信这几个常量 ---------------- */
 
 /**
@@ -793,6 +859,60 @@ function update_prune_extra($backupDir, $targetDir)
     }
 }
 
+/**
+ * 更新成功后，删掉「新版已经移除」的旧文件。
+ *
+ * 原理：备份目录是更新前的系统区快照。遍历里面的程序文件，凡是新包里不存在的，
+ * 就说明新版删了它，站点上也该删——否则老代码留着可能被路径命中，或和新版冲突。
+ *
+ * 安全约束（很重要，别放宽）：
+ *   · 只处理 includes/ 与 admin/ 下的程序文件（.php/.js/.css/.svg/.json/.html）
+ *   · 每个候选路径必须过 update_path_allowed() 白名单
+ *   · 根文件（.htaccess/index.php/api.php）一律不动
+ *   · content/、config.php 根本不在备份系统区里，天然碰不到
+ */
+function update_prune_removed($backupDir, $entries, $prefix)
+{
+    if (!is_dir($backupDir)) {
+        return 0;
+    }
+    $exts = array('php', 'js', 'css', 'svg', 'json', 'html', 'htm', 'txt');
+    $removed = 0;
+    foreach (array('includes', 'admin') as $top) {
+        $dir = $backupDir . '/' . $top;
+        if (!is_dir($dir)) {
+            continue;
+        }
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($it as $f) {
+            if (!$f->isFile()) {
+                continue;
+            }
+            $rel = $top . '/' . substr($f->getPathname(), strlen($dir) + 1);
+            $rel = str_replace('\\', '/', $rel);
+            if (!update_path_allowed($rel)) {
+                continue;
+            }
+            if (!in_array(strtolower(pathinfo($rel, PATHINFO_EXTENSION)), $exts, true)) {
+                continue;
+            }
+            /* 新包里还有这个文件 → 保留 */
+            if (isset($entries[$prefix . $rel])) {
+                continue;
+            }
+            $target = CMS_ROOT . '/' . $rel;
+            if (is_file($target) && @unlink($target)) {
+                $removed++;
+                log_msg('update pruned removed file: ' . $rel);
+            }
+        }
+    }
+    return $removed;
+}
+
 /** 只保留最近 N 份备份 */
 function update_prune_backups($keep = 3)
 {
@@ -853,6 +973,48 @@ function update_path_allowed($rel)
     if (strpos($rel, 'includes/') === 0 || strpos($rel, 'admin/') === 0) {
         return true;
     }
+    return false;
+}
+
+/**
+ * PHP 语法校验：更新包里的 .php 落盘前先 lint，坏包直接拒收并回滚。
+ *
+ * 用系统 php -l（PHP_BINARY 最准）。共享主机禁用 exec 时返回 null 表示"跳过"，
+ * 不阻断更新——否则这类主机永远升不了级。跳过会记日志，后台能看到。
+ *
+ * @return bool|null true=通过 false=语法错 null=无法校验
+ */
+function update_php_lint($code, &$err)
+{
+    $err = '';
+    if (function_exists('exec') === false) {
+        $err = 'exec 已禁用，跳过语法校验';
+        return null;
+    }
+    $disabled = explode(',', strtolower((string) ini_get('disable_functions')));
+    if (in_array('exec', array_map('trim', $disabled), true)) {
+        $err = 'exec 已禁用，跳过语法校验';
+        return null;
+    }
+    $php = defined('PHP_BINARY') && PHP_BINARY !== '' ? PHP_BINARY : 'php';
+    $tmp = tempnam(sys_get_temp_dir(), 'cicilint');
+    if ($tmp === false) {
+        $err = '无法创建临时文件，跳过语法校验';
+        return null;
+    }
+    if (@file_put_contents($tmp, $code) === false) {
+        @unlink($tmp);
+        $err = '无法写入临时文件，跳过语法校验';
+        return null;
+    }
+    $out = array();
+    $rc  = 0;
+    @exec(escapeshellarg($php) . ' -l ' . escapeshellarg($tmp) . ' 2>&1', $out, $rc);
+    @unlink($tmp);
+    if ($rc === 0) {
+        return true;
+    }
+    $err = trim(implode(' ', $out));
     return false;
 }
 
@@ -1248,8 +1410,12 @@ function update_install_zip($zipPath, $info, &$err)
         return false;
     }
 
+    /* 写盘前开维护模式：这段时间用户可能读到新旧混合的代码 */
+    update_maintenance_on();
+
     $written = 0;
     $failed  = array();
+    $lintSkipped = 0;
 
     foreach ($entries as $name => $e) {
         if ($prefix !== '' && strpos($name, $prefix) !== 0) {
@@ -1276,6 +1442,18 @@ function update_install_zip($zipPath, $info, &$err)
                 continue;
             }
         }
+        /* 语法校验：坏的 PHP 落盘会让整站 500，宁可整批回滚 */
+        if (substr($rel, -4) === '.php') {
+            $lerr = '';
+            $lint = update_php_lint($data, $lerr);
+            if ($lint === false) {
+                $failed[] = $rel . '（PHP 语法错误：' . $lerr . '）';
+                continue;
+            }
+            if ($lint === null) {
+                $lintSkipped++;
+            }
+        }
         if (!update_write_file($rel, $data, $werr)) {
             $failed[] = $rel . '（' . $werr . '）';
         } else {
@@ -1292,14 +1470,22 @@ function update_install_zip($zipPath, $info, &$err)
         $restoreErr = '';
         update_restore($backup, $restoreErr);
         update_close_dirs($perms);
+        update_maintenance_off();
         $err = '更新中断，' . ($restoreErr === '' ? '已回滚到更新前的版本' : '回滚也失败了，请手工从备份恢复：' . $backup)
              . '。原因：' . implode('；', array_slice($failed, 0, 3));
         return false;
     }
 
+    /* 新版删掉的文件要从站点上清掉，否则老代码一直留着（回滚时 prune_extra 只管回滚那一半） */
+    update_prune_removed($backup, $entries, $prefix);
+
     update_close_dirs($perms);
     update_clear_cache();
+    update_maintenance_off();
     update_prune_backups(3);
+    if ($lintSkipped > 0) {
+        log_msg('update: ' . $lintSkipped . ' PHP files skipped lint (exec unavailable)');
+    }
 
     $state = update_state_read();
     $state['applied_sha']     = (string) $info['sha'];

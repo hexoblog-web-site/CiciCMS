@@ -90,22 +90,3 @@ function CMS_banner_clean($v)
     }
     return '';
 }
-
-/**
- * 删除一张由本系统上传的图片（只删 uploads 目录内的文件）
- *
- * @param string $path 库里的路径，兼容 content/uploads/... 与 uploads/...
- * @return bool
- */
-function CMS_upload_delete($path)
-{
-    $rel = upload_rel($path);
-    if ($rel === '') {
-        return false;
-    }
-    $abs = upload_path($rel);
-    if (is_file($abs)) {
-        return @unlink($abs);
-    }
-    return false;
-}

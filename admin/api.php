@@ -53,24 +53,51 @@ function api_csrf()
 
 $r = get_str('r', 'state');
 
-/* 登录：仅用于原型内嵌登录框；已登录会话直接返回当前用户 */
+/* 登录只走 admin/login.php：那里有失败限速、会话重建和统一跳转。
+   这里保留一个明确拒绝，避免旧脚本把账号密码发到 JSON 接口来试。 */
 if ($r === 'login') {
-    $b = api_body();
-    $u = isset($b['u']) ? (string) $b['u'] : post_str('u');
-    $p = isset($b['p']) ? (string) $b['p'] : post_str('p');
-    if (auth_user()) {
-        $me = auth_user();
-        api_out(array('ok' => true, 'user' => array(
-            'name' => isset($me['username']) ? $me['username'] : 'admin', 'role' => 'admin')));
-    }
-    if ($u === '' || $p === '') {
-        api_fail('请输入账号和密码');
-    }
     api_fail('请使用后台登录页登录', 403);
+}
+
+/* 系统更新写盘期间，后台 API 也暂停，避免读写半新半旧的数据 */
+if (function_exists('update_maintenance_active') && update_maintenance_active()) {
+    update_maintenance_page(true);
+    exit;
 }
 
 require_login();
 $me = auth_user();
+
+/*
+ * 后端权限门禁：前端 CAP_ROLES 只负责藏菜单，这里才是真正拦请求的。
+ * 新增 action 时务必在这里登记，漏登记的 action 默认不设限——
+ * 所以宁可显式列全，也不要靠“猜”。
+ */
+$CAP_MAP = array(
+    'state'           => null,
+    'me'              => null,
+    'logout'          => null,
+    'save'            => 'content',
+    'upload'          => 'media',
+    'build'           => 'publish',
+    'build-all'       => 'publish',
+    'db-list'         => 'data',
+    'db-backup'       => 'data',
+    'db-delete'       => 'data',
+    'db-restore-file' => 'data',
+    'db-restore'      => 'data',
+    'update-status'   => 'system',
+    'update-check'    => 'system',
+    'update-apply'    => 'system',
+    'update-rollback' => 'system',
+    'update-save'     => 'system',
+    'health'          => 'data',
+    'media-clean'     => 'data',
+    'user-role'       => 'accounts',
+);
+if (isset($CAP_MAP[$r]) && $CAP_MAP[$r] !== null) {
+    auth_need($CAP_MAP[$r]);
+}
 
 switch ($r) {
 
@@ -83,7 +110,7 @@ switch ($r) {
                 'db'      => $db,
                 'user'    => array(
                     'name' => isset($me['username']) ? $me['username'] : 'admin',
-                    'role' => 'admin',
+                    'role' => auth_role(),
                 ),
                 'version' => defined('CMS_VERSION') ? CMS_VERSION : '',
             ));
@@ -118,8 +145,28 @@ switch ($r) {
             api_fail('数据校验失败：' . $ex->getMessage(), 500);
         }
         try {
-            $counts = legacy_commit($b['db']);
-            api_out(array('ok' => true, 'counts' => $counts, 'at' => date('Y/m/d H:i:s')));
+            /* 非管理员不得改站点设置/账号/序号：这几块用库里的真值覆盖提交包。
+               否则 editor 只要在保存包里塞一份 settings，就能改站点配置甚至给自己提权。 */
+            if (!auth_can('settings')) {
+                $fresh = legacy_bootstrap();
+                foreach (array('settings', 'users', 'seq') as $protected) {
+                    if (isset($fresh[$protected])) {
+                        $b['db'][$protected] = $fresh[$protected];
+                    }
+                }
+            }
+
+            /* rev 由前端从 state 带回：不一致说明别的窗口已经改过，拒绝覆盖 */
+            $rev = isset($b['rev']) ? (int) $b['rev'] : null;
+            $counts = legacy_commit($b['db'], $rev);
+            api_out(array(
+                'ok'     => true,
+                'counts' => $counts,
+                'rev'    => isset($counts['rev']) ? (int) $counts['rev'] : 0,
+                'at'     => date('Y/m/d H:i:s'),
+            ));
+        } catch (Legacy_Conflict $ex) {
+            api_fail($ex->getMessage(), 409);
         } catch (Throwable $ex) {
             api_fail('保存失败：' . $ex->getMessage(), 500);
         }
@@ -175,7 +222,34 @@ switch ($r) {
 
     /* 当前用户信息 */
     case 'me':
-        api_out(array('ok' => true, 'name' => isset($me['username']) ? $me['username'] : 'admin', 'role' => 'admin'));
+        api_out(array('ok' => true, 'name' => isset($me['username']) ? $me['username'] : 'admin', 'role' => auth_role()));
+        break;
+
+    /* 改用户角色：仅管理员可用。不给 editor 自己提权的口子 */
+    case 'user-role':
+        api_csrf();
+        $uid  = isset($_POST['uid']) ? (int) $_POST['uid'] : 0;
+        $b    = api_body();
+        if ($uid === 0 && isset($b['uid'])) {
+            $uid = (int) $b['uid'];
+        }
+        $role = isset($_POST['role']) ? (string) $_POST['role'] : '';
+        if ($role === '' && isset($b['role'])) {
+            $role = (string) $b['role'];
+        }
+        if ($uid < 1 || !in_array($role, auth_roles(), true)) {
+            api_fail('用户或角色不合法');
+        }
+        $target = one('SELECT id, username FROM {p}user WHERE id = ?', array($uid));
+        if (!$target) {
+            api_fail('用户不存在', 404);
+        }
+        if ((int) $me['id'] === $uid && $role !== 'admin') {
+            api_fail('不能降低自己的角色，请让另一位管理员操作');
+        }
+        update_row('user', array('role' => $role), 'id = ?', array($uid));
+        log_msg('user role changed: ' . $target['username'] . ' -> ' . $role . ' by ' . $me['username']);
+        api_out(array('ok' => true, 'uid' => $uid, 'role' => $role));
         break;
 
     /* ===== MySQL 数据库备份（.sql） ===== */
@@ -417,6 +491,60 @@ switch ($r) {
         set_setting('update_interval', (string) max(1, min(168, $iv)));
         set_setting('update_notify_email', $em);
         api_out(array('ok' => true));
+        break;
+
+    /* ===== 站点体检 / 无主文件清理 ===== */
+
+    /* 只读体检：数据完整性 + 目录权限 + 上传目录统计 */
+    case 'health':
+        try {
+            $health = CMS_db_health_check();
+            $perm   = CMS_permission_audit();
+            $clean  = CMS_clean_scan();
+            api_out(array(
+                'ok'     => true,
+                'health' => $health,
+                'perm'   => $perm,
+                'files'  => array(
+                    'total'   => (int) $clean['total'],
+                    'used'    => (int) $clean['used'],
+                    'unused'  => (int) $clean['unused'],
+                    'bytes'   => (int) $clean['bytes'],
+                    'missing' => (int) $clean['missing'],
+                ),
+            ));
+        } catch (Throwable $ex) {
+            api_fail('体检失败：' . $ex->getMessage(), 500);
+        }
+        break;
+
+    /* 清理未引用的上传文件；不传 paths 时清理全部未引用项 */
+    case 'media-clean':
+        api_csrf();
+        $b     = api_body();
+        $paths = isset($b['paths']) && is_array($b['paths']) ? $b['paths'] : array();
+        if (!$paths) {
+            $scan = CMS_clean_scan();
+            foreach ($scan['files'] as $f) {
+                if (empty($f['used']) && empty($f['missing'])) {
+                    $paths[] = $f['rel'];
+                }
+            }
+        }
+        if (!$paths) {
+            api_out(array('ok' => true, 'deleted' => 0, 'skip' => array(), 'fail' => array()));
+        }
+        try {
+            $r = CMS_clean_delete_many($paths);
+            api_out(array(
+                'ok'      => true,
+                'deleted' => (int) $r['ok'],
+                'skip'    => $r['skip'],
+                'fail'    => $r['fail'],
+            ));
+        } catch (Throwable $ex) {
+            api_fail('清理失败：' . $ex->getMessage(), 500);
+        }
         break;
 
     default:

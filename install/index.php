@@ -11,7 +11,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
-define('INS_VERSION', '2.3.1');
+define('INS_VERSION', '2.3.2.1');
 define('INS_ROOT', dirname(__DIR__));
 define('INS_CONTENT', INS_ROOT . '/content');
 define('INS_LOCK', INS_CONTENT . '/data/install.lock');
@@ -93,6 +93,7 @@ function install_sql($prefix)
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
   `email` varchar(120) NOT NULL DEFAULT '',
+  `role` varchar(20) NOT NULL DEFAULT 'admin',
   `last_login` int unsigned NOT NULL DEFAULT 0,
   `last_ip` varchar(45) NOT NULL DEFAULT '',
   `created_at` int unsigned NOT NULL DEFAULT 0,

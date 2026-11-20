@@ -134,7 +134,9 @@ function detect_site_url()
     $host   = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
     $script = isset($_SERVER['SCRIPT_NAME']) ? str_replace('\\', '/', $_SERVER['SCRIPT_NAME']) : '/index.php';
     $dir    = rtrim(dirname($script), '/');
-    $dir    = preg_replace('#/(admin|install)$#', '', $dir);
+    /* 入口可能在根目录、/admin/、/install/，也可能在 /admin/legacy/ 这类子目录里；
+       统一去掉 admin / install 及其后的路径，只留站点根。 */
+    $dir    = preg_replace('#/(admin|install)(/.*)?$#', '', $dir);
     if ($dir === '.' || $dir === '/') {
         $dir = '';
     }
@@ -265,84 +267,6 @@ function u_post($post)
 {
     $rel = post_static_rel($post);
     return $rel !== '' ? site_url($rel) : '#';
-}
-
-/**
- * 后台「打开静态页」用的地址
- *
- * 早期版本在静态页不存在时现场 build_incremental()：管理员已登录时，
- * 任何指向后台列表页的 GET（比如攻击页里一个空 <img>）都会让服务器反复写盘。
- * 现在只判断文件在不在，不构建 —— 生成由保存、发布、生成页那条明确链路负责。
- * 没有静态文件时返回空串，调用方据此隐藏「打开静态页」。
- */
-function u_post_preview($post)
-{
-    if (is_array($post) && isset($post['status']) && (int) $post['status'] !== 1) {
-        return '';
-    }
-    $rel = post_static_rel($post);
-    if ($rel === '' || !is_file(CMS_ROOT . '/' . $rel)) {
-        return '';
-    }
-    return site_url($rel);
-}
-
-/** 单页的静态地址：同样只判断，不构建 */
-function u_page_preview($page)
-{
-    if (is_array($page) && isset($page['status']) && (int) $page['status'] !== 1) {
-        return '';
-    }
-    $slug = is_array($page) ? (string) $page['slug'] : (string) $page;
-    if ($slug === '') {
-        return '';
-    }
-    $rel = rawurlencode($slug) . '.html';
-    if (!is_file(CMS_ROOT . '/' . $rel)) {
-        return '';
-    }
-    return site_url($rel);
-}
-
-/** 后台动态预览地址：不落盘，草稿也能看，权限靠 preview.php 里的 require_login */
-function u_admin_preview($type, $id)
-{
-    $id = (int) $id;
-    if ($id <= 0) {
-        return '';
-    }
-    return site_url('admin/preview.php?type=' . urlencode((string) $type) . '&id=' . $id);
-}
-
-/**
- * 列表页的「预览」链接：静态页在就用静态页，不在就退回后台动态预览
- *
- * 两者对读者都是一次真实的页面渲染，区别只是后者的 HTML 是现场拼的、带 noindex。
- */
-function u_post_preview_link($post)
-{
-    if (is_array($post) && isset($post['status']) && (int) $post['status'] !== 1) {
-        return '';
-    }
-    $static = u_post_preview($post);
-    if ($static !== '') {
-        return $static;
-    }
-    $id = is_array($post) && isset($post['id']) ? (int) $post['id'] : 0;
-    return u_admin_preview('article', $id);
-}
-
-function u_page_preview_link($page)
-{
-    if (is_array($page) && isset($page['status']) && (int) $page['status'] !== 1) {
-        return '';
-    }
-    $static = u_page_preview($page);
-    if ($static !== '') {
-        return $static;
-    }
-    $id = is_array($page) && isset($page['id']) ? (int) $page['id'] : 0;
-    return u_admin_preview('page', $id);
 }
 
 /** 分类静态地址：<目录>/index.html、<目录>/page/N/index.html */

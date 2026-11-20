@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v2.3.1-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
+[![Release](https://img.shields.io/badge/release-v2.3.2.1-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -94,12 +94,9 @@ PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的�
 │   ├── index.php            后台单入口路由
 │   ├── login.php            登录页
 │   ├── download.php         数据库备份下载
-│   ├── upload.php           编辑器插图接口（POST，返回 JSON；也收附件）
+│   ├── upload.php           上传接口：图片 / 附件 / 远程抓图（POST 返回 JSON，唯一落盘入口）
 │   ├── cron.php             计划任务入口：不登录也能检查更新（token 校验）
-│   ├── preview.php          后台弹窗预览端点（登录校验 + noindex + 不计浏览）
-│   ├── inc/                 后台头尾布局、内联 SVG 图标 sprite（icons.php）
-│   ├── assets/              后台 CSS/JS（设计令牌、暗色主题、预览弹窗都在这里）
-│   └── pages/               dashboard/article/category/page/media/flink/build/clean/data/theme/setting/plugin/update
+│   └── legacy/              唯一后台界面（SPA 外壳 + app.js/app.css）
 │
 ├── install/                 安装向导（装完必须删除整个目录）
 │
@@ -402,10 +399,10 @@ rm -rf install                       # 装完删掉安装目录
 3. **默认不显示**——要勾上「显示下载按钮」，前台文章页底部才出现下载卡；首页列表的 meta 行同时出现可直接下载的「附件下载」标记。模板用 `{cici:post.attachment}` / `attach_name` / `attach_size|size` 取用，新增 `size` 修饰器。
 4. 系统清理的引用索引把附件地址也算进去，附件不会被当孤儿文件误删；没有入库记录的文件改按扩展名判断是不是图片。
 
-**新增：后台弹窗预览**
+**新增：编辑器内预览**
 
-5. 文章/单页编辑页的「预览」改成**在当前后台窗口弹窗**：把编辑表单原样 POST 到 `admin/preview.php`，用与保存完全相同的正文处理链渲染，未保存的改动和草稿都能看。结果落在 iframe 里，带 `noindex`、剔除浏览计数脚本，不产生任何公开动态地址。弹窗右上角另有「打开静态页 ↗」指向真实静态文件。
-6. 列表页的「预览」仍直接指向静态页；静态文件不在就现场增量生成那一页，草稿则显示禁用按钮。
+5. 文章/单页编辑页右侧是实时预览（Markdown 一边写一边渲染），不再把表单 POST 到独立端点；预览不产生任何公开地址，也不会计入浏览量。
+6. 列表页的「预览」在后台内打开该篇内容；「打开静态页」只在生成过静态文件时出现。
 
 **前台彻底纯静态化**
 
@@ -671,6 +668,87 @@ rm -rf install                       # 装完删掉安装目录
 - 覆盖 `includes/`、`admin/` 与根入口文件即可，`content/` 与 `config.php` 不受影响。
 - 建议保留站点根目录的 `.user.ini`，否则大于 2M 的 `.sql` 备份无法通过后台上传恢复。
 - 老站点的媒体、文章、栏目、设置全部原样保留。
+
+---
+
+### 3.32 数据写入加固与后台能力接回（2.3.2.1）
+
+这一版不改表结构，重点修「保存可能写一半」「多窗口互相覆盖」「上传的图刷新就没了」
+这三类会真正丢数据的问题，并把上一版重写后台时丢掉的运维能力接回来。
+
+**保存改为一个事务**
+
+1. `legacy_commit()` 现在整段包在 `START TRANSACTION` / `COMMIT` 里，任何一条 SQL
+   失败都整体 `ROLLBACK`，不会再出现「前 99 篇更新了、第 100 篇报错」的半保存状态。
+
+**多窗口不再互相覆盖**
+
+2. 数据库里新增配置键 `nebula_rev`，每次保存 +1；`state` 把它下发给前端，保存时带回。
+   版本不一致直接返回 HTTP 409 并提示刷新，而不是拿旧页面的整份数据覆盖别人的修改
+   （旧逻辑会静默删掉另一个窗口刚新增的文章）。
+
+**上传真正落盘**
+
+3. 编辑器的「上传新图」改走 `admin/upload.php`：文件落到 `content/uploads/images/年/月日/`，
+   同时登记附件表并返回附件 id；正文插入的是 `/content/uploads/...` 真实地址。
+   旧实现把图片读成 base64 存进 `db.media.data`，桥接层不保存该字段，刷新后图片就消失。
+4. 附件（zip）走同一接口的 `mode=attach`，落到 `content/uploads/files/`，不再只能手填地址。
+5. 保存时补写 `article.attach_size`，前台 `{cici:post.attach_size|size}` 不再恒为 0。
+
+**后台能力接回**
+
+6. 「数据管理」新增「站点体检」：数据结构完整性（悬空栏目、悬空附件、跨表重复 slug、
+   空 slug）、目录权限、上传目录统计一次看完，并能一键清理未被引用的文件
+   （`includes/clean.php` 原本已实现，只是重写后台后失去了入口）。
+7. 删除无入口的 `admin/preview.php` 与 5 个 `u_*_preview*` 函数：编辑器本身已有实时预览，
+   这套旧后台的弹窗端点不再需要。
+
+**其他修正**
+
+8. 栏目横幅入库前统一走 `CMS_banner_clean()`，`javascript:` / `data:` 之类不会被写进库。
+9. slug 去重统一走 `unique_slug()`（跨文章/单页查重、循环加后缀），替掉桥接层里那套
+   只查本表、只加一次后缀的简化实现。
+10. 媒体归属反查从「每篇文章 × 每个附件」改为按正文实际引用匹配，附件多时后台首屏不再变慢。
+11. 标签/栏目的持久化 ID 会随 `state` 下发，新增标签不会让旧标签 ID 漂移。
+
+**升级提示**
+
+- 覆盖 `includes/`、`admin/` 与根入口文件即可，`content/` 与 `config.php` 不受影响。
+- 第一次保存会自动写入 `nebula_rev`，无需手工执行 SQL。
+- `admin/preview.php` 已删除；如果外部收藏了该地址，会得到 404，属预期。
+
+---
+
+### 3.33 权限生效与更新器加固（2.3.2.1）
+
+这一版把此前"装饰性"的角色权限真正接通，并补上自动更新的三个可靠性缺口。
+数据库结构升到 v9（user 表加 `role` 列），由 `includes/upgrade.php` 自动补齐，
+存量用户全部设为 `admin`，升级后操作权限不变。
+
+**权限真正生效**
+
+1. user 表新增 `role` 列（admin / editor / author），`auth_user()` 把真实角色带出，
+   `api.php` 的 `state` / `me` 不再恒返回 `admin`。
+2. 后端按能力集中门禁（`auth_can()` + `$CAP_MAP`）：备份/恢复、系统更新、站点体检、
+   媒体清理、角色修改等高危接口，editor/author 调用一律 403。
+3. 非管理员保存时，`settings` / `users` / `seq` 强制用数据库里的真值覆盖提交包，
+   编辑不能借保存接口给自己提权或改站点设置。
+4. 账号弹窗新增管理员专属的角色管理区：可改其他用户角色，禁止自己降级自己；
+   普通用户看不到该区块。删除原型遗留的假登录门与演示账号密码提示，
+   会话失效改为引导前往真实登录页。
+
+**自动更新加固**
+
+5. 写盘期间开启维护模式：前台与后台 API 返回 503 友好页，避免用户读到新旧混合代码；
+   维护标记带时间戳，超过 10 分钟自动失效，进程崩溃也不会锁死站点。
+6. 每个 `.php` 落盘前用 `php -l` 校验语法，坏包整批回滚；服务器禁用 `exec` 时跳过并记日志，不阻断更新。
+7. 更新成功后清理新版已移除的废弃文件，只处理 `includes/`、`admin/` 下经白名单校验的程序文件，
+   `content/`、`config.php`、`.htaccess` 一律不碰。
+
+**升级提示**
+
+- 覆盖 `includes/`、`admin/` 与根入口文件即可，`content/` 与 `config.php` 不受影响。
+- 首次访问自动执行 schema v9 迁移；老用户角色全部为 `admin`，无需手工设置。
 
 ---
 
@@ -1330,4 +1408,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：2.3.1
+版本：2.3.2.1

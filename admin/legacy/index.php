@@ -121,8 +121,8 @@ $ver    = defined('CMS_VERSION') ? CMS_VERSION : '';
     </nav>
 
     <button class="sidebar-foot" id="acctBtn" title="切换账号 / 退出登录">
-      <div class="av" id="acctAv">陆</div>
-      <div class="user-meta"><b id="acctName">陆知远</b><span class="sf-role" id="acctRole">站点管理员</span></div>
+      <div class="av" id="acctAv">A</div>
+      <div class="user-meta"><b id="acctName">管理员</b><span class="sf-role" id="acctRole">站点管理员</span></div>
       <span class="sf-caret">⋯</span>
     </button>
   </aside>

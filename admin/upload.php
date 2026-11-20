@@ -92,6 +92,7 @@ if (!$r) {
 log_msg('upload ok: ' . $r['path'] . ' (' . $mode . ')');
 
 CMS_upload_json(true, array(
+    'id'     => isset($r['id']) ? (int) $r['id'] : 0,
     'url'    => $r['url'],
     'path'   => $r['path'],
     'name'   => $r['name'],

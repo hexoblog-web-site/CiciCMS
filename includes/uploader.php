@@ -341,6 +341,9 @@ class CMS_Image_Uploader
 
         $rel = $dirRel . '/' . $name;
 
+        /* 登记成功后把附件 id 一并返回：后台拿到 id 才能更新同一行，
+           否则前端会按自己的 seq 再插一条，媒体列表出现重复项。 */
+        $attachId = 0;
         if ($this->register) {
             try {
                 /* 替代文本先按文件名兜一个：构建时 <img alt> 至少有内容，
@@ -350,7 +353,7 @@ class CMS_Image_Uploader
                 $altText = trim((string) preg_replace('/[_\-\s]+/', ' ', (string) $altText));
                 $altText = $altText !== '' ? str_limit($altText, 200, '') : '';
 
-                insert_row('attachment', array(
+                $attachId = insert_row('attachment', array(
                     'path'       => $rel,
                     'name'       => str_limit($origName !== '' ? basename($origName) : $name, 80),
                     'alt'        => $altText,
@@ -367,6 +370,7 @@ class CMS_Image_Uploader
         }
 
         return array(
+            'id'     => (int) $attachId,
             'path'   => $rel,
             'rel'    => upload_rel($rel),
             'url'    => upload_url($rel),

@@ -17,9 +17,13 @@ var LEGACY_USER = (function(){
   var m = document.querySelector('meta[name="legacy-user"]');
   return m ? m.getAttribute('content') : 'admin';
 })();
+var LEGACY_UPLOAD = LEGACY_API.replace(/api\.php.*$/, 'upload.php');
 var _nbLoading = true;
 var _nbTimer = null;
 var _nbPending = null;
+var _nbRev = 0;           /* 数据库版本号：保存时带回，防止覆盖别的窗口的修改 */
+var _nbFailMsg = '';
+var _nbLastToast = 0;
 
 /* 同步拉取：保证后续 5000 行界面代码可以照旧同步访问 db */
 function nbFetchState(){
@@ -33,27 +37,81 @@ function nbFetchState(){
   return j;
 }
 
-/* 合并写入：多次 save 只发最后一次 */
+/* 保存成功：收起失败横幅，更新页内「已保存」提示 */
+function nbSaveOk(){
+  _nbFailMsg = '';
+  var bar = document.getElementById('saveFailBar');
+  if (bar) bar.classList.remove('on');
+  var tip = document.getElementById('tplTip');
+  if (tip){ tip.className = 'tpl-tip ok'; tip.textContent = '已保存 · ' + nowStamp().slice(11); }
+}
+
+/* 保存失败：红色提示 + 顶部常驻横幅。绝不只写 console 让用户以为存上了 */
+function nbSaveFail(msg, needReload){
+  _nbFailMsg = msg;
+  var bar = document.getElementById('saveFailBar');
+  if (!bar){
+    bar = document.createElement('div');
+    bar.id = 'saveFailBar';
+    bar.className = 'save-fail-bar';
+    bar.innerHTML = '<span class="sfb-dot"></span><span class="sfb-msg"></span>' +
+      '<button type="button" class="sfb-btn" data-sfb-retry>重试</button>' +
+      '<button type="button" class="sfb-btn primary" data-sfb-reload>刷新页面</button>';
+    document.body.appendChild(bar);
+    bar.addEventListener('click', function(e){
+      if (e.target.closest('[data-sfb-reload]')){ location.reload(); return; }
+      if (e.target.closest('[data-sfb-retry]') && _nbPending) nbFlush();
+    });
+  }
+  bar.querySelector('.sfb-msg').textContent = '保存失败：' + msg;
+  bar.classList.toggle('need-reload', !!needReload);
+  bar.classList.add('on');
+  var tip = document.getElementById('tplTip');
+  if (tip){ tip.className = 'tpl-tip bad'; tip.textContent = '保存失败'; }
+  var now = Date.now();
+  if (now - _nbLastToast > 3000){
+    _nbLastToast = now;
+    if (typeof toast === 'function') toast('保存失败：' + msg, 'bad');
+  }
+}
+
+/* 合并写入：多次 save 只发最后一次；失败必须有可见反馈 */
 function nbFlush(){
   if (_nbTimer){ clearTimeout(_nbTimer); _nbTimer = null; }
   if (!_nbPending) return;
   var payload = _nbPending;
   _nbPending = null;
-  var body = JSON.stringify({ _token: LEGACY_TOKEN, db: payload });
+  var body = JSON.stringify({ _token: LEGACY_TOKEN, rev: _nbRev, db: payload });
   try{
     var xhr = new XMLHttpRequest();
     xhr.open('POST', LEGACY_API + '?r=save', true);
     xhr.setRequestHeader('Content-Type','application/json;charset=utf-8');
     xhr.onreadystatechange = function(){
       if (xhr.readyState !== 4) return;
-      if (xhr.status < 200 || xhr.status >= 300){
-        if (window.console) console.warn('[legacy] 保存失败', xhr.status, xhr.responseText);
+      var j = null;
+      try{ j = JSON.parse(xhr.responseText); }catch(e){}
+      if (xhr.status >= 200 && xhr.status < 300 && j && j.ok){
+        if (typeof j.rev === 'number') _nbRev = j.rev;
+        nbSaveOk();
+        return;
       }
+      var msg = (j && j.msg) ? j.msg : '';
+      /* 409 版本冲突、403 会话过期：重试没有意义，必须刷新 */
+      var reload = (xhr.status === 409 || xhr.status === 403);
+      if (!msg){
+        if (xhr.status === 403) msg = '登录状态已过期，请刷新页面重新登录';
+        else if (xhr.status === 413) msg = '提交内容过大，服务器拒绝接收';
+        else if (xhr.status === 0) msg = '连接中断，请检查网络后重试';
+        else msg = '服务器返回 HTTP ' + xhr.status;
+      }
+      /* 其余错误保留数据，用户可以点「重试」再发一次 */
+      if (!reload) _nbPending = payload;
+      nbSaveFail(msg, reload);
     };
     xhr.send(body);
   }catch(e){
-    /* 关页时用 beacon 兜底 */
-    try{ navigator.sendBeacon(LEGACY_API + '?r=save', new Blob([body],{type:'application/json'})); }catch(_e){}
+    _nbPending = payload;
+    nbSaveFail('网络错误：' + e.message, false);
   }
 }
 function nbQueue(dbObj){
@@ -79,11 +137,7 @@ var FLAG_MAP = [
 var ROLE_LABEL = {admin:'站点管理员', editor:'内容编辑', author:'专栏作者'};
 var ROLE_SUB = {admin:'全部权限', editor:'内容与发布', author:'仅本人草稿'};
 var ROLE_COLOR = {admin:'#5b5bd6', editor:'#0e7490', author:'#b45309'};
-var USERS_DEFAULT = [
-  {id:1,name:'陆知远',user:'admin', pass:'legacy',role:'admin'},
-  {id:2,name:'林一',  user:'editor',pass:'editor',role:'editor'},
-  {id:3,name:'周游',  user:'author',pass:'author',role:'author'}
-];
+var USERS_DEFAULT = [{id:1,name:'管理员',user:'admin',pass:'',role:'admin'}];
 /* 能力 → 允许的角色。未列出的能力默认三种角色都可用 */
 var CAP_ROLES = {
   settings:['admin'], data:['admin'], templates:['admin'], purge:['admin'], deploy:['admin','editor'],
@@ -125,16 +179,6 @@ function can(cap){
   return allow.indexOf(userRole()) > -1;
 }
 function roleLabel(r){ return ROLE_LABEL[r] || ROLE_LABEL.admin; }
-function login(u, pass){
-  var hit = db.users.filter(function(x){
-    return (x.user === u || x.name === u) && x.pass === pass;
-  })[0];
-  if (!hit) return false;
-  SESSION = {uid:hit.id, at:nowStamp()};
-  sessionSave();
-  return true;
-}
-
 /* ================= 回收站（统一四类） ================= */
 function stampMs(s){
   if (!s) return 0;
@@ -962,6 +1006,7 @@ function load(){
   try{
     var res = nbFetchState();
     db = res.db;
+    _nbRev = (typeof db.rev === 'number') ? db.rev : 0;
     if (boot) boot.textContent = '正在初始化界面…';
   }catch(e){
     if (boot) boot.textContent = '载入失败：' + e.message + '（请检查登录状态）';
@@ -1765,8 +1810,8 @@ function vTemplates(){
     active.content = ta.value;
     active.updated = nowStamp();
     save();
-    tipEl.className = 'tpl-tip ok';
-    tipEl.textContent = '已保存 · ' + nowStamp().slice(11);
+    tipEl.className = 'tpl-tip';
+    tipEl.textContent = '保存中…';
     refreshList();
   });
 
@@ -2316,7 +2361,7 @@ function renderEditor(id){
   var MDED = mdMount({ta:'fMd', prev:'mdPrev',
     onSave: function(){ document.getElementById('saveBtn').click(); },
     onImage: function(insert){
-      openMediaPicker(function(m){ insert(m.alt || m.file, '/uploads/' + m.file); }, {postId: p.id});
+      openMediaPicker(function(m){ insert(m.alt || m.file, mediaUrl(m)); }, {postId: p.id});
     }});
   function refresh(){ MDED.render(); }
 
@@ -2347,7 +2392,7 @@ function renderEditor(id){
   document.getElementById('fCoverPick').addEventListener('click', function(){
     openMediaPicker(function(m){
       coverEl.value = 'auto';
-      coverUrlEl.value = '/uploads/' + m.file;
+      coverUrlEl.value = mediaUrl(m);
       coverPv.src = mediaUrl(m);
       toast('已选用媒体库图片：'+m.file, 'ok');
     }, {postId: p.id});
@@ -2732,7 +2777,7 @@ function renderPageEditor(id){
   var PGED = mdMount({ta:'fPgMd', prev:'pgPrev',
     onSave: function(){ document.getElementById('pgSave').click(); },
     onImage: function(insert){
-      openMediaPicker(function(m){ insert(m.alt || m.file, '/uploads/' + m.file); }, {postId: p.id});
+      openMediaPicker(function(m){ insert(m.alt || m.file, mediaUrl(m)); }, {postId: p.id});
     }});
   function refresh(){ PGED.render(); }
 
@@ -2764,7 +2809,7 @@ function renderPageEditor(id){
   document.getElementById('fPgCoverPick').addEventListener('click', function(){
     openMediaPicker(function(m){
       coverEl.value = 'auto';
-      coverUrlEl.value = '/uploads/' + m.file;
+      coverUrlEl.value = mediaUrl(m);
       syncCover();
       toast('已选用媒体库图片：'+m.file, 'ok');
     }, {postId: p.id});
@@ -2848,7 +2893,6 @@ function renderPageView(id){
 
 /* ================= 视图：媒体库 ================= */
 var MSTATE = {page:1, type:'all', q:''};
-var UP_MAX = 400 * 1024;   /* 单张图片上限，与演示存储配额匹配 */
 function mediaUrl(m){
   if (m && m.data) return m.data;
   if (m && m.url) return m.url;                 /* 后端映射的真实相对路径 */
@@ -2869,13 +2913,13 @@ function mediaThumbSrc(m){
 function coverSrc(v){
   if (typeof v !== 'string' || !v) return '';
   var m = (db.media || []).filter(function(x){
-    return !x.trashed && ('/uploads/' + x.file === v || x.data === v);
+    return !x.trashed && ((x.url && x.url === v) || ('/uploads/' + x.file === v) || x.data === v);
   })[0];
   return m ? mediaUrl(m) : v;
 }
 /* 该媒体被哪些文章 / 单页引用 */
 function mediaRefs(m){
-  var keys = [m.data, '/uploads/' + m.file, m.file].filter(Boolean);
+  var keys = [m.data, m.url, '/uploads/' + m.file, m.file].filter(Boolean);
   var out = [];
   function hit(bag){
     var s = String(bag || '');
@@ -3008,47 +3052,74 @@ function vMedia(){
   renderMediaRows();
 }
 
-/* 文章编辑时的图片上传：媒体库唯一的入库入口 */
+/* 上传：走 admin/upload.php，文件真正落盘并登记附件表。
+   旧实现把图片读成 base64 塞进 db.media.data，而桥接层根本不保存这个字段，
+   刷新后图片就没了；正文里写的还是 /uploads/文件名 这种已经不存在的老路径。 */
 function uploadMedia(file, opts, done){
   opts = opts || {};
   if (!file){ if (done) done(null); return; }
   var isImg = /^image\//.test(file.type) || /\.(jpe?g|png|webp|gif)$/i.test(file.name);
   var isZip = /zip/.test(file.type) || /\.zip$/i.test(file.name);
   if (!isImg && !isZip){ alert('只支持图片与 zip 压缩包：' + file.name); if (done) done(null); return; }
-  if (isImg && file.size > UP_MAX){ alert(file.name + ' 超过 400 KB，请先压缩后再上传。'); if (done) done(null); return; }
+  var limit = isImg ? 5 * 1024 * 1024 : 20 * 1024 * 1024;
+  if (file.size > limit){
+    alert(file.name + ' 超过 ' + (isImg ? '5 MB' : '20 MB') + ' 上限，请先压缩后再上传。');
+    if (done) done(null); return;
+  }
 
-  function finish(data, dim){
-    var addBytes = data ? Math.round(data.length * 0.75) : 0;
-    if (byteLen(JSON.stringify(db)) + addBytes > 4.2 * 1024 * 1024){
-      alert('本地存储空间不足，请先清理回收站或旧备份');
+  var fd = new FormData();
+  fd.append('_token', LEGACY_TOKEN);
+  fd.append('mode', isImg ? 'file' : 'attach');
+  fd.append('file', file);
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', LEGACY_UPLOAD, true);
+  xhr.onreadystatechange = function(){
+    if (xhr.readyState !== 4) return;
+    var j = null;
+    try{ j = JSON.parse(xhr.responseText); }catch(e){}
+    if (xhr.status < 200 || xhr.status >= 300 || !j || !j.ok){
+      var msg = (j && j.msg) || ('HTTP ' + xhr.status);
+      if (xhr.status === 413) msg = '文件超过服务器上传上限，请调大 .user.ini 的 upload_max_filesize';
+      alert('上传失败：' + msg);
       if (done) done(null);
       return;
     }
+    /* 图片已由服务端登记附件表并返回 id：沿用它，保存时就是更新同一行。
+       附件（zip）不登记附件表，这里按 seq 分配新 id。 */
+    var mid = (j.id && j.id > 0) ? j.id : db.seq.media++;
+    if (j.id && j.id > 0) db.seq.media = Math.max(db.seq.media, j.id + 1);
     var pal = [['#6366f1','#8b8bf5','#c7d2fe'],['#0ea5a5','#2dd4bf','#ccfbf1'],['#d97706','#f59e0b','#fde9c8'],['#3b82f6','#60a5fa','#dbeafe']][db.media.length % 4];
+    /* 上传接口给的可能是绝对 URL；正文里统一写站点根相对地址，
+       换域名、换协议都不会失效 */
+    var relUrl = (function(u){
+      if (!u) return '';
+      try{
+        var a = document.createElement('a');
+        a.href = u;
+        return a.pathname || u;
+      }catch(e){ return u; }
+    })(j.url);
     var m = {
-      id: db.seq.media++, file: file.name, type: isImg ? 'image' : 'zip', dim: dim,
-      size: fmtSize(file.size), alt: opts.alt || '', data: data || '',
-      post: opts.post || null, date: today(),
+      id: mid,
+      file: j.name || file.name,
+      url: relUrl,
+      path: j.path || '',
+      mime: j.mime || '',
+      type: isImg ? 'image' : 'zip',
+      dim: isImg ? ((j.width || 0) + ' × ' + (j.height || 0)) : '压缩包',
+      size: fmtSize(file.size),
+      alt: opts.alt || '',
+      post: opts.post || null,
+      date: today(),
       variant: ['mount','wave','grid','ring','beam'][db.media.length % 5],
       c: isImg ? pal : [pal[0], pal[1]]
     };
     db.media.unshift(m);
     save();
     if (done) done(m);
-  }
-
-  if (!isImg) return finish('', '压缩包');
-  if (typeof FileReader === 'undefined') return finish('', '图片');
-  var r = new FileReader();
-  r.onload = function(){
-    var data = r.result;
-    if (typeof Image === 'undefined') return finish(data, '图片');
-    var im = new Image();
-    im.onload = function(){ finish(data, im.width + ' × ' + im.height); };
-    im.onerror = function(){ finish(data, '未知尺寸'); };
-    im.src = data;
   };
-  r.readAsDataURL(file);
+  xhr.send(fd);
 }
 
 /* ================= 浮层：媒体选择器 ================= */
@@ -3074,7 +3145,7 @@ function openMediaPicker(onPick, opts){
       }).join('') + '</div>'
         : '<div class="pick-empty">还没有图片。点上方「上传新图」，随文章一起入库。</div>') +
     '</div>' +
-    '<div class="ov-foot"><span style="margin-right:auto;font-size:11.5px;color:var(--muted)">选中后插入 /uploads/文件名，并记录所属文章</span>' +
+    '<div class="ov-foot"><span style="margin-right:auto;font-size:11.5px;color:var(--muted)">选中后插入真实文件地址，并记录所属文章</span>' +
       '<button class="btn sm" data-ovx>取消</button></div>' +
     '</div>';
   document.body.appendChild(box);
@@ -3229,8 +3300,43 @@ function openSearch(){
 }
 
 /* ================= 浮层：账号 ================= */
+/* 轻量 POST：给账号管理等视图外的小工具用；vData 内部有自己的 api() */
+function apiPost(action, data, cb){
+  try{
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', LEGACY_API + '?r=' + action, true);
+    xhr.onreadystatechange = function(){
+      if (xhr.readyState !== 4) return;
+      var j = null;
+      try{ j = JSON.parse(xhr.responseText); }catch(e){}
+      if (xhr.status < 200 || xhr.status >= 300 || !j || !j.ok){
+        cb(null, (j && j.msg) || ('请求失败（HTTP ' + xhr.status + '）'));
+        return;
+      }
+      cb(j, '');
+    };
+    var payload = Object.assign({ _token: LEGACY_TOKEN }, data || {});
+    xhr.send(JSON.stringify(payload));
+  }catch(e){ cb(null, '网络错误：' + e.message); }
+}
+
 function openAccount(){
   var me = currentUser();
+  var isAdmin = me.role === 'admin';
+  var mgmt = '';
+  if (isAdmin){
+    mgmt = '<div style="margin:18px 0 8px;font-size:11.5px;color:var(--muted)">角色管理（仅管理员）</div>' +
+      '<div class="rev-list" id="acctRoles">' + db.users.map(function(u){
+        return '<div class="rev-item" data-role-uid="'+u.id+'"><div class="ri-main">' +
+          '<div class="ri-t">'+esc(u.name)+' <span style="color:var(--muted);font-weight:400">'+esc(u.user)+'</span></div>' +
+          '<div class="ri-m" style="margin-top:6px">' +
+            ['admin','editor','author'].map(function(r){
+              var on = (u.role === r) ? ' btn primary sm' : ' btn sm';
+              return '<button class="'+on.trim()+'" data-set-role="'+r+'" style="margin-right:4px">'+ROLE_LABEL[r]+'</button>';
+            }).join('') +
+          '</div></div></div>';
+      }).join('') + '</div><div class="acc-hint" id="acctRoleHint"></div>';
+  }
   var box = document.createElement('div');
   box.className = 'ov';
   box.innerHTML = '<div class="ov-card" style="width:min(460px,100%)">' +
@@ -3247,18 +3353,34 @@ function openAccount(){
         '<div class="ri-t">已通过服务器验证</div>' +
         '<div class="ri-m">数据实时保存到数据库 · 退出后需重新登录</div>' +
       '</div></div></div>' +
+      mgmt +
     '</div>' +
     '<div class="ov-foot"><button class="btn sm danger" data-logout>退出登录</button>' +
       '<button class="btn sm" data-ovx>关闭</button></div></div>';
   document.body.appendChild(box);
   box.addEventListener('click', function(e){
     if (e.target === box || e.target.closest('[data-ovx]')){ ovClose(box); return; }
-    var sw = e.target.closest('[data-sw]');
-    if (sw){
-      SESSION = {uid:+sw.dataset.sw, at:nowStamp()};
-      sessionSave(); ovClose(box);
-      applyAccount(); route();
-      toast('已切换为 '+currentUser().name, 'ok');
+    var rb = e.target.closest('[data-set-role]');
+    if (rb){
+      var row = rb.closest('[data-role-uid]');
+      var uid = +row.dataset.roleUid, role = rb.dataset.setRole;
+      var hint = document.getElementById('acctRoleHint');
+      if (hint) hint.textContent = '保存中…';
+      apiPost('user-role', {uid: uid, role: role}, function(j, err){
+        if (err){
+          if (hint) hint.textContent = '失败：' + err;
+          toast('角色修改失败：' + err, 'bad');
+          return;
+        }
+        var u = db.users.filter(function(x){ return x.id === uid; })[0];
+        if (u) u.role = j.role;
+        if (hint) hint.textContent = '已保存';
+        row.querySelectorAll('[data-set-role]').forEach(function(btn){
+          btn.className = (btn.dataset.setRole === j.role ? 'btn primary sm' : 'btn sm');
+        });
+        applyAccount();
+        toast('角色已更新', 'ok');
+      });
       return;
     }
     if (e.target.closest('[data-logout]')){
@@ -3294,55 +3416,13 @@ function showLogin(){
   if (document.getElementById('loginGate')) return;
   var gate = document.createElement('div');
   gate.className = 'login-gate'; gate.id = 'loginGate';
-  gate.innerHTML = '<div class="lg-card">' +
-    '<div class="lg-intro">' +
-      '<div class="lg-logo"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276a1 1 0 000-1.788l-4.764-2.382a1 1 0 00-.894 0L4.789 4.488a1 1 0 000 1.788l4.764 2.382a1 1 0 00.894 0l4.764-2.382zM4.447 8.342A1 1 0 003 9.236V15a1 1 0 00.553.894l4 2A1 1 0 009 17v-5.764a1 1 0 00-.553-.894l-4-2z"/></svg></div>' +
-      '<h2>CiciCms</h2>' +
-      '<p>内容管理后台 · 演示环境<br>数据由服务器保存，退出登录后需重新登录。</p>' +
-      ['admin','editor','author'].map(function(r){
-        return '<div class="lg-role"><span class="lg-dot" style="background:'+ROLE_COLOR[r]+'"></span>' +
-          '<div><b>'+ROLE_LABEL[r]+'</b><span>'+(r==='admin'?'站点设置、数据与模板，全部权限'
-            : r==='editor'?'文章与单页的编辑发布，媒体与栏目维护'
-            : '只能写自己的草稿并提交审核')+'</span></div></div>';
-      }).join('') +
-    '</div>' +
-    '<div class="lg-form">' +
-      '<h3>登录后台</h3><p class="lg-hint">当前会话已登录</p>' +
-      '<div class="lg-accts" id="lgAccts">' + db.users.map(function(u){
-        return '<button class="lg-acct" data-lg="'+u.id+'">' +
-          '<span class="la-av" style="background:'+ROLE_COLOR[u.role]+'">'+esc(u.name.slice(0,1))+'</span>' +
-          '<span class="la-n">'+esc(u.name)+'</span><span class="la-r">'+roleLabel(u.role)+'</span></button>';
-      }).join('') + '</div>' +
-      '<div class="lg-field"><label>账号</label><input id="lgUser" value="admin"></div>' +
-      '<div class="lg-field"><label>密码</label><input id="lgPass" type="password" value=""></div>' +
-      '<div class="lg-err" id="lgErr"></div>' +
-      '<button class="btn primary" id="lgGo">登录</button>' +
-      '<div class="lg-note">演示账号：<code>admin / admin123</code>、<code>editor / editor</code>、<code>author / author</code></div>' +
+  gate.innerHTML = '<div class="lg-card" style="max-width:420px">' +
+    '<div class="lg-form" style="padding:28px">' +
+      '<h3>登录已过期</h3>' +
+      '<p class="lg-hint">服务器会话已失效，请重新登录后再操作后台。</p>' +
+      '<a class="btn primary" href="'+LEGACY_API.replace('api.php','login.php')+'">前往登录页</a>' +
     '</div></div>';
   document.body.appendChild(gate);
-  var uEl = document.getElementById('lgUser'), pEl = document.getElementById('lgPass'), errEl = document.getElementById('lgErr');
-  gate.addEventListener('click', function(e){
-    var card = e.target.closest('[data-lg]');
-    if (card){
-      var u = db.users.filter(function(x){ return x.id === +card.dataset.lg; })[0];
-      if (!u) return;
-      document.querySelectorAll('.lg-acct').forEach(function(el){ el.classList.remove('on'); });
-      card.classList.add('on');
-      uEl.value = u.user; pEl.value = u.pass; errEl.textContent = '';
-    }
-  });
-  function submit(){
-    if (login(uEl.value.trim(), pEl.value)){
-      ovClose(gate);
-      applyAccount();
-      route();
-      toast('欢迎回来，'+currentUser().name, 'ok');
-    } else {
-      errEl.textContent = '账号或密码不正确';
-    }
-  }
-  document.getElementById('lgGo').addEventListener('click', submit);
-  pEl.addEventListener('keydown', function(e){ if (e.key === 'Enter') submit(); });
 }
 
 /* ================= 视图：分类标签（栏目 / 标签） ================= */
@@ -3926,6 +4006,11 @@ function vData(){
         '<thead><tr><th class="col-file">文件名</th><th>类型</th><th>大小</th><th>创建时间</th><th>操作</th></tr></thead>' +
         '<tbody id="dmRows">' + rows + '</tbody></table></div>' +
     '</div>' +
+
+    '<div class="card reveal" style="animation-delay:.14s">' +
+      '<div class="dm-head"><b>站点体检</b><span>数据结构、目录权限与上传文件占用（只读检测，不改数据）</span></div>' +
+      '<div class="dm-health" id="dmHealth"><div class="dm-health-loading">正在检测…</div></div>' +
+    '</div>' +
     '</div>';
 
   var $ = function(id){ return document.getElementById(id); };
@@ -3963,6 +4048,58 @@ function vData(){
       ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
   }
 
+  /* 站点体检：数据完整性 + 目录权限 + 上传目录统计 */
+  function renderHealth(j){
+    var box = $('dmHealth');
+    if (!box) return;
+    var h = j.health || {}, perm = j.perm || [], f = j.files || {};
+    var issues = [];
+    if ((h.orphan_article_cat || []).length) issues.push('文章指向不存在的栏目：' + h.orphan_article_cat.length + ' 条');
+    if ((h.orphan_attach || []).length) issues.push('附件指向不存在的文章：' + h.orphan_attach.length + ' 条');
+    if ((h.dup_slug_cross || []).length) issues.push('文章与单页 slug 重复：' + h.dup_slug_cross.length + ' 组');
+    if ((h.empty_slug || []).length) issues.push('空 slug：' + h.empty_slug.length + ' 条');
+    perm.forEach(function(r){ if (!r.ok) issues.push(r.label + ' 当前「' + r.actual + '」，应为「' + r.want + '」'); });
+
+    var html = '<div class="dm-health-grid">' +
+      '<div class="dm-health-item"><b>' + (issues.length ? issues.length : '✓') + '</b><span>待处理项</span></div>' +
+      '<div class="dm-health-item"><b>' + (f.total || 0) + '</b><span>上传文件</span></div>' +
+      '<div class="dm-health-item"><b>' + (f.unused || 0) + '</b><span>未被引用</span></div>' +
+      '<div class="dm-health-item"><b>' + fmtSize(f.bytes || 0) + '</b><span>可释放</span></div>' +
+      '</div>';
+    html += issues.length
+      ? '<ul class="dm-health-list">' + issues.map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>'
+      : '<p class="dm-health-ok">数据结构与目录权限检查全部通过。</p>';
+    if ((f.unused || 0) > 0 || (f.missing || 0) > 0){
+      html += '<div class="dm-actions"><button class="btn sm" id="dmClean">清理未引用文件' +
+        ((f.unused || 0) > 0 ? '（' + f.unused + ' 个，' + fmtSize(f.bytes || 0) + '）' : '') +
+        '</button><span class="dm-tip" id="dmCleanTip"></span></div>';
+    }
+    box.innerHTML = html;
+    var cb = $('dmClean');
+    if (cb) cb.addEventListener('click', function(){
+      if (!confirm('删除服务器上未被任何文章、单页引用的上传文件？此操作不可撤销。')) return;
+      cb.disabled = true;
+      api('media-clean', { body: JSON.stringify({ _token: LEGACY_TOKEN }) }, function(r, err){
+        cb.disabled = false;
+        var tip = $('dmCleanTip');
+        if (err){ if (tip) tip.textContent = err; return; }
+        if (tip) tip.textContent = '已清理 ' + (r.deleted || 0) + ' 个文件' +
+          ((r.skip && r.skip.length) ? '，跳过 ' + r.skip.length + ' 个仍被引用的' : '');
+        /* 后端已删掉这些附件记录，前端 db 里还留着；不刷新的话下次保存会把它插回去 */
+        setTimeout(function(){ location.reload(); }, 1200);
+        loadHealth();
+      });
+    });
+  }
+  function loadHealth(){
+    api('health', { method: 'GET' }, function(j, err){
+      var box = $('dmHealth');
+      if (!box) return;
+      if (err){ box.innerHTML = '<p class="dm-health-ok">检测失败：' + esc(err) + '</p>'; return; }
+      renderHealth(j);
+    });
+  }
+
   function renderList(list){
     sqlList = list || [];
     var rowsHtml = sqlList.length ? sqlList.map(function(b){
@@ -3986,6 +4123,7 @@ function vData(){
     });
   }
   loadList();
+  loadHealth();
 
   $('dmBk').addEventListener('click', function(){
     var btn = this;
@@ -5024,7 +5162,7 @@ route();
   }
   window.addEventListener('beforeunload', function(){
     if (!_nbPending) return;
-    var body = JSON.stringify({ _token: LEGACY_TOKEN, db: _nbPending });
+    var body = JSON.stringify({ _token: LEGACY_TOKEN, rev: _nbRev, db: _nbPending });
     _nbPending = null;
     try{ navigator.sendBeacon(LEGACY_API + '?r=save', new Blob([body],{type:'application/json'})); }catch(e){}
   });

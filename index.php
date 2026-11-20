@@ -12,6 +12,12 @@
 
 require __DIR__ . '/includes/bootstrap.php';
 
+/* 系统更新写盘期间暂停前台动态请求，避免读到新旧混合的代码 */
+if (function_exists('update_maintenance_active') && update_maintenance_active()) {
+    update_maintenance_page();
+    exit;
+}
+
 if (isset($_GET['s'])) {
     $kw   = (string) get('s');
     $page = max(1, get_int('page', 1));

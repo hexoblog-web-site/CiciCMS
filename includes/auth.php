@@ -19,7 +19,7 @@ function auth_user()
         return null;
     }
     $_SESSION['last_act'] = time();
-    $cached = one('SELECT id, username, email FROM {p}user WHERE id = ?', array((int) $_SESSION['uid']));
+    $cached = one('SELECT id, username, email, role FROM {p}user WHERE id = ?', array((int) $_SESSION['uid']));
     if (!$cached) {
         unset($_SESSION['uid'], $_SESSION['uname']);
     }
@@ -29,6 +29,53 @@ function auth_user()
 function auth_check()
 {
     return auth_user() !== null;
+}
+
+/* ---------- 角色与能力（后端唯一口径，前端 CAP_ROLES 只负责隐藏菜单） ---------- */
+
+/** 合法角色白名单 */
+function auth_roles()
+{
+    return array('admin', 'editor', 'author');
+}
+
+/** 当前用户角色：未知值一律降级为 author，绝不放大权限 */
+function auth_role()
+{
+    $me = auth_user();
+    $role = $me && isset($me['role']) ? (string) $me['role'] : '';
+    return in_array($role, auth_roles(), true) ? $role : 'author';
+}
+
+/**
+ * 能力是否允许。前端隐藏菜单靠 CAP_ROLES，这里才是真正的门禁——
+ * 任何后台写操作都必须先过这一关，光藏按钮挡不住直接调 API。
+ */
+function auth_can($cap)
+{
+    $role = auth_role();
+    if ($role === 'admin') {
+        return true;
+    }
+    $map = array(
+        'content'  => array('admin', 'editor', 'author'),   // 文章/单页/媒体编辑
+        'publish'  => array('admin', 'editor'),             // 生成静态
+        'media'    => array('admin', 'editor'),             // 上传
+        'settings' => array('admin'),                       // 站点设置
+        'data'     => array('admin'),                       // 备份/恢复/体检/清理
+        'templates'=> array('admin'),                       // 模板
+        'system'   => array('admin'),                       // 系统更新
+        'accounts' => array('admin'),                       // 账号管理/改角色
+    );
+    return isset($map[$cap]) ? in_array($role, $map[$cap], true) : false;
+}
+
+/** 不允许时直接 403 终止，省得每个 case 重复写 */
+function auth_need($cap)
+{
+    if (!auth_can($cap)) {
+        api_fail('当前账号无权执行此操作', 403);
+    }
 }
 
 function require_login()

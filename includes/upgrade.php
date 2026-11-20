@@ -9,7 +9,7 @@
 /** 当前数据结构版本，每次改表时 +1（唯一数据源，bootstrap 不再另设常量） */
 function CMS_schema_version()
 {
-    return 8;
+    return 9;
 }
 
 /**
@@ -158,6 +158,16 @@ function CMS_upgrade()
             }
         } catch (Throwable $ex) {
             log_msg('schema: content_src 回填跳过：' . $ex->getMessage());
+        }
+
+        /* 10. 用户角色（v9）：user.role 决定后台菜单与高危操作的可见性。
+              存量站点全部是单管理员，这里统一补 'admin'，升级后行为完全不变；
+              想降级某个用户，由后台「账号管理」显式改。 */
+        $col = all("SHOW COLUMNS FROM {p}user LIKE 'role'");
+        if (empty($col)) {
+            q("ALTER TABLE {p}user ADD COLUMN `role` varchar(20) NOT NULL DEFAULT 'admin' AFTER `email`");
+            q("UPDATE {p}user SET role = 'admin' WHERE role = '' OR role IS NULL");
+            log_msg('schema: user.role added (existing users set to admin)');
         }
 
         if (ensure_dir(CMS_DATA)) {

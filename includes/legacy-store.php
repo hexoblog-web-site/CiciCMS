@@ -22,6 +22,16 @@ if (!defined('CMS_ROOT')) {
 }
 
 
+/**
+ * 保存冲突：提交的数据版本与库里不一致
+ *
+ * 用异常而不是返回 false，是为了让事务能整体回滚，调用方也能拿到明确文案。
+ * code 固定 409，API 层据此回 HTTP 409。
+ */
+class Legacy_Conflict extends RuntimeException
+{
+}
+
 /** mbstring 未必开启，给一个 UTF-8 安全兜底 */
 function nb_substr($s, $start, $len, $enc = 'UTF-8')
 {
@@ -302,17 +312,23 @@ function legacy_bootstrap()
 
     /* 媒体 */
     $media = array();
-    /* 老数据 content_id 常为 0：从文章内容反查附件归属，仅用于展示，不写回库 */
+    /* 老数据 content_id 常为 0：从文章内容反查附件归属，仅用于展示，不写回库。
+       按「文章里实际引用的文件名」匹配，而不是拿每篇文章去扫全部附件
+       （那是 O(文章×附件)，附件上千后后台首屏会明显变慢）。 */
     $refMap = array();
     $allFiles = array();
     foreach (all('SELECT path FROM {p}attachment') as $ar) {
-        $f = basename((string) $ar['path']);
-        if ($f !== '') $allFiles[$f] = true;
+        $rel = upload_rel($ar['path']);
+        $f = $rel !== '' ? basename($rel) : basename((string) $ar['path']);
+        if ($f !== '') {
+            $allFiles[$f] = true;
+        }
     }
     foreach ($posts as $p) {
         $hay = $p['md'] . ' ' . (isset($p['cover']) ? $p['cover'] : '') . ' ' . $p['attach'];
-        foreach (array_keys($allFiles) as $f) {
-            if (strpos($hay, $f) !== false && !isset($refMap[$f])) {
+        foreach (attachment_refs_in($hay) as $rel) {
+            $f = basename($rel);
+            if (isset($allFiles[$f]) && !isset($refMap[$f])) {
                 $refMap[$f] = (int) $p['id'];
             }
         }
@@ -382,6 +398,8 @@ function legacy_bootstrap()
     }
 
     $db = array(
+        /* 版本号：每次保存 +1，前端提交时带回；不一致说明别的窗口改过，拒绝覆盖 */
+        'rev'        => (int) setting('nebula_rev', '0'),
         'seq'        => $seq,
         'settings'   => $settings,
         'categories' => $categories,
@@ -389,6 +407,10 @@ function legacy_bootstrap()
         'pages'      => $pages,
         'media'      => $media,
         'tags'       => $tags,
+        /* 标签/栏目的持久化 ID 映射要一起下发：前端拿不到就会每次刷新重新分配，
+           新增一个标签就可能让旧标签的 ID 漂移。 */
+        'tagIds'     => $tagIds,
+        'catIds'     => $catIds,
         'users'      => $users,
     );
 
@@ -443,7 +465,69 @@ function legacy_cat_id($name)
  * 提交完整状态（增量写回）
  * ================================================================ */
 
-function legacy_commit($db)
+/**
+ * 提交完整状态（事务 + 版本校验）
+ *
+ * 整份数据包的写入必须是一个原子动作：中途任何一条 SQL 失败，
+ * 都不能把半套数据留在库里。
+ *
+ * @param array    $db        前端提交的完整状态
+ * @param int|null $expectRev 前端读取时的 rev；null 表示不校验（兼容没有 rev 的旧客户端）
+ * @return array counts + rev
+ */
+function legacy_commit($db, $expectRev = null)
+{
+    if (!is_array($db)) {
+        throw new InvalidArgumentException('无效的数据包');
+    }
+
+    $pdo = CmsDb::pdo();
+
+    /* 先确保版本行存在：行不存在时 SELECT ... FOR UPDATE 加的是间隙锁，
+       两个并发事务会同时拿到锁再各自插入，最后互相等待。 */
+    try {
+        q("INSERT IGNORE INTO {p}config (k, v) VALUES ('nebula_rev', '0')");
+    } catch (Throwable $ex) {
+        // 表结构异常时不必在这里报错，后面的写入会给出真实原因
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $row = one('SELECT v FROM {p}config WHERE k = ? FOR UPDATE', array('nebula_rev'));
+        $cur = $row ? (int) $row['v'] : 0;
+        if ($expectRev !== null && (int) $expectRev !== $cur) {
+            throw new Legacy_Conflict(
+                '内容已在其他窗口被修改（服务器版本 ' . $cur . '，当前页面 ' . (int) $expectRev
+                . '）。为避免覆盖别人的修改，本次保存已取消，请刷新页面后重做。',
+                409
+            );
+        }
+
+        $counts = legacy_commit_rows($db);
+
+        $next = $cur + 1;
+        q(
+            'INSERT INTO {p}config (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v = VALUES(v)',
+            array('nebula_rev', (string) $next)
+        );
+
+        $pdo->commit();
+        $counts['rev'] = $next;
+        return $counts;
+    } catch (Throwable $ex) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        /* 回滚后把设置缓存重新读一遍，避免内存里留着没提交的值 */
+        if (function_exists('settings_all')) {
+            settings_all(true);
+        }
+        throw $ex;
+    }
+}
+
+/** 真正写库的那一段，只能由 legacy_commit() 在事务里调用 */
+function legacy_commit_rows($db)
 {
     if (!is_array($db)) {
         throw new InvalidArgumentException('无效的数据包');
@@ -481,7 +565,10 @@ function legacy_commit($db)
             'dirname' => nb_substr($slug, 0, 60, 'UTF-8'),
             'description' => nb_substr((string) $desc, 0, 255, 'UTF-8'),
             'keywords' => nb_substr((string) $kw, 0, 255, 'UTF-8'),
-            'banner' => nb_substr((string) $cover, 0, 255, 'UTF-8'),
+            /* 横幅地址必须先规范化：只留站内上传路径、http(s) 外链、站内 / 路径，
+               javascript: / data: 之类一律丢弃，模板直接输出 src 也不会变成脚本 */
+            'banner' => nb_substr(function_exists('CMS_banner_clean')
+                ? CMS_banner_clean((string) $cover) : (string) $cover, 0, 255, 'UTF-8'),
             'sort' => 0,
         );
         if ($id > 0) {
@@ -533,6 +620,15 @@ function legacy_commit($db)
             ? nb_substr(basename((string) parse_url($attach, PHP_URL_PATH)), 0, 100, 'UTF-8')
             : '';
         $attachShow = ($attach !== '' && !empty($p['attachShow'])) ? 1 : 0;
+        /* 附件字节数：文件在本地就取真实大小，外链或文件缺失记 0（模板里按 0 处理） */
+        $attachSize = 0;
+        if ($attach !== '') {
+            $attachRel = upload_rel($attach);
+            $attachAbs = $attachRel !== '' ? upload_path($attachRel) : '';
+            if ($attachAbs !== '' && is_file($attachAbs)) {
+                $attachSize = (int) filesize($attachAbs);
+            }
+        }
         /* 作者：优先前端传来的 authorId，缺省时取当前登录用户 */
         $authorId = isset($p['authorId']) ? (int) $p['authorId'] : 0;
         if ($authorId < 1 && function_exists('auth_user')) {
@@ -552,6 +648,7 @@ function legacy_commit($db)
             'flag'        => legacy_flags_to_db(isset($p['flag']) ? $p['flag'] : array()),
             'attachment'  => $attach,
             'attach_name' => $attachName,
+            'attach_size' => $attachSize,
             'attach_show' => $attachShow,
             'author_id'   => $authorId,
             'cover'       => isset($p['cover']) ? (string) $p['cover'] : '',
@@ -561,11 +658,10 @@ function legacy_commit($db)
             'created_at'  => legacy_time_to_db(isset($p['date']) ? $p['date'] : ''),
             'updated_at'  => $now,
         );
-        // slug 唯一索引：别人占了就加后缀
-        $dupe = one('SELECT id FROM {p}article WHERE slug = ? AND id <> ?', array($data['slug'], $id));
-        if ($dupe) {
-            $data['slug'] = $data['slug'] . '-' . $id;
-        }
+        /* slug 唯一索引：统一走 unique_slug()，它会同时查文章与单页，
+           冲突时循环加后缀并复查；这里原来的「加一次 -id 就完事」仍可能撞车。 */
+        $data['slug'] = function_exists('unique_slug')
+            ? unique_slug('article', $data['slug'], $id) : $data['slug'];
         if (isset($oldPosts[$id])) {
             update_row('article', $data, 'id = ?', array($id));
         } else {
@@ -607,10 +703,8 @@ function legacy_commit($db)
             'created_at'  => legacy_time_to_db(isset($pg['date']) ? $pg['date'] : ''),
             'updated_at'  => $now,
         );
-        $dupe = one('SELECT id FROM {p}page WHERE slug = ? AND id <> ?', array($data['slug'], $id));
-        if ($dupe) {
-            $data['slug'] = $data['slug'] . '-' . $id;
-        }
+        $data['slug'] = function_exists('unique_slug')
+            ? unique_slug('page', $data['slug'], $id) : $data['slug'];
         if (isset($oldPages[$id])) {
             update_row('page', $data, 'id = ?', array($id));
         } else {
@@ -653,9 +747,28 @@ function legacy_commit($db)
         }
         $keepMedia[$id] = true;
         $file = isset($m['file']) ? (string) $m['file'] : '';
-        $path = isset($oldMedia[$id]) ? $oldMedia[$id] : ('content/uploads/' . $file);
-        $mime = isset($m['type']) && $m['type'] === 'image' ? 'image/jpeg'
-              : (isset($m['type']) && $m['type'] === 'zip' ? 'application/zip' : 'application/octet-stream');
+        /* 新入库的媒体要保留真实存储路径（图片在 images/年/月日/，附件在 files/年/月日/）。
+           只按文件名拼 content/uploads/ 会丢掉子目录，恢复出来的图片全是裂图。 */
+        $path = isset($oldMedia[$id]) ? $oldMedia[$id] : '';
+        if ($path === '') {
+            if (!empty($m['path'])) {
+                $path = ltrim(str_replace('\\', '/', (string) $m['path']), '/');
+            } elseif (!empty($m['url'])) {
+                /* 上传接口返回的可能是完整 URL，只取路径部分再规范化 */
+                $u    = (string) $m['url'];
+                $pu   = parse_url($u, PHP_URL_PATH);
+                $path = upload_rel($pu !== null && $pu !== false ? $pu : $u);
+            }
+            if ($path === '' || strpos($path, '..') !== false) {
+                $path = 'content/uploads/' . $file;
+            } elseif (strpos($path, 'content/uploads/') !== 0 && strpos($path, 'uploads/') !== 0) {
+                /* uploader 给的是相对 uploads 的 images/年/月日/xx.jpg，补成站点根相对 */
+                $path = 'content/uploads/' . $path;
+            }
+        }
+        $mime = !empty($m['mime']) ? nb_substr((string) $m['mime'], 0, 80, 'UTF-8')
+              : (isset($m['type']) && $m['type'] === 'image' ? 'image/jpeg'
+              : (isset($m['type']) && $m['type'] === 'zip' ? 'application/zip' : 'application/octet-stream'));
         $data = array(
             'path'       => nb_substr($path, 0, 255, 'UTF-8'),
             'name'       => nb_substr(basename($file), 0, 200, 'UTF-8'),
@@ -715,6 +828,15 @@ function legacy_commit($db)
         }
     }
     $extra['tagIds'] = array();
+    /* 先收前端维护的 tagIds（ensureTagIds 分配并持久化），再用 tags 里的 id 补漏。
+       只读 tags 的话，新标签的 id 永远是 0，标签页地址会漂移。 */
+    if (isset($db['tagIds']) && is_array($db['tagIds'])) {
+        foreach ($db['tagIds'] as $name => $tid) {
+            if ((int) $tid > 0) {
+                $extra['tagIds'][(string) $name] = (int) $tid;
+            }
+        }
+    }
     if (!empty($db['tags']) && is_array($db['tags'])) {
         foreach ($db['tags'] as $t) {
             if (isset($t['name'], $t['id']) && (int) $t['id'] > 0) {
