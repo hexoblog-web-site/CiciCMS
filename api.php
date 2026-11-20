@@ -146,7 +146,7 @@ if ($act === 'view') {
 
     // 2) 服务端去重：同 IP 同文章 10 分钟一次（清 cookie 也绕不过）
     // 3) cookie 去重：同浏览器 1 小时一次
-    $key    = 'cms_v_' . $id;
+    $key    = 'CMS_v_' . $id;
     $last   = isset($_COOKIE[$key]) ? (int) $_COOKIE[$key] : 0;
     $counted = false;
 

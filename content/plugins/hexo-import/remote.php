@@ -82,6 +82,54 @@ function hexo_img_srcs($html)
 }
 
 /**
+ * 取出正文里所有指向 /uploads/ 的旧资源引用（图片 src + 附件 href）
+ *
+ * 逐篇工作台用：这些就是需要你逐张/逐个上传来"对应替换路径"的槽位。
+ * 只收相对路径（旧站的 /uploads/...），已经带域名的外链和 data: 都跳过。
+ * 返回 array(array('src'=>原路径,'kind'=>'image|file','label'=>展示名))
+ */
+function hexo_asset_refs($html)
+{
+    $out = array();
+    $html = (string) $html;
+    $seen = array();
+
+    // 图片：img 的 src
+    if (preg_match_all('#<img\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']#i', $html, $m)) {
+        foreach ($m[1] as $v) {
+            $v = trim(html_entity_decode($v, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if (strpos($v, '/uploads/') === false || isset($seen[$v])) {
+                continue;
+            }
+            if (preg_match('#^(https?:)?//#i', $v) || stripos($v, 'data:') === 0) {
+                continue;
+            }
+            $seen[$v] = true;
+            $out[] = array('src' => $v, 'kind' => 'image', 'label' => basename(parse_url($v, PHP_URL_PATH)));
+        }
+    }
+    // 附件：a 的 href 指向 /uploads/ 且不是图片后缀
+    if (preg_match_all('#<a\b[^>]*\bhref\s*=\s*["\']([^"\']+)["\']#i', $html, $m)) {
+        foreach ($m[1] as $v) {
+            $v = trim(html_entity_decode($v, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if (strpos($v, '/uploads/') === false || isset($seen[$v])) {
+                continue;
+            }
+            if (preg_match('#^(https?:)?//#i', $v)) {
+                continue;
+            }
+            $ext = strtolower(pathinfo((string) parse_url($v, PHP_URL_PATH), PATHINFO_EXTENSION));
+            if (in_array($ext, array('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'avif', 'svg'), true)) {
+                continue; // 图片后缀交给 img 规则，避免重复
+            }
+            $seen[$v] = true;
+            $out[] = array('src' => $v, 'kind' => 'file', 'label' => urldecode(basename((string) parse_url($v, PHP_URL_PATH))));
+        }
+    }
+    return $out;
+}
+
+/**
  * 把 src 换成新地址；三种引号写法都要覆盖，否则会漏一半
  */
 function hexo_img_replace($html, $src, $newUrl)
@@ -142,7 +190,7 @@ function hexo_img_download($url, &$err)
      * 每一跳都重新过一次公网判定。
      */
     for ($hop = 0; $hop <= 3; $hop++) {
-        $bad = cms_url_public_check($url);
+        $bad = CMS_url_public_check($url);
         if ($bad !== '') {
             $err = $bad;
             return false;
@@ -406,4 +454,45 @@ function hexo_img_localize($url, &$cache, &$err)
 
     $cache[$url] = $saved;
     return $saved;
+}
+
+/**
+ * 逐张上传：把用户在后台选的一张本地图片落到本站
+ *
+ * 虚拟主机友好：完全复用程序自带的 CMS_upload_image()，校验、按 年/月日/
+ * 建目录、时间戳改名、登记 attachment 表都由它完成。每次请求只处理一张，
+ * 不占内存、不吃执行时长，也没有 2M 以上整包上传的压力。
+ *
+ * @param array  $file $_FILES 里的单个条目（如 $_FILES['file']）
+ * @param string $err  失败原因（出参）
+ * @return array|false 成功返回 array('url','path','name')，失败返回 false
+ */
+function hexo_img_from_upload($file, &$err, $kind = 'image')
+{
+    $err = '';
+    $ok = false;
+    if ($kind === 'file') {
+        // 附件：交给站内附件上传器（支持 zip/rar/pdf/doc 等）
+        if (!function_exists('CMS_file_upload')) {
+            $err = '站内附件上传器不可用，请检查安装完整性';
+            return false;
+        }
+        $ok = CMS_file_upload($file, $err);
+    } else {
+        // 图片：交给站内图片上传器
+        if (!function_exists('CMS_upload_image')) {
+            $err = '站内图片上传器不可用，请检查安装完整性';
+            return false;
+        }
+        $ok = CMS_upload_image($file, $err);
+    }
+    if (!$ok) {
+        return false;
+    }
+    return array(
+        'url'  => isset($ok['url']) ? (string) $ok['url'] : '',
+        'path' => isset($ok['path']) ? (string) $ok['path'] : '',
+        'name' => isset($ok['name']) ? (string) $ok['name'] : '',
+        'kind' => $kind,
+    );
 }

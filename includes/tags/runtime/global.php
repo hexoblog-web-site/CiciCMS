@@ -15,7 +15,7 @@ if (!defined('CMS_TAG_NS')) {
 
 
 /** 系统变量：兼容 cfg_xxx 命名 */
-function cms_tag_global($name)
+function CMS_tag_global($name)
 {
     $name = trim((string) $name);
     if ($name === '') {
@@ -34,7 +34,7 @@ function cms_tag_global($name)
         $name = $map[$name];
     }
     if (strpos($name, 'site_') === 0) {
-        return cms_val('site.' . substr($name, 5));
+        return CMS_val('site.' . substr($name, 5));
     }
     return (string) setting($name, '');
 }

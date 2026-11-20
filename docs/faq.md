@@ -21,7 +21,7 @@
 数据库里改。用 phpMyAdmin 执行：
 
 ```sql
-UPDATE cms_user
+UPDATE CMS_user
 SET password = '$2y$10$……'
 WHERE username = 'admin';
 ```

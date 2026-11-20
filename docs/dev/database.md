@@ -1,6 +1,6 @@
 # 数据表字典
 
-七张表，都很简单。表前缀默认 `cms_`，安装时可改。
+七张表，都很简单。表前缀默认 `CMS_`，安装时可改。
 
 ## 总览
 
@@ -230,7 +230,7 @@ schema: article.attach_show added
 **某栏目下最新的 10 篇**
 
 ```sql
-SELECT id, title, created_at FROM cms_article
+SELECT id, title, created_at FROM CMS_article
 WHERE cat_id = 2 AND status = 1
 ORDER BY created_at DESC LIMIT 10;
 ```
@@ -238,7 +238,7 @@ ORDER BY created_at DESC LIMIT 10;
 **浏览量最高的 5 篇**
 
 ```sql
-SELECT id, title, views FROM cms_article
+SELECT id, title, views FROM CMS_article
 WHERE status = 1 ORDER BY views DESC LIMIT 5;
 ```
 
@@ -246,15 +246,15 @@ WHERE status = 1 ORDER BY views DESC LIMIT 5;
 
 ```sql
 SELECT c.name, COUNT(a.id) AS n
-FROM cms_category c
-LEFT JOIN cms_article a ON a.cat_id = c.id AND a.status = 1
+FROM CMS_category c
+LEFT JOIN CMS_article a ON a.cat_id = c.id AND a.status = 1
 GROUP BY c.id ORDER BY c.sort;
 ```
 
 **标签出现次数**（程序里是 PHP 算的，这里只是参考）
 
 ```sql
-SELECT tags FROM cms_article WHERE status = 1 AND tags <> '';
+SELECT tags FROM CMS_article WHERE status = 1 AND tags <> '';
 ```
 
 ## 下一步

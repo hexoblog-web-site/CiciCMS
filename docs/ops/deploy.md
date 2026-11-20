@@ -63,7 +63,6 @@ server {
 
     # ② 挡住系统代码、配置、日志、备份
     location ~ ^/includes/            { deny all; }
-    location ~ ^/admin/inc/           { deny all; }
     location ~ ^/config\.php$         { deny all; }
     location ~* \.(log|lock|sql|bak|ini)$ { deny all; }
     location ~ ^/content/data/        { deny all; }

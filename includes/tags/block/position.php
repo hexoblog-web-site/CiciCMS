@@ -14,33 +14,33 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-function cms_tag_block_position($attrRaw, $body)
+function CMS_tag_block_position($attrRaw, $body)
 {
-    $a    = cms_tag_attrs($attrRaw);
+    $a    = CMS_tag_attrs($attrRaw);
     $o    = array('home' => isset($a['home']) ? $a['home'] : '首页');
     $sep  = isset($a['sep']) ? $a['sep'] : '/';
     $auto = trim($body) === '';
 
     if ($auto) {
-        return '<?php echo cms_tag_position_html(cms_tag_position(' . cms_tag_qcode($o) . '), ' . var_export($sep, true) . '); ?>';
+        return '<?php echo CMS_tag_position_html(CMS_tag_position(' . CMS_tag_qcode($o) . '), ' . var_export($sep, true) . '); ?>';
     }
-    $uid = cms_tag_uid();
+    $uid = CMS_tag_uid();
     $st  = '$__pos' . $uid;
-    return '<?php ' . $st . ' = cms_tag_position(' . cms_tag_qcode($o) . '); ?>'
+    return '<?php ' . $st . ' = CMS_tag_position(' . CMS_tag_qcode($o) . '); ?>'
          . '<?php if (!empty(' . $st . ')): ?>'
-         . cms_tag_loop_code($st, $body)
+         . CMS_tag_loop_code($st, $body)
          . '<?php endif; ?>';
 }
 /* ── 自闭合写法 {cici:position sep="/"} ───────────────── */
 
-function cms_tag_inline_position($ctx)
+function CMS_tag_inline_position($ctx)
 {
     $a   = $ctx['attrs'];
     $sep = isset($a['sep']) ? $a['sep'] : '/';
     $o   = array('home' => isset($a['home']) ? $a['home'] : '首页');
 
-    return '<?php echo cms_tag_position_html(cms_tag_position(' . cms_tag_qcode($o) . '), '
-         . cms_tag_attr_expr($sep) . '); ?>';
+    return '<?php echo CMS_tag_position_html(CMS_tag_position(' . CMS_tag_qcode($o) . '), '
+         . CMS_tag_attr_expr($sep) . '); ?>';
 }
 
 return array(
@@ -48,6 +48,6 @@ return array(
     'desc'    => '面包屑导航，写不写闭合标签都能用',
     'block'   => true,
     'auto'    => true,
-    'compile' => 'cms_tag_block_position',
-    'inline'  => 'cms_tag_inline_position',
+    'compile' => 'CMS_tag_block_position',
+    'inline'  => 'CMS_tag_inline_position',
 );

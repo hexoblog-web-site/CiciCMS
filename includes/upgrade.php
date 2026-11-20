@@ -7,7 +7,7 @@
  */
 
 /** 当前数据结构版本，每次改表时 +1（唯一数据源，bootstrap 不再另设常量） */
-function cms_schema_version()
+function CMS_schema_version()
 {
     return 8;
 }
@@ -15,9 +15,9 @@ function cms_schema_version()
 /**
  * 执行结构升级。失败只记日志，不影响页面访问（避免升级把站点搞挂）。
  */
-function cms_upgrade()
+function CMS_upgrade()
 {
-    $ver  = cms_schema_version();
+    $ver  = CMS_schema_version();
     $lock = CMS_DATA . '/schema-' . $ver . '.lock';
     if (is_file($lock)) {
         return;

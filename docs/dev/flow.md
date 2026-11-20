@@ -44,7 +44,7 @@ POST /admin/index.php?p=article&do=save
    │
    ├─ bootstrap.php
    │    ├─ 常量 / 配置 / 连库
-   │    ├─ cms_session_start()（后台必开）
+   │    ├─ CMS_session_start()（后台必开）
    │    ├─ 结构升级检查
    │    └─ 加载启用的插件
    │
@@ -56,7 +56,7 @@ POST /admin/index.php?p=article&do=save
    ├─ clean_html($html)          ← 净化
    ├─ insert_row / update_row    ← 写 article，两个字段都存
    │
-   ├─ cms_do_action('article_saved', $id, $data, $isNew)
+   ├─ CMS_do_action('article_saved', $id, $data, $isNew)
    │
    └─ 如果 auto_build = 1
         └─ build_incremental()   ← 只重建受影响的页面
@@ -99,7 +99,7 @@ POST /admin/index.php?p=article&do=save
          ├─ 写清单 content/data/static.json
          ├─ build_cleanup() 删掉"上次有这次没有"的文件
          ├─ 解锁
-         └─ cms_do_action('build_done', $files, $errors)
+         └─ CMS_do_action('build_done', $files, $errors)
 ```
 
 **为什么用 8 秒而不是"能跑多久跑多久"**
@@ -129,7 +129,7 @@ POST /admin/index.php?p=article&do=save
    ├─ update_backup_system()             ← 备份到 content/data/backup/update/<时间>-<版本>/
    │
    ├─ update_download()                  ← 从 codeload 拉 zip
-   ├─ Cms_Zip_Reader 解包
+   ├─ CMS_Zip_Reader 解包
    │     ├─ 确认包含 bootstrap.php / admin/index.php / index.php
    │     ├─ 读出版本号，比当前低 → 拒绝
    │     └─ 逐个文件：update_path_allowed() 白名单检查
@@ -168,9 +168,9 @@ update_restore($backupName)
 | --- | --- | --- | --- |
 | 访问静态页 | Web 服务器 | — | 否 |
 | 访问动态页 | `index.php` | `fe_render_*` | 否 |
-| 保存文章 | `admin/pages/article.php` | `render_content` `build_incremental` | 数据库 + 静态页 |
-| 全量生成 | `admin/pages/build.php` | `build_start` `build_tick` `build_finish` | 静态页 + 状态 |
-| 在线更新 | `admin/pages/update.php` | `update_apply` `update_install_zip` | 程序文件 + 备份 |
+| 保存文章 | `admin/api.php?r=save` | `legacy_commit` `render_content` `build_incremental` | 数据库 + 静态页 |
+| 全量生成 | `admin/api.php?r=build` | `build_tick` `build_finish` | 静态页 + 状态 |
+| 自动更新 | `admin/cron.php` | `update_auto_run` `update_apply` | 程序文件 + 备份 |
 
 ## 出问题该看哪里
 

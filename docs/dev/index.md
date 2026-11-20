@@ -114,36 +114,20 @@ if (!defined('CMS_ROOT')) { exit; }
 
 编译后的模板缓存在 `content/data/cache/tpl/`，模板改动时按 `mtime` 自动失效。
 
-## 十三行后台页面
+## 后台：一个外壳 + 一个数据层
 
-`admin/pages/` 下一个文件就是一个菜单项，没有框架、没有 MVC：
+后台只有一套界面，`admin/index.php` 直接载入 `admin/legacy/index.php`：
 
-| 文件 | 菜单 |
+| 文件 | 职责 |
 | --- | --- |
-| `dashboard.php` | 仪表盘 |
-| `article.php` | 文章管理（最大，27KB） |
-| `category.php` | 栏目管理 |
-| `page.php` | 单页管理 |
-| `media.php` | 媒体信息 |
-| `flink.php` | 友情链接 |
-| `build.php` | 生成静态 |
-| `clean.php` | 系统清理 |
-| `data.php` | 数据系统 |
-| `theme.php` | 模板管理 |
-| `setting.php` | 系统设置 |
-| `plugin.php` | 插件 |
-| `update.php` | 系统更新（27KB） |
+| `admin/legacy/index.php` | 鉴权 + 输出静态骨架（侧栏、空容器、运行时配置） |
+| `admin/legacy/assets/app.css` | 全部界面样式（设计令牌 + 组件） |
+| `admin/legacy/assets/app.js` | 所有页面视图与交互，`#/hash` 路由 |
+| `admin/api.php` | JSON 接口：`state` / `save` / `upload` / `build` / `logout` |
+| `includes/legacy-store.php` | 界面结构 ↔ 数据库表的映射与写回 |
 
-每个页面文件的结构都一样：
-
-```php
-<?php
-if (!defined('CMS_ADMIN')) { http_response_code(404); exit; }
-
-// 1. 处理 POST（先 csrf_verify()）
-// 2. 查数据
-// 3. 输出 HTML
-```
+页面不再按文件拆分：切页只切 hash，数据由 `api.php?r=state` 一次拉全，保存时整包提交、服务端增量写回。
+新增一个页面 = 在 `app.js` 里写一个 `vXxx()` 视图 + 在路由表里登记，不需要新建 PHP 文件。
 
 ## 建议的阅读顺序
 
@@ -157,7 +141,7 @@ if (!defined('CMS_ADMIN')) { http_response_code(404); exit; }
 | 4 | `index.php` → `includes/frontend.php` | 前台一个请求怎么变成页面 |
 | 5 | `includes/builder.php` | 静态页是怎么写出来的 |
 | 6 | `includes/content.php` | 正文怎么被处理 |
-| 7 | `admin/index.php` → 任一 `admin/pages/*.php` | 后台怎么组织的 |
+| 7 | `admin/index.php` → `admin/legacy/index.php` → `admin/api.php` | 后台怎么组织的 |
 | 8 | `includes/tags/engine.php` | 标签模板怎么变成 PHP |
 | 9 | `includes/plugin.php` | 钩子怎么工作 |
 | 10 | `includes/updater.php` | 在线更新（最长，最后看） |
@@ -168,8 +152,8 @@ if (!defined('CMS_ADMIN')) { http_response_code(404); exit; }
 
 | 约定 | 说明 |
 | --- | --- |
-| 不用命名空间 | 全部是全局函数，靠前缀区分（`cms_` / `build_` / `update_` / `fe_` / `db_`） |
-| 不用类，除了三个 | `Cms_Image_Uploader`、`Cms_Zip_Reader`，还有 PDO 本身 |
+| 不用命名空间 | 全部是全局函数，靠前缀区分（`CMS_` / `build_` / `update_` / `fe_` / `db_`） |
+| 不用类，除了三个 | `CMS_Image_Uploader`、`CMS_Zip_Reader`，还有 PDO 本身 |
 | 数组用 `array()` | 兼容 PHP 5.4+ 的老写法，不是 `[]` |
 | 缩进 4 空格 | 没有 PSR-12 强制，但整体一致 |
 | 中文注释 | 关键逻辑都有注释，尤其是"为什么这么写" |

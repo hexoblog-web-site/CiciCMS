@@ -13,7 +13,7 @@ if (!defined('CMS_ROOT')) {
     exit;
 }
 
-cms_add_filter('html_final', function ($html, $context = 'static') {
+CMS_add_filter('html_final', function ($html, $context = 'static') {
     $html = (string) $html;
 
     // 没有代码块：一个字节都不加
@@ -21,8 +21,8 @@ cms_add_filter('html_final', function ($html, $context = 'static') {
         return $html;
     }
 
-    $css = cms_plugin_url('highlight', 'assets/code.css');
-    $js  = cms_plugin_url('highlight', 'assets/prism.bundle.js');
+    $css = CMS_plugin_url('highlight', 'assets/code.css');
+    $js  = CMS_plugin_url('highlight', 'assets/prism.bundle.js');
 
     if (stripos($html, '</head>') !== false) {
         $html = preg_replace(

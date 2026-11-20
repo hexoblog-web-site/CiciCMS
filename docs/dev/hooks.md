@@ -44,8 +44,8 @@
 // content/plugins/demo/plugin.php
 if (!defined('CMS_ROOT')) { exit; }
 
-cms_add_filter('html_foot', function ($html) {
-    return $html . '<script src="' . cms_plugin_url('demo', 'assets/demo.js') . '" defer></script>';
+CMS_add_filter('html_foot', function ($html) {
+    return $html . '<script src="' . CMS_plugin_url('demo', 'assets/demo.js') . '" defer></script>';
 });
 ```
 
@@ -54,7 +54,7 @@ cms_add_filter('html_foot', function ($html) {
 ### action：到点做事
 
 ```php
-cms_add_action('article_saved', function ($id, $data, $isNew) {
+CMS_add_action('article_saved', function ($id, $data, $isNew) {
     log_msg('文章已保存：' . $id . ($isNew ? '（新建）' : '（更新）'));
 });
 ```
@@ -66,8 +66,8 @@ cms_add_action('article_saved', function ($id, $data, $isNew) {
 第三个参数，数字小的先执行，默认 10：
 
 ```php
-cms_add_filter('content_html', 'my_first', 5);    // 先跑
-cms_add_filter('content_html', 'my_later', 20);   // 后跑
+CMS_add_filter('content_html', 'my_first', 5);    // 先跑
+CMS_add_filter('content_html', 'my_later', 20);   // 后跑
 ```
 
 ### 用命名函数而不是闭包
@@ -76,9 +76,9 @@ cms_add_filter('content_html', 'my_later', 20);   // 后跑
 
 ```php
 function demo_foot($html) {
-    return $html . '<script src="' . cms_plugin_url('demo', 'assets/demo.js') . '"></script>';
+    return $html . '<script src="' . CMS_plugin_url('demo', 'assets/demo.js') . '"></script>';
 }
-cms_add_filter('html_foot', 'demo_foot');
+CMS_add_filter('html_foot', 'demo_foot');
 ```
 
 ## 一个完整的插件
@@ -108,7 +108,7 @@ content/plugins/read-time/
 if (!defined('CMS_ROOT')) { exit; }
 
 // 正文渲染完后，在文章页插入阅读时间
-cms_add_filter('html_final', function ($html, $context) {
+CMS_add_filter('html_final', function ($html, $context) {
     if (empty($context['type']) || $context['type'] !== 'article') {
         return $html;
     }
@@ -176,7 +176,7 @@ $word = setting('demo_word', '你好');
 ### 挂到左侧菜单
 
 ```php
-cms_add_filter('admin_menu', function ($nav) {
+CMS_add_filter('admin_menu', function ($nav) {
     $nav['demo'] = array('示例插件', '<path d="M12 3.5v10"/><path d="M8 8.5l4-4 4 4"/>');
     return $nav;
 });

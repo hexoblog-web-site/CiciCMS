@@ -14,7 +14,7 @@ if (!defined('CMS_TAG_NS')) {
 
 
 /** 推荐位（flag）定义，与后台勾选项一致 */
-function cms_flag_map()
+function CMS_flag_map()
 {
     return array(
         'c' => '推荐',
@@ -29,7 +29,7 @@ function cms_flag_map()
 }
 
 /** 面向访客展示的推荐位。幻灯/滚动/加粗/图片/图文属于排版用途，不对读者显示 */
-function cms_flag_public_map()
+function CMS_flag_public_map()
 {
     return array(
         'c' => '推荐',
@@ -39,13 +39,13 @@ function cms_flag_public_map()
 }
 
 /** 这些字段按 HTML 原样输出，不做转义 */
-function cms_tag_raw_fields()
+function CMS_tag_raw_fields()
 {
     return array('content', 'body', 'html', 'footer', 'code');
 }
 
 /** 兼容字段别名 → 本站字段，便于旧模板迁移 */
-function cms_tag_field_alias()
+function CMS_tag_field_alias()
 {
     return array(
         'arcurl'     => 'url',

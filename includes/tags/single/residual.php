@@ -22,10 +22,10 @@ if (!defined('CMS_TAG_NS')) {
 return array(
     'name'    => array('else', 'empty'),
     'desc'    => '块标签的分支符号，被单独解析到时直接丢弃',
-    'compile' => 'cms_tag_single_residual',
+    'compile' => 'CMS_tag_single_residual',
 );
 
-function cms_tag_single_residual($ctx)
+function CMS_tag_single_residual($ctx)
 {
     return '';
 }

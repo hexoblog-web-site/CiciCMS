@@ -21,10 +21,10 @@ if (!defined('CMS_TAG_NS')) {
 return array(
     'name'    => 'url',
     'desc'    => '站点根地址',
-    'compile' => 'cms_tag_single_url',
+    'compile' => 'CMS_tag_single_url',
 );
 
-function cms_tag_single_url($ctx)
+function CMS_tag_single_url($ctx)
 {
     return '<?php echo e(site_url()); ?>';
 }

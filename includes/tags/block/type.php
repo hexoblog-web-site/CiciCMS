@@ -14,9 +14,9 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-function cms_tag_block_type($attrRaw, $body)
+function CMS_tag_block_type($attrRaw, $body)
 {
-    $a = cms_tag_attrs($attrRaw);
+    $a = CMS_tag_attrs($attrRaw);
     $q = array('type' => 'category', 'limit' => 1);
     if (!empty($a['catid'])) {
         $q['catid'] = $a['catid'];
@@ -30,15 +30,15 @@ function cms_tag_block_type($attrRaw, $body)
         $q['current'] = '1';
     }
 
-    list($main, $empty) = cms_tag_split_block_empty($body);
-    $uid = cms_tag_uid();
+    list($main, $empty) = CMS_tag_split_block_empty($body);
+    $uid = CMS_tag_uid();
     $st  = '$__ty' . $uid;
 
-    return '<?php ' . $st . ' = cms_tag_rows(' . cms_tag_qcode($q) . '); ?>'
+    return '<?php ' . $st . ' = CMS_tag_rows(' . CMS_tag_qcode($q) . '); ?>'
          . '<?php if (empty(' . $st . ')): ?>'
-         . cms_tag_parse($empty)
+         . CMS_tag_parse($empty)
          . '<?php else: ?>'
-         . cms_tag_loop_code($st, $main)
+         . CMS_tag_loop_code($st, $main)
          . '<?php endif; ?>';
 }
 /* ── 标签注册（引擎按这份声明找到本文件）───────────────── */
@@ -47,5 +47,5 @@ return array(
     'name'    => array('type', 'autochannel'),
     'desc'    => '单个栏目',
     'block'   => true,
-    'compile' => 'cms_tag_block_type',
+    'compile' => 'CMS_tag_block_type',
 );

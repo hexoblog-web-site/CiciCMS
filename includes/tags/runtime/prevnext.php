@@ -15,12 +15,12 @@ if (!defined('CMS_TAG_NS')) {
 
 
 /** 上一篇 / 下一篇 */
-function cms_tag_prevnext($dir, $o = array())
+function CMS_tag_prevnext($dir, $o = array())
 {
     $o       = is_array($o) ? $o : array();
     $samecat = !isset($o['samecat']) || (string) $o['samecat'] !== '0';
 
-    $scope = cms_scope();
+    $scope = CMS_scope();
     $post  = isset($scope['post']) ? $scope['post'] : null;
     if (!is_array($post) || empty($post['id'])) {
         return array();
@@ -44,13 +44,13 @@ function cms_tag_prevnext($dir, $o = array())
          ORDER BY a.created_at ' . $order . ', a.id ' . $order . ' LIMIT 1',
         $params
     );
-    return $row ? array(cms_row_expand($row)) : array();
+    return $row ? array(CMS_row_expand($row)) : array();
 }
 
 /** 上一篇/下一篇的默认链接 HTML（空标签形态使用） */
-function cms_tag_prevnext_html($dir, $o = array())
+function CMS_tag_prevnext_html($dir, $o = array())
 {
-    $rows = cms_tag_prevnext($dir, is_array($o) ? $o : array());
+    $rows = CMS_tag_prevnext($dir, is_array($o) ? $o : array());
     $text = $dir === 'next' ? '下一篇' : '上一篇';
     if (empty($rows)) {
         return '<span class="pn dis"><span>' . $text . '</span>已是' . ($dir === 'next' ? '最后一篇' : '第一篇') . '</span>';

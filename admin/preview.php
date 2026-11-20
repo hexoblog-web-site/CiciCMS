@@ -5,7 +5,7 @@
  * 前台是纯静态站，没有任何动态页面；这里的渲染结果只给登录后的编辑者本人在后台弹窗里看：
  *  - GET  ?type=article&id=12  按数据库当前内容渲染（草稿也能看）
  *  - POST 表单字段              按编辑器里未保存的内容渲染（先看效果再决定存不存）
- * POST 分支与 admin/pages/article.php、page.php 的保存链路保持同构：
+ * POST 分支与后台保存链路保持同构（字段清洗规则见 includes/legacy-store.php）：
  * 源文 → 代码块围栏渲染 → HTML 净化，保证「所见即所得」。
  * 页面带 noindex，浏览计数脚本会被剔除，预览绝不计入浏览量。
  */
@@ -86,7 +86,7 @@ if (is_post()) {
     }
 
     $flags = array();
-    foreach (array_keys(cms_flag_map()) as $fk) {
+    foreach (array_keys(CMS_flag_map()) as $fk) {
         if (post_str('flag_' . $fk) === '1') {
             $flags[] = $fk;
         }
@@ -95,7 +95,7 @@ if (is_post()) {
     $catId = (int) post_str('cat_id', 0);
     $cat   = $catId > 0 ? one('SELECT name, dirname FROM {p}category WHERE id = ?', array($catId)) : null;
 
-    $attach     = cms_file_clean(post_str('attachment'));
+    $attach     = CMS_file_clean(post_str('attachment'));
     $attachName = str_limit(post_str('attach_name'), 100);
     $attachSize = max(0, (int) post_str('attach_size', '0'));
     $attachShow = ($attach !== '' && post_str('attach_show') === '1') ? 1 : 0;

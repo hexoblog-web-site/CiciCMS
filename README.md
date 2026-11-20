@@ -3,7 +3,7 @@
 [![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v2.3.0-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
+[![Release](https://img.shields.io/badge/release-v2.3.1-2563EB.svg)](https://github.com/hexoblog-web-site/CiciCMS/releases)
 
 PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的习惯组织：文章列表、栏目树、单页、模板、一键生成，不需要重新学一套操作逻辑；程序健壮性按长期运营的实战要求设计：全部 SQL 预处理、CSRF 校验、原子写盘、登录限速、内容过滤、备份与旧文件清理。
 
@@ -127,7 +127,7 @@ PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的�
 按顺序问四个问题：
 
 1. 是**程序代码**还是**用户数据**？→ 代码进 `includes/`，数据进 `content/`
-2. 是**后台界面**吗？→ 是的话进 `admin/pages/`
+2. 是**后台界面**吗？→ 是的话进 `admin/legacy/`（唯一后台，页面由 `assets/app.js` 渲染）
 3. **运行期需要写它吗**？→ 需要写的，绝不能放 `includes/`、`admin/`（这两处运行期一个字节都不写）
 4. **升级时该保留吗**？→ 该保留的，绝不能放 `includes/`
 
@@ -150,7 +150,7 @@ PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的�
 后端代码里对应的三道保险：
 
 - `build_put()` 只允许写 `.html .htm .xml .txt .json`（`build_allowed_ext()`），静态生成不可能产出可执行文件，即使站点根目录必须可写。
-- `build_put()` 还会拒绝任何落在 `admin/` `includes/` `install/` `content/` `docs/` 的路径（`cms_is_system_rel()`）。这是代码层的护栏：就算栏目别名被直接改库改成 `admin`，生成器也只会报「拒绝写入系统目录」，不会往代码区丢文件；清理旧静态文件时同样跳过这些目录。
+- `build_put()` 还会拒绝任何落在 `admin/` `includes/` `install/` `content/` `docs/` 的路径（`CMS_is_system_rel()`）。这是代码层的护栏：就算栏目别名被直接改库改成 `admin`，生成器也只会报「拒绝写入系统目录」，不会往代码区丢文件；清理旧静态文件时同样跳过这些目录。
 - 上传走 `media.php`：扩展名白名单 + `getimagesize()` 真实图片校验 + 随机文件名，不信任浏览器给的 MIME。
 
 **关于 `chmod` 的实话**：`chmod -R a-w` 挡得住"别的程序、别的账号"往里写，挡不住已经拿到 PHP 执行权的人——Linux 下文件属主可以自己把写权限 `chmod` 回来。要做到真正不可写，得让 `admin/` 的属主不是 PHP 运行用户（例如 root 拥有、PHP 用户只在组内只读），或者用 `chattr +i`、只读挂载。虚拟主机（FTP 账号就是 PHP 用户）通常做不到这一点，那就别只指望权限：定期用发布包的哈希比对 `admin/`、`includes/` 更实在，发现被改就整目录覆盖回去。
@@ -164,7 +164,7 @@ PHP + MySQL 的**静态化内容管理系统**。后台按国内站长熟悉的�
 | 位置 | 为什么可执行 | 怎么控 |
 | --- | --- | --- |
 | `content/data/cache/tpl/*.php` | `{cici:}` 标签模板的编译产物，`include` 执行 | 只能由主题源码编译生成，不接收外部内容；`content/data/.htaccess` 整层 `Require all denied` |
-| `content/plugins/<id>/plugin.php` | 插件逻辑入口，启用时由 `cms_plugin_load()` 载入 | 只加载 `plugins_active` 里列出的插件；ID 走白名单正则；`content/plugins/.htaccess` 拒绝直接请求 `.php`；Nginx 必须补 `location ~ ^/content/plugins/.*\.php$ { deny all; }` |
+| `content/plugins/<id>/plugin.php` | 插件逻辑入口，启用时由 `CMS_plugin_load()` 载入 | 只加载 `plugins_active` 里列出的插件；ID 走白名单正则；`content/plugins/.htaccess` 拒绝直接请求 `.php`；Nginx 必须补 `location ~ ^/content/plugins/.*\.php$ { deny all; }` |
 
 **插件带来的实际含义**：能往 `content/plugins/` 写一个 `plugin.php`、并且能点一下"启用"的人，等于能在服务器上执行任意 PHP。所以
 
@@ -249,7 +249,7 @@ rm -rf install                       # 装完删掉安装目录
 
 这次是加固，没有数据库变更，覆盖 `includes/`、`admin/`、`install/` 即可：
 
-1. 新增 `cms_system_dirs()` / `cms_is_system_rel()`：静态生成和清理旧文件时，一律拒绝 `admin/`、`includes/`、`install/`、`content/`、`docs/` 下的路径。以前只有栏目页生成校验了保留目录，文章路径是直接用栏目的 `dirname` 拼的，脏数据（直接把库里栏目别名改成 `admin`）能把文章写进后台目录；现在两条路都堵上了。
+1. 新增 `CMS_system_dirs()` / `CMS_is_system_rel()`：静态生成和清理旧文件时，一律拒绝 `admin/`、`includes/`、`install/`、`content/`、`docs/` 下的路径。以前只有栏目页生成校验了保留目录，文章路径是直接用栏目的 `dirname` 拼的，脏数据（直接把库里栏目别名改成 `admin`）能把文章写进后台目录；现在两条路都堵上了。
 2. 因此 `admin/`、`includes/`、`install/` 可以放心设成只读，后台所有功能照常（详见 3.2、3.3）。
 3. 版本号变化会让标签编译缓存整体失效一次，首次访问自动重建，不用手工清 `content/data/cache/tpl`。
 4. 升级后如果生成日志里出现「拒绝写入系统目录」，说明某个栏目别名和程序目录重名了，把别名改掉再生成一次即可，数据本身不会丢。
@@ -320,7 +320,7 @@ rm -rf install                       # 装完删掉安装目录
 6. 每次更新前自动备份系统区到 `content/data/backup/update/`，只留最近 3 份；覆盖中途出错整批回滚。
 7. 仓库地址默认 `hexoblog-web-site/CiciCMS`，可在更新页改成任意 `owner/repo`。仓库改名后旧地址会自动跳转，但建议填新地址。
 8. 服务器必须能访问 `api.github.com` 与 `codeload.github.com`，不通时页面会明确提示，只能手工下载覆盖。
-9. 编辑器插图统一走 `includes/uploader.php` 的 `Cms_Image_Uploader`：本地文件与远程地址共用一套类型校验，文件名按「8 位日期 + 16 位微秒」生成，SVG、BMP 与伪装成图片的文件一律拒收。
+9. 编辑器插图统一走 `includes/uploader.php` 的 `CMS_Image_Uploader`：本地文件与远程地址共用一套类型校验，文件名按「8 位日期 + 16 位微秒」生成，SVG、BMP 与伪装成图片的文件一律拒收。
 10. 数据库备份 / 恢复 / 导入从「系统设置」独立为「数据系统」页，备份列表带大小与生成时间，导入与恢复前都会自动再备份一次。
 11. 仪表盘改为四张统计卡（第四张是运行状态），快捷入口改为通栏 5×2；目录权限自检与系统信息移入「系统设置」。
 
@@ -414,7 +414,7 @@ rm -rf install                       # 装完删掉安装目录
 
 **修复：推荐位不再泄漏给读者**
 
-9. 新增 `cms_flag_public_map()`：只有「推荐 / 头条 / 特荐」对外展示；幻灯、滚动、加粗、图片、图文属排版用途，不再出现在文章页 meta 行。完整列表保留在 `flag_all_list` 供模板取用。
+9. 新增 `CMS_flag_public_map()`：只有「推荐 / 头条 / 特荐」对外展示；幻灯、滚动、加粗、图片、图文属排版用途，不再出现在文章页 meta 行。完整列表保留在 `flag_all_list` 供模板取用。
 
 **后台外观：可读性基线（P0）**
 
@@ -431,7 +431,7 @@ rm -rf install                       # 装完删掉安装目录
 **后台外观：增强（P2）**
 
 16. **暗色主题**：只覆盖令牌、不改任何组件规则；顶栏圆形按钮切换，首次跟随 `prefers-color-scheme`，之后记在 localStorage；登录页同步。
-17. **SVG 图标 sprite**：`admin/inc/icons.php` 统一 24×24 线性图标，侧栏导航、快捷入口、统计卡改用 `<use>` 引用；`cms_icon()` 仍接受旧插件传的内联 path，向后兼容。
+17. **SVG 图标 sprite**：`admin/inc/icons.php` 统一 24×24 线性图标，侧栏导航、快捷入口、统计卡改用 `<use>` 引用；`CMS_icon()` 仍接受旧插件传的内联 path，向后兼容。
 18. **弹窗焦点陷阱**：Tab 在弹窗内循环、关闭后归还焦点，轻提示加 `role="status" aria-live="polite"`。
 19. 仪表盘新增「近 7 日发布」柱状图（只查 `created_at`，PHP 按天分桶，不依赖 MySQL 日期函数）。
 20. 文档截图更新了仪表盘，并新增深色主题、内容预览弹窗两张；`docs/use/index.md` 补「外观设置与预览」一节。
@@ -568,7 +568,7 @@ rm -rf install                       # 装完删掉安装目录
 
 **升级提示**
 
-- **有数据库迁移**：`cms_schema_version()` 升到 8，自动为 `attachment` 添加 `alt` / `content_id` / `deleted_at`
+- **有数据库迁移**：`CMS_schema_version()` 升到 8，自动为 `attachment` 添加 `alt` / `content_id` / `deleted_at`
   并补索引，同时把只有 `content` 没有 `content_src` 的老文章、老单页回填源文（只补空值，不覆盖）。
 - 主题 `footer.html` 有改动（计数脚本），升级包**不含 `content/`**：如果用的是默认主题，
   需要手工把 `content/themes/default/footer.html` 的计数脚本换成新版，否则阅读数仍走老的 GET 方式
@@ -611,7 +611,7 @@ rm -rf install                       # 装完删掉安装目录
    通过适配层映射，不引入新表、不迁移数据。
 3. 新增 `admin/api.php`（state / save / upload / build / logout）为界面提供真实数据，
    save 带防误删阀值，沿用登录会话与 CSRF。
-4. 界面可见品牌统一 `CiciCms`；老后台保留，访问 `/admin/?legacy=1` 可回退。
+4. 界面可见品牌统一 `CiciCms`；旧后台与旧皮肤已彻底删除，`/admin/` 只有这一套界面。
 
 **保持不变**
 
@@ -620,8 +620,57 @@ rm -rf install                       # 装完删掉安装目录
 
 **升级提示**
 
-- 覆盖安装后刷新 `/admin/` 即进入新界面；若需旧界面，访问 `/admin/?legacy=1`。
+- 覆盖安装后刷新 `/admin/` 即进入新界面；旧后台、旧皮肤与旧入口参数已从程序中移除。
 - 文章、栏目、媒体、设置全部原样保留，首次打开会从数据库读取真实数据。
+
+---
+
+### 3.31 从 2.3.0 升级到 2.3.1（后台收敛：一套皮肤、SQL 备份、系统更新独立页）
+
+2.3.0 的后台是「原型 + 适配层」，这一版把散落的两套后台合成一套，并把数据管理、
+系统更新这两块真正接到后端能力上。**数据结构不动，无需改库**。
+
+**后台收敛**
+
+1. 删除 Nebula 独立后台，Nebula 皮肤改名为 `legacy` 成为唯一后台；`admin/index.php`
+   直接 `require admin/legacy/index.php`，旧的 `admin/inc/`、`admin/pages/`、`admin/assets/` 全部移除。
+2. 登录页换成同一套皮肤，登录失败、限速与 CSRF 逻辑沿用原实现。
+3. 路由按语义重排：`#/posts` 添加文章、`#/edit` 文章列表、`#/edit/<id>` 编辑文章、
+   `#/page` 添加单页、`#/pages` 单页列表、`#/page/<id>` 编辑单页、`#/category` 添加栏目、
+   `#/compile` 编辑栏目、`#/cat-edit/<栏目名>` 栏目独立编辑页、`#/tags` 标签管理；
+   `#/taxonomy/*`、`#/edit/new`、`#/page/new` 等旧链接已彻底失效。
+4. 侧栏「一键更新」更名「一键生成」，文案聚焦生成 HTML 文档。
+
+**数据管理改成真正的 MySQL 备份**
+
+5. 新增接口 `db-list` / `db-backup` / `db-delete` / `db-restore` / `db-restore-file`，
+   底层调用 `includes/backup.php` 的 `db_backup()` / `db_restore()`：导出标准 `.sql`
+   （含表结构与全部数据），存服务器 `content/data/backup/`，可下载、可删除、可从服务器备份或本地上传恢复。
+6. 恢复成功后前端立即丢弃未落盘的旧数据并重新拉取 `state`，避免「提示恢复成功、
+   再编辑一次又整库写回旧数据」；导入前自动留一份预备份，失败自动回滚。
+7. 站点级 `.user.ini` 把上传上限提到 64M / POST 70M，并修正上传错误码提示
+   （原来只显示「错误码 1」）。
+8. 数据管理页删除「数据库信息」「空间 FTP 信息」两张展示卡，备份记录紧跟备份卡片下方。
+
+**系统更新独立成页**
+
+9. 侧栏新增「系统更新」入口（`#/update`），页面独立展示版本信息、新版本提示、
+   更新设置与更新备份；`admin/api.php` 暴露 `update-status` / `update-check` /
+   `update-apply` / `update-rollback` / `update-save`，原有的检查、校验、备份、失败回滚引擎不变。
+10. 站点设置页只保留基本信息与站点形象，保存按钮回到表单内容区；删除提示文字与
+    「导出 JSON 备份」「重置演示数据」按钮。
+
+**媒体与细节**
+
+11. 媒体列表去掉 alt 修改与同步功能，只保留删除；缩略图、文章归属按正文文件名反查回填。
+12. 文章列表按 ID 倒序；文章编辑页发布时间归位到状态之后，置顶并入「文章属性」，
+    与推荐、头条同款 chip 样式。
+
+**升级提示**
+
+- 覆盖 `includes/`、`admin/` 与根入口文件即可，`content/` 与 `config.php` 不受影响。
+- 建议保留站点根目录的 `.user.ini`，否则大于 2M 的 `.sql` 备份无法通过后台上传恢复。
+- 老站点的媒体、文章、栏目、设置全部原样保留。
 
 ---
 
@@ -760,7 +809,7 @@ location ~ ^/docs/ { deny all; }
 | 格式 | jpg / jpeg / png / gif / webp；SVG 与 BMP 一律拒绝（SVG 能带脚本） |
 | 上限 | 单张 5MB |
 
-上传成功会同时登记 `attachment`，所以媒体信息里看得到，系统清理也不会把它当成无主文件删掉。校验、命名、落盘全部集中在 `includes/uploader.php` 的 `Cms_Image_Uploader` 里，媒体信息、栏目横幅、编辑器接口走的都是同一套规则。
+上传成功会同时登记 `attachment`，所以媒体信息里看得到，系统清理也不会把它当成无主文件删掉。校验、命名、落盘全部集中在 `includes/uploader.php` 的 `CMS_Image_Uploader` 里，媒体信息、栏目横幅、编辑器接口走的都是同一套规则。
 
 安全边界：
 
@@ -1134,12 +1183,12 @@ id 只允许小写字母、数字、下划线、连字符，且必须与目录�
 if (!defined('CMS_ROOT')) { exit; }
 
 // 过滤器：接管一个值，必须 return
-cms_add_filter('html_foot', function ($html) {
-    return $html . '<script src="' . cms_plugin_url('demo', 'assets/demo.js') . '" defer></script>';
+CMS_add_filter('html_foot', function ($html) {
+    return $html . '<script src="' . CMS_plugin_url('demo', 'assets/demo.js') . '" defer></script>';
 });
 
 // 动作：到点做事，不关心返回值
-cms_add_action('article_saved', function ($id, $data, $isNew) {
+CMS_add_action('article_saved', function ($id, $data, $isNew) {
     log_msg('文章已保存：' . $id . ($isNew ? '（新建）' : '（更新）'));
 });
 ```
@@ -1175,7 +1224,7 @@ cms_add_action('article_saved', function ($id, $data, $isNew) {
 
 ```php
 // plugin.php：在菜单里加一项，位置紧跟在「文章管理」之后
-cms_add_filter('admin_menu', function ($nav) {
+CMS_add_filter('admin_menu', function ($nav) {
     $nav['demo'] = array('示例插件', '<path d="M12 3.5v10"/><path d="M8 8.5l4-4 4 4"/>');
     return $nav;
 });
@@ -1244,7 +1293,7 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ## 十、已知限制
 
-- 评论、会员、多管理员权限分级未包含（当前为单管理员模型，可扩展 `cms_user` 表）。
+- 评论、会员、多管理员权限分级未包含（当前为单管理员模型，可扩展 `CMS_user` 表）。
 - 标签页按标签名前 10 位 MD5 命名，不支持自定义标签路径。
 - 分类为单级结构（表中保留 `parent_id`，面包屑已支持多级链路，后台暂未提供多级管理界面）。
 - 归档页按年份单页输出，不分页；文章量过万时建议改成分页版。
@@ -1281,4 +1330,4 @@ A：可以。整站输出为静态文件，直接回源到站点根目录即可�
 
 ---
 
-版本：2.3.0
+版本：2.3.1

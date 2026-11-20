@@ -15,10 +15,10 @@ if (!defined('CMS_TAG_NS')) {
 
 
 /** 友情链接 */
-function cms_tag_flink($o = array())
+function CMS_tag_flink($o = array())
 {
     $o     = is_array($o) ? $o : array();
-    $limit = cms_tag_int(isset($o['limit']) ? $o['limit'] : 24, 24, 1, 200);
+    $limit = CMS_tag_int(isset($o['limit']) ? $o['limit'] : 24, 24, 1, 200);
     $type  = strtolower((string) (isset($o['type']) ? $o['type'] : 'all'));
 
     $where = 'status = 1';

@@ -9,7 +9,7 @@ function auth_user()
     if ($cached !== false) {
         return $cached;
     }
-    cms_session_start();
+    CMS_session_start();
     $cached = null;
     if (empty($_SESSION['uid'])) {
         return null;
@@ -42,7 +42,7 @@ function require_login()
 
 function auth_login($username, $password)
 {
-    cms_session_start();
+    CMS_session_start();
     $user = one('SELECT * FROM {p}user WHERE username = ?', array($username));
     if (!$user || !password_verify($password, $user['password'])) {
         return '用户名或密码错误';
@@ -69,7 +69,7 @@ function auth_login($username, $password)
  */
 function auth_logout()
 {
-    cms_session_start();
+    CMS_session_start();
     $_SESSION = array();
     if (function_exists('session_regenerate_id')) {
         @session_regenerate_id(true);

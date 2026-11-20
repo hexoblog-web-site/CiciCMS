@@ -32,7 +32,7 @@ CiciCMS 本体代码版权归本项目作者所有，以 MIT 许可证发布（�
 ## 未包含的第三方资源
 
 - **字体**：仅使用系统字体栈（`-apple-system`、`Segoe UI`、`PingFang SC`、`Microsoft YaHei`、等宽字体回退），未打包任何 `woff/woff2/ttf` 文件，不涉及字体嵌入授权。
-- **图标**：后台与前台图标均为项目内手写的 24px 线性 SVG（`admin/inc/header.php`、`dashboard.php`），未使用图标库字体或第三方图标包。
+- **图标**：后台与前台图标均为项目内手写的 24px 线性 SVG（`admin/legacy/index.php`、`admin/legacy/assets/app.js`），未使用图标库字体或第三方图标包。
 - **图片**：`docs/public/images/` 下全部为程序运行时的实拍截图，不含第三方素材。
 - **前端框架**：无。后台与前台均为原生 HTML/CSS/JS，不依赖 jQuery、Bootstrap、Vue 等。
 - **代码高亮**：无。代码块为纯文本呈现。

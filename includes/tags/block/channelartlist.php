@@ -14,21 +14,21 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-function cms_tag_block_channelartlist($attrRaw, $body)
+function CMS_tag_block_channelartlist($attrRaw, $body)
 {
-    $a = cms_tag_attrs($attrRaw);
+    $a = CMS_tag_attrs($attrRaw);
     $o = array(
         'type'         => isset($a['type']) ? $a['type'] : 'top',
         'catid'        => isset($a['catid']) ? $a['catid'] : (isset($a['typeid']) ? $a['typeid'] : ''),
         'limit'        => isset($a['row']) ? $a['row'] : (isset($a['limit']) ? $a['limit'] : '0'),
         'currentstyle' => isset($a['currentstyle']) ? $a['currentstyle'] : 'active',
     );
-    $uid = cms_tag_uid();
+    $uid = CMS_tag_uid();
     $st  = '$__cal' . $uid;
 
-    return '<?php ' . $st . ' = cms_tag_nav(' . cms_tag_qcode($o) . '); ?>'
+    return '<?php ' . $st . ' = CMS_tag_nav(' . CMS_tag_qcode($o) . '); ?>'
          . '<?php if (!empty(' . $st . ')): ?>'
-         . cms_tag_loop_code($st, $body)
+         . CMS_tag_loop_code($st, $body)
          . '<?php endif; ?>';
 }
 /* ── 标签注册（引擎按这份声明找到本文件）───────────────── */
@@ -37,5 +37,5 @@ return array(
     'name'    => 'channelartlist',
     'desc'    => '栏目 + 文档两重循环',
     'block'   => true,
-    'compile' => 'cms_tag_block_channelartlist',
+    'compile' => 'CMS_tag_block_channelartlist',
 );

@@ -14,26 +14,26 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-function cms_tag_block_prevnext($dir, $attrRaw, $body)
+function CMS_tag_block_prevnext($dir, $attrRaw, $body)
 {
-    $a = cms_tag_attrs($attrRaw);
+    $a = CMS_tag_attrs($attrRaw);
     $o = array(
         'samecat' => isset($a['samecat']) ? $a['samecat'] : '1',
     );
-    list($main, $empty) = cms_tag_split_block_empty($body);
-    $uid = cms_tag_uid();
+    list($main, $empty) = CMS_tag_split_block_empty($body);
+    $uid = CMS_tag_uid();
     $st  = '$__pn' . $uid;
 
-    return '<?php ' . $st . ' = cms_tag_prevnext(' . var_export($dir, true) . ', ' . cms_tag_qcode($o) . '); ?>'
+    return '<?php ' . $st . ' = CMS_tag_prevnext(' . var_export($dir, true) . ', ' . CMS_tag_qcode($o) . '); ?>'
          . '<?php if (empty(' . $st . ')): ?>'
-         . cms_tag_parse($empty)
+         . CMS_tag_parse($empty)
          . '<?php else: ?>'
-         . cms_tag_loop_code($st, $main)
+         . CMS_tag_loop_code($st, $main)
          . '<?php endif; ?>';
 }
 /* ── 四个别名的入口 ───────────────────────────────────── */
 
-function cms_tag_inline_prevnext($ctx)
+function CMS_tag_inline_prevnext($ctx)
 {
     $a = $ctx['attrs'];
     $o = array('samecat' => isset($a['samecat']) ? $a['samecat'] : '0');
@@ -45,24 +45,24 @@ function cms_tag_inline_prevnext($ctx)
         $dir = (isset($a['get']) && strtolower($a['get']) === 'next') ? 'next' : 'prev';
     }
 
-    return '<?php echo cms_tag_prevnext_html(' . var_export($dir, true) . ', ' . cms_tag_qcode($o) . '); ?>';
+    return '<?php echo CMS_tag_prevnext_html(' . var_export($dir, true) . ', ' . CMS_tag_qcode($o) . '); ?>';
 }
 
-function cms_tag_block_prev($attrRaw, $body)
+function CMS_tag_block_prev($attrRaw, $body)
 {
-    return cms_tag_block_prevnext('prev', $attrRaw, $body);
+    return CMS_tag_block_prevnext('prev', $attrRaw, $body);
 }
 
-function cms_tag_block_next($attrRaw, $body)
+function CMS_tag_block_next($attrRaw, $body)
 {
-    return cms_tag_block_prevnext('next', $attrRaw, $body);
+    return CMS_tag_block_prevnext('next', $attrRaw, $body);
 }
 
-function cms_tag_block_prenext($attrRaw, $body)
+function CMS_tag_block_prenext($attrRaw, $body)
 {
-    $a   = cms_tag_attrs($attrRaw);
+    $a   = CMS_tag_attrs($attrRaw);
     $dir = (isset($a['get']) && strtolower($a['get']) === 'next') ? 'next' : 'prev';
-    return cms_tag_block_prevnext($dir, $attrRaw, $body);
+    return CMS_tag_block_prevnext($dir, $attrRaw, $body);
 }
 
 return array(
@@ -70,6 +70,6 @@ return array(
     'desc'    => '上一篇 / 下一篇（块写法）；self-closing 也用这里',
     'block'   => true,
     'auto'    => true,
-    'compile' => 'cms_tag_block_prenext',
-    'inline'  => 'cms_tag_inline_prevnext',
+    'compile' => 'CMS_tag_block_prenext',
+    'inline'  => 'CMS_tag_inline_prevnext',
 );

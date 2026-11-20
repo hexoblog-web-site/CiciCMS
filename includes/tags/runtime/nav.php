@@ -15,14 +15,14 @@ if (!defined('CMS_TAG_NS')) {
 
 
 /** 栏目导航 / 子栏目 */
-function cms_tag_nav($o)
+function CMS_tag_nav($o)
 {
     $o     = is_array($o) ? $o : array();
     $type  = strtolower(trim((string) (isset($o['type']) ? $o['type'] : 'top')));
-    $limit = cms_tag_int(isset($o['limit']) ? $o['limit'] : 0, 0, 0, 500);
+    $limit = CMS_tag_int(isset($o['limit']) ? $o['limit'] : 0, 0, 0, 500);
     $style = isset($o['currentstyle']) ? (string) $o['currentstyle'] : 'active';
 
-    $scope    = cms_scope();
+    $scope    = CMS_scope();
     $cur      = isset($scope['current_cat_id']) ? (int) $scope['current_cat_id'] : 0;
     $catidRaw = isset($o['catid']) ? trim((string) $o['catid']) : '';
     $catid    = (int) $catidRaw;
@@ -54,7 +54,7 @@ function cms_tag_nav($o)
         if (!$ok) {
             continue;
         }
-        $row = cms_row_expand($c);
+        $row = CMS_row_expand($c);
         $row['count']        = isset($catCounts[(int) $c['id']]) ? $catCounts[(int) $c['id']] : 0;
         $row['active']       = ((int) $c['id'] === $cur) ? 1 : 0;
         $row['current']      = $row['active'];

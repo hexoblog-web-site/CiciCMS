@@ -2,19 +2,19 @@
 "use strict";
 
 /* ============================================================
- * Nebula ↔ CiciCMS 数据桥
+ * Legacy ↔ CiciCMS 数据桥
  * 界面代码不关心存储，只调用这里的 load()/save()。
  * ============================================================ */
-var NEBULA_API = (function(){
-  var m = document.querySelector('meta[name="nebula-api"]');
-  return m ? m.getAttribute('content') : 'admin/api.php';
+var LEGACY_API = (function(){
+  var m = document.querySelector('meta[name="legacy-api"]');
+  return m ? m.getAttribute('content') : '../api.php';
 })();
-var NEBULA_TOKEN = (function(){
-  var m = document.querySelector('meta[name="nebula-token"]');
+var LEGACY_TOKEN = (function(){
+  var m = document.querySelector('meta[name="legacy-token"]');
   return m ? m.getAttribute('content') : '';
 })();
-var NEBULA_USER = (function(){
-  var m = document.querySelector('meta[name="nebula-user"]');
+var LEGACY_USER = (function(){
+  var m = document.querySelector('meta[name="legacy-user"]');
   return m ? m.getAttribute('content') : 'admin';
 })();
 var _nbLoading = true;
@@ -24,7 +24,7 @@ var _nbPending = null;
 /* 同步拉取：保证后续 5000 行界面代码可以照旧同步访问 db */
 function nbFetchState(){
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', NEBULA_API + '?r=state', false);
+  xhr.open('GET', LEGACY_API + '?r=state', false);
   xhr.setRequestHeader('Accept','application/json');
   xhr.send(null);
   if (xhr.status < 200 || xhr.status >= 300) throw new Error('HTTP ' + xhr.status);
@@ -39,21 +39,21 @@ function nbFlush(){
   if (!_nbPending) return;
   var payload = _nbPending;
   _nbPending = null;
-  var body = JSON.stringify({ _token: NEBULA_TOKEN, db: payload });
+  var body = JSON.stringify({ _token: LEGACY_TOKEN, db: payload });
   try{
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', NEBULA_API + '?r=save', true);
+    xhr.open('POST', LEGACY_API + '?r=save', true);
     xhr.setRequestHeader('Content-Type','application/json;charset=utf-8');
     xhr.onreadystatechange = function(){
       if (xhr.readyState !== 4) return;
       if (xhr.status < 200 || xhr.status >= 300){
-        if (window.console) console.warn('[nebula] 保存失败', xhr.status, xhr.responseText);
+        if (window.console) console.warn('[legacy] 保存失败', xhr.status, xhr.responseText);
       }
     };
     xhr.send(body);
   }catch(e){
     /* 关页时用 beacon 兜底 */
-    try{ navigator.sendBeacon(NEBULA_API + '?r=save', new Blob([body],{type:'application/json'})); }catch(_e){}
+    try{ navigator.sendBeacon(LEGACY_API + '?r=save', new Blob([body],{type:'application/json'})); }catch(_e){}
   }
 }
 function nbQueue(dbObj){
@@ -64,18 +64,23 @@ function nbQueue(dbObj){
 }
 
 /* ================= 数据层：localStorage ================= */
-var KEY = 'nebula-cms-v1';
+var KEY = 'legacy-cms-v1';
 var PAGE_SIZE = 20; /* 文章列表与媒体列表每页固定 20 条 */
 var STATUS = {publish:'已发布', draft:'草稿', pending:'待审核', trash:'回收站'};
 var PILL = {publish:'pub', draft:'draft', pending:'pending', trash:'trash'};
 var TRASH_DAYS = 30;         /* 回收站保留天数，超期自动清理 */
+/* 推荐位标记：与后端 cms_flag_map() / cici_article.flag 保持一致 */
+var FLAG_MAP = [
+  {k:'c', t:'推荐'}, {k:'h', t:'头条'}, {k:'p', t:'图片'}, {k:'f', t:'幻灯'},
+  {k:'a', t:'特荐'}, {k:'s', t:'滚动'}, {k:'b', t:'加粗'}, {k:'j', t:'图文'}
+];
 
 /* ================= 账号与角色 ================= */
 var ROLE_LABEL = {admin:'站点管理员', editor:'内容编辑', author:'专栏作者'};
 var ROLE_SUB = {admin:'全部权限', editor:'内容与发布', author:'仅本人草稿'};
 var ROLE_COLOR = {admin:'#5b5bd6', editor:'#0e7490', author:'#b45309'};
 var USERS_DEFAULT = [
-  {id:1,name:'陆知远',user:'admin', pass:'nebula',role:'admin'},
+  {id:1,name:'陆知远',user:'admin', pass:'legacy',role:'admin'},
   {id:2,name:'林一',  user:'editor',pass:'editor',role:'editor'},
   {id:3,name:'周游',  user:'author',pass:'author',role:'author'}
 ];
@@ -97,17 +102,17 @@ function ensureAccounts(){
 }
 function sessionLoad(){
   /* 鉴权在 PHP 会话里完成；这里只把当前登录者映射到原型的 SESSION */
-  var me = db.users.filter(function(u){ return u.user === NEBULA_USER; })[0];
+  var me = db.users.filter(function(u){ return u.user === LEGACY_USER; })[0];
   if (!me){ me = db.users[0]; }
   if (me) SESSION = { uid: me.id, at: nowStamp() };
   return SESSION;
 }
 function sessionSave(){
-  try{ sessionStorage.setItem('nebula-cms-session', JSON.stringify(SESSION)); }catch(e){}
+  try{ sessionStorage.setItem('legacy-cms-session', JSON.stringify(SESSION)); }catch(e){}
 }
 function sessionClear(){
   SESSION = null;
-  try{ sessionStorage.removeItem('nebula-cms-session'); }catch(e){}
+  try{ sessionStorage.removeItem('legacy-cms-session'); }catch(e){}
 }
 function currentUser(){
   var u = SESSION ? db.users.filter(function(x){ return x.id === SESSION.uid; })[0] : null;
@@ -272,7 +277,7 @@ function purgeExpired(){
 
 /* ================= 版本历史 ================= */
 var AUTOSAVE_T = null;
-var DRAFT_PREFIX = 'nebula-cms-draft-';
+var DRAFT_PREFIX = 'legacy-cms-draft-';
 function draftKey(id){ return DRAFT_PREFIX + id; }
 function draftRead(id){
   try{
@@ -309,7 +314,8 @@ function pushRevision(p){
   if (last && last.md === p.md && last.title === p.title && last.status === p.status) return;
   db.revisions.unshift({
     id: db.seq.rev++, postId: p.id, at: nowStamp(), by: currentUser().name,
-    title: p.title, md: p.md, status: p.status, cat: p.cat, tags: (p.tags||[]).slice()
+    title: p.title, md: p.md, status: p.status, cat: p.cat, tags: (p.tags||[]).slice(),
+    flag: (p.flag||[]).slice()
   });
   /* 每篇最多留 5 个历史版本，避免 localStorage 膨胀 */
   var mine = postRevisions(p.id);
@@ -329,6 +335,18 @@ function toast(msg, kind){
   d.textContent = msg;
   wrap.appendChild(d);
   setTimeout(function(){ if (d.parentNode) d.parentNode.removeChild(d); }, 2400);
+}
+/* 面板中央的提示：用于保存栏目后这类需要明确看到的反馈 */
+function toastCenter(msg, kind){
+  var main = document.querySelector('.main') || document.body;
+  var box = document.createElement('div');
+  box.className = 'center-toast' + (kind ? ' ' + kind : '');
+  var card = document.createElement('div');
+  card.className = 'center-toast-card';
+  card.textContent = msg;
+  box.appendChild(card);
+  main.appendChild(box);
+  setTimeout(function(){ if (box.parentNode) box.parentNode.removeChild(box); }, 1800);
 }
 
 function seed(){
@@ -693,7 +711,6 @@ var FTP_DEFAULT = {
   root:'/www/wwwroot/cicicms',
   status:'ok', quotaMB:2048, usedMB:128
 };
-var BK_PREFIX = 'nebula-cms-bk-';
 function ensureDataTools(){
   if (!Array.isArray(db.backups)) db.backups = [];
   if (!db.ftp || typeof db.ftp !== 'object') db.ftp = {};
@@ -941,7 +958,7 @@ function uniquePageSlug(raw, selfId){
   return s + '-' + i;
 }
 function load(){
-  var boot = document.getElementById('nebula-boot-msg');
+  var boot = document.getElementById('legacy-boot-msg');
   try{
     var res = nbFetchState();
     db = res.db;
@@ -1093,7 +1110,8 @@ function md(src){
 /* 媒体缩略图 */
 function svgURI(svg){ return 'data:image/svg+xml,' + encodeURIComponent(svg); }
 function imgThumb(m){
-  var c = m.c, v = m.variant, W = 160, H = 120, shapes = '';
+  var c = (m.c && m.c.length >= 3) ? m.c : ['#5b5bd6','#8b8bf5','#c7d2fe'];
+  var v = m.variant, W = 160, H = 120, shapes = '';
   if (v === 'mount'){
     shapes = '<circle cx="118" cy="34" r="16" fill="'+c[2]+'"/>'+
       '<path d="M0 92 L44 46 L76 84 L104 58 L160 96 L160 120 L0 120 Z" fill="'+c[0]+'" opacity=".85"/>'+
@@ -1117,7 +1135,7 @@ function imgThumb(m){
     '<rect width="'+W+'" height="'+H+'" fill="url(#g)"/>'+shapes+'</svg>');
 }
 function zipThumb(m){
-  var c = m.c;
+  var c = (m.c && m.c.length >= 2) ? m.c : ['#5b5bd6','#8b8bf5'];
   return svgURI('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">'+
     '<defs><linearGradient id="z" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+c[1]+'"/><stop offset="1" stop-color="'+c[0]+'"/></linearGradient></defs>'+
     '<rect width="160" height="120" fill="url(#z)"/>'+
@@ -1130,7 +1148,7 @@ function zipThumb(m){
 /* ================= 路由 ================= */
 var view = document.getElementById('view');
 var PSTATE = {status:'all', q:'', page:1, cat:'all', time:'all', sel:{}};
-var PREV_HASH = '#/posts';
+var PREV_HASH = '#/edit';
 
 function nav(active){
   document.querySelectorAll('.nav-item').forEach(function(el){
@@ -1143,36 +1161,50 @@ document.getElementById('nav').addEventListener('click', function(e){
 });
 
 function route(){
-  /* 离开一键更新页时中断未完成的构建动画 */
+  /* 离开一键生成页时中断未完成的构建动画 */
   if (typeof genTimer !== 'undefined' && genTimer){ clearInterval(genTimer); genTimer = null; }
   /* 离开编辑器时停止自动暂存定时器，避免在别的页面继续写草稿 */
   if (typeof AUTOSAVE_T !== 'undefined' && AUTOSAVE_T){ clearInterval(AUTOSAVE_T); AUTOSAVE_T = null; }
   var h = location.hash.replace(/^#\//, '') || 'dashboard';
   var parts = h.split('/');
   var name = parts[0], arg = parts[1];
-  if (name === 'edit'){ nav(arg === 'new' ? 'new-post' : 'posts'); return renderEditor(arg); }
+  if (name === 'posts'){ nav('new-post'); return renderEditor('new'); }   /* 添加文章：空白写文章页 */
+  if (name === 'edit'){
+    if (arg && !/^\d+$/.test(arg)){ nav('dashboard'); return vDashboard(); }
+    nav('posts');                                                          /* 编辑文章菜单高亮 */
+    return arg ? renderEditor(arg) : vPosts();                             /* 有ID→编辑该篇；无ID→文章列表 */
+  }
   if (name === 'page'){
-    if (arg === 'new'){ nav('page-new'); return renderPageEditor('new'); }
+    if (!arg){ nav('page-new'); return renderPageEditor('new'); }
+    if (!/^\d+$/.test(arg)){ nav('dashboard'); return vDashboard(); }
     nav('page-edit'); return renderPageEditor(arg);
   }
   if (name === 'page-view'){ nav('page-edit'); return renderPageView(+arg); }
+  if (name === 'cat-edit'){
+    nav('cat-edit');
+    return vCatEdit(decodeURIComponent(arg || ''));
+  }
+  if (name === 'category'){ nav('cat-add'); return vTaxonomy('add'); }
+  if (name === 'compile'){ nav('cat-edit'); return vTaxonomy('edit'); }
+  if (name === 'tags'){
+    nav('tags');
+    return vTaxonomy('tags');
+  }
   if (name === 'article'){
-    nav(PREV_HASH === '#/taxonomy/tags' ? 'tags' : 'posts');
+    nav(PREV_HASH === '#/tags' ? 'tags' : 'posts');
     return renderArticle(+arg, PREV_HASH);
   }
-  var fn = {dashboard:vDashboard, posts:vPosts, drafts:vDrafts, pages:vPages, media:vMedia, taxonomy:vTaxonomy, settings:vSettings,
-    deploy:vDeploy, data:vData, trash:vTrash, templates:vTemplates}[name];
+  var fn = {dashboard:vDashboard, posts:vPosts, drafts:vDrafts, pages:vPages, media:vMedia, settings:vSettings,
+    update:vUpdate, deploy:vDeploy, data:vData, trash:vTrash, templates:vTemplates}[name];
   /* 角色权限：受限页面直接拦回仪表盘 */
-  var VIEW_CAP = {settings:'settings', data:'data', templates:'templates', deploy:'deploy', trash:'trash', media:'media'};
+  var VIEW_CAP = {settings:'settings', update:'settings', data:'data', templates:'templates', deploy:'deploy', trash:'trash', media:'media'};
   if (fn && VIEW_CAP[name] && !can(VIEW_CAP[name])){
     toast('当前角色无权访问该页面', 'bad');
     nav('dashboard'); vDashboard(); return;
   }
-  var taxActive = {add:'cat-add', edit:'cat-edit', tags:'tags'};
   var navAlias = {pages:'page-edit'};
-  nav(fn ? (name === 'taxonomy' ? (taxActive[arg] || 'cat-edit')
-    : (navAlias[name] || name)) : 'dashboard');
-  if (fn) fn(name === 'taxonomy' ? (arg || 'edit') : arg);
+  nav(fn ? (navAlias[name] || name) : 'dashboard');
+  if (fn) fn(arg);
   else vDashboard();
   PREV_HASH = location.hash || '#/dashboard';
 }
@@ -1234,8 +1266,8 @@ function vDashboard(){
     '<div class="page-head reveal"><div><h1>'+greet+'，'+esc(currentUser().name)+'</h1>' +
       '<p>'+esc(db.settings.siteName)+' · 今天是 '+new Date().toLocaleDateString('zh-CN')+' · 数据保存在浏览器本地</p></div>' +
       '<div class="head-actions">' +
-        '<button class="btn" onclick="location.hash=\'#/deploy\'">一键更新</button>' +
-        '<button class="btn primary" onclick="location.hash=\'#/edit/new\'">+ 撰写文章</button>' +
+        '<button class="btn" onclick="location.hash=\'#/deploy\'">一键生成</button>' +
+        '<button class="btn primary" onclick="location.hash=\'#/posts\'">+ 撰写文章</button>' +
       '</div></div>' +
     '<div class="stats reveal" style="animation-delay:.04s">' +
       '<div class="stat"><div class="lb">文章总数</div><div class="v">'+livePosts().length+'</div><div class="s">已发布 '+pub+' · 草稿 '+draft+' · 待审 '+pending+'</div></div>' +
@@ -1247,7 +1279,7 @@ function vDashboard(){
       todoHtml +
     '</div>' +
     '<div class="card reveal" style="animation-delay:.10s;padding:16px 18px 8px">' +
-      '<div class="card-head"><b>最近文章</b><a href="#/posts">管理文章 →</a></div>' +
+      '<div class="card-head"><b>最近文章</b><a href="#/edit">管理文章 →</a></div>' +
         '<div class="table-wrap"><table class="recent-table">' +
         '<thead><tr><th class="col-id">ID</th><th class="col-file">标题</th><th>状态</th><th>栏目</th><th>发布时间</th><th>操作</th></tr></thead><tbody>' +
         (recent.length ? recent.map(function(p){
@@ -1278,7 +1310,7 @@ function filteredPosts(){
     if (!inTimeRange(p, PSTATE.time)) return false;
     if (PSTATE.q && p.title.toLowerCase().indexOf(PSTATE.q) === -1 && String(p.id).indexOf(PSTATE.q) === -1) return false;
     return true;
-  });
+  }).sort(function(a, b){ return b.id - a.id; });   /* 文章列表按 ID 倒序，最新在前 */
 }
 function vPosts(){
   PSTATE.sel = {};                 /* 每次进入列表都从零开始选择 */
@@ -1286,7 +1318,7 @@ function vPosts(){
     db.categories.map(function(c){ return '<option value="'+esc(c)+'"'+(PSTATE.cat===c?' selected':'')+'>'+esc(c)+'</option>'; }).join('');
   view.innerHTML =
     '<div class="page-head reveal"><div><h1>文章</h1><p>共 '+livePosts().length+' 篇 · 点击标题可前台预览</p></div>' +
-    '<div class="head-actions"><button class="btn primary" onclick="location.hash=\'#/edit/new\'">+ 撰写文章</button></div></div>' +
+    '<div class="head-actions"><button class="btn primary" onclick="location.hash=\'#/posts\'">+ 撰写文章</button></div></div>' +
     '<div class="filter-row reveal" style="animation-delay:.04s">' +
       '<div class="filter-tabs" id="ftabs">' +
         '<button class="ftab'+(PSTATE.status==='all'?' on':'')+'" data-st="all">全部 <span class="n">'+livePosts().length+'</span></button>' +
@@ -1481,7 +1513,7 @@ function vDrafts(){
   var rows = pool.filter(function(p){ return DSTATE.tab === 'all' || p.status === DSTATE.tab; });
   view.innerHTML =
     '<div class="page-head reveal"><div><h1>草稿管理</h1><p>未发布的文章都集中在这里 · 可直接继续编辑或发布</p></div>' +
-      '<div class="head-actions"><button class="btn primary" onclick="location.hash=\'#/edit/new\'">+ 撰写文章</button></div></div>' +
+      '<div class="head-actions"><button class="btn primary" onclick="location.hash=\'#/posts\'">+ 撰写文章</button></div></div>' +
     '<div class="draft-tabs reveal" style="animation-delay:.03s" id="draftTabs">' +
       [['draft','草稿 '+tabN.draft],['pending','待审核 '+tabN.pending],['all','全部未发布 '+tabN.all]].map(function(t){
         return '<button data-dt="'+t[0]+'"'+(DSTATE.tab===t[0]?' class="on"':'')+'>'+t[1]+'</button>';
@@ -1510,7 +1542,7 @@ function vDrafts(){
     }).join('') + '</div>'
       : '<div class="draft-empty reveal">' +
           (DSTATE.tab === 'pending' ? '没有待审核的文章' : DSTATE.tab === 'draft' ? '没有草稿，所有文章都已发布' : '没有未发布的文章') +
-          '<div style="margin-top:10px"><a href="#/posts" style="color:var(--accent);text-decoration:none">去文章列表看看 →</a></div></div>');
+          '<div style="margin-top:10px"><a href="#/edit" style="color:var(--accent);text-decoration:none">去文章列表看看 →</a></div></div>');
   document.getElementById('draftTabs').addEventListener('click', function(e){
     var b = e.target.closest('[data-dt]'); if (!b) return;
     DSTATE.tab = b.dataset.dt; vDrafts();
@@ -1550,7 +1582,7 @@ function vTrash(){
   var all = trashItems();
   view.innerHTML =
     '<div class="page-head reveal"><div><h1>回收管理</h1><p>共 <span id="trashCount">'+all.length+'</span> 项 · 保留 '+TRASH_DAYS+' 天，到期自动清理</p></div>' +
-      '<div class="head-actions"><button class="btn" onclick="location.hash=\'#/posts\'">返回文章列表</button></div></div>' +
+      '<div class="head-actions"><button class="btn" onclick="location.hash=\'#/edit\'">返回文章列表</button></div></div>' +
     '<div class="filter-row reveal" style="animation-delay:.04s">' +
       '<div class="trash-tip"><span class="pill trash">回收站</span>' +
         '文章、单页、媒体与栏目删除后都先进这里，可随时恢复；超过 '+TRASH_DAYS+' 天由系统自动永久删除。</div>' +
@@ -1680,7 +1712,7 @@ function vTemplates(){
   var files = db.templates.files;
   var active = files.filter(function(f){ return f.path === db.templates.active; })[0] || files[0];
   view.innerHTML =
-    '<div class="page-head reveal"><div><h1>模板管理</h1><p>共 '+files.length+' 个模板文件 · 构建静态站点时按这组模板套版，保存后下次「一键更新」生效</p></div>' +
+    '<div class="page-head reveal"><div><h1>模板管理</h1><p>共 '+files.length+' 个模板文件 · 构建静态站点时按这组模板套版，保存后下次「一键生成」生效</p></div>' +
       '<div class="head-actions">' +
         '<button class="btn" id="tplDefault">恢复默认</button>' +
         '<button class="btn primary" id="tplSave">保存模板</button>' +
@@ -2199,22 +2231,33 @@ document.addEventListener('keydown', function(e){
 function renderEditor(id){
   var isNew = (id === 'new' || id === undefined);
   var p = isNew ? {id:null, title:'', status:'draft', cat:db.categories[0]||'未分类', tags:[], md:'',
-                   keywords:'', excerpt:'', cover:'', attach:'', date:nowStamp(), author:currentUser().name}
+                   keywords:'', excerpt:'', cover:'', attach:'', flag:[], isTop:false, attachShow:false,
+                   authorId:currentUser().id, date:nowStamp(), author:currentUser().name}
                 : findPost(+id);
-  if (!p){ location.hash='#/posts'; return; }
+  if (!p){ location.hash='#/edit'; return; }
+  if (!p.flag) p.flag = [];
+  if (typeof p.isTop !== 'boolean') p.isTop = !!p.isTop;
+  if (typeof p.attachShow !== 'boolean') p.attachShow = !!p.attachShow;
+  if (!p.authorId) p.authorId = currentUser().id;
   var dateVal = p.date || nowStamp();
   var dateInitVal = dateToInput(dateVal);
   var coverSel = typeof p.cover === 'number' ? String(p.cover) : 'auto';
   var coverUrl = typeof p.cover === 'string' ? p.cover : '';
   var coverOpts = '<option value="auto"'+(coverSel==='auto'?' selected':'')+'>自动配色（按文章 ID）</option>' +
     CAT_COVERS.map(function(k,i){ return '<option value="'+i+'"'+(coverSel===String(i)?' selected':'')+'>'+k.label+'</option>'; }).join('');
+  /* 推荐位标记：与数据库 cici_article.flag 对应，模板里可用 flag="c" 调取 */
+  var flagOn = (p.flag && p.flag.length) ? p.flag.map(String) : [];
+  var flagOpts = FLAG_MAP.map(function(f){
+    return '<label class="flag-chip"><input type="checkbox" name="fFlag" value="'+f.k+'"'+
+      (flagOn.indexOf(f.k)>-1?' checked':'')+'><span>'+f.t+'</span><code>'+f.k+'</code></label>';
+  }).join('');
   var draft = draftRead(isNew ? 'new' : p.id);
   var draftDiff = draft && (draft.md !== p.md || draft.title !== (p.title||''));
   view.innerHTML =
     '<div class="page-head reveal"><div><h1>'+(isNew?'撰写文章':'编辑文章 #'+p.id)+'</h1><p>支持 Markdown · 每 8 秒自动暂存 · 右侧实时预览</p></div>' +
     '<div class="head-actions">' +
       (isNew ? '' : '<button class="btn" id="verBtn">版本历史</button>') +
-      '<button class="btn" onclick="location.hash=\'#/posts\'">返回列表</button>' +
+      '<button class="btn" onclick="location.hash=\'#/edit\'">返回列表</button>' +
       '<button class="btn primary" id="saveBtn">保存文章</button>' +
     '</div></div>' +
     (isNew ? '<div class="hexo-bar reveal" id="hexoBar" style="animation-delay:.02s" title="把 Hexo 导出的 .md 拖到这里">' +
@@ -2229,7 +2272,7 @@ function renderEditor(id){
       '<span>发现 '+(draft ? esc(draft.at) : '')+' 的自动暂存，与当前内容不同。</span>' +
       '<button class="btn sm" id="asRestore">恢复暂存</button>' +
       '<button class="btn sm" id="asDrop">丢弃</button></div>' +
-    '<div class="field-grid reveal" style="animation-delay:.03s">' +
+    '<div class="field-grid editor-fields reveal" style="animation-delay:.03s">' +
       '<div class="field"><label>标题</label><input id="fTitle" value="'+esc(p.title)+'" placeholder="文章标题"></div>' +
       '<div class="field"><label>栏目</label><select id="fCat">' +
         db.categories.map(function(c){return '<option'+(c===p.cat?' selected':'')+'>'+esc(c)+'</option>'}).join('') +
@@ -2238,10 +2281,16 @@ function renderEditor(id){
       '<div class="field"><label>状态</label><select id="fStatus">' +
         [{v:'draft',t:'草稿'},{v:'pending',t:'待审核'},{v:'publish',t:'发布'}].map(function(o){return '<option value="'+o.v+'"'+(p.status===o.v?' selected':'')+'>'+o.t+'</option>'}).join('') +
       '</select></div>' +
+      '<div class="field"><label>发布时间（默认当前）</label><input id="fDate" type="datetime-local" step="1" value="'+esc(dateInitVal)+'"></div>' +
     '</div>' +
     '<div class="post-meta reveal" style="animation-delay:.04s">' +
-      '<div class="field"><label>文章关键词</label><input id="fKeywords" value="'+esc(p.keywords||'')+'" placeholder="用英文逗号分隔，如 设计系统, 组件, 前端"></div>' +
-      '<div class="field"><label>发布时间（默认当前）</label><input id="fDate" type="datetime-local" step="1" value="'+esc(dateInitVal)+'"></div>' +
+      '<div class="meta-inline">' +
+        '<div class="field"><label>文章属性 <span class="hint" style="display:inline;margin:0">（推荐位标记，模板用 <code>flag="字母"</code> 调取）</span></label>' +
+          '<div class="flag-pick">' +
+            '<label class="flag-chip" title="置顶：列表优先显示并标「置顶」"><input type="checkbox" id="fIsTop" '+(p.isTop?'checked':'')+'><span>置顶</span><code>T</code></label>' +
+            flagOpts +
+          '</div></div>' +
+      '</div>' +
       '<div class="field wide"><label>内容简介</label><textarea id="fExcerpt" placeholder="一两句话概括文章内容，用于列表摘要与分享卡片">'+esc(p.excerpt||'')+'</textarea></div>' +
     '</div>' +
     '<div class="post-extra reveal" style="animation-delay:.05s">' +
@@ -2256,7 +2305,9 @@ function renderEditor(id){
         '<div class="attach-line">' +
           '<input id="fAttach" value="'+esc(p.attach||'')+'" placeholder="如 /files/cicicms-kit.zip，可留空">' +
           '<a class="btn attach-open" id="fAttachOpen" target="_blank" rel="noopener">打开 ↗</a>' +
-        '</div></div>' +
+        '</div>' +
+        '<label class="sw-line"><input type="checkbox" id="fAttachShow" '+(p.attachShow?'checked':'')+'><span>在正文显示附件下载链接</span></label>' +
+      '</div>' +
     '</div>' +
     mdEditorHtml({ta:'fMd', prev:'mdPrev', delay:'.06s', value:p.md,
       headRight:'<span class="autosave-dot" id="asDot"></span><span id="asTxt">自动暂存开启</span>'});
@@ -2318,10 +2369,13 @@ function renderEditor(id){
       cat: document.getElementById('fCat').value,
       tags: document.getElementById('fTags').value,
       status: document.getElementById('fStatus').value,
-      keywords: document.getElementById('fKeywords').value,
       excerpt: document.getElementById('fExcerpt').value,
       md: ta.value, date: document.getElementById('fDate').value,
-      cover: coverUrlEl.value, attach: attachEl.value
+      cover: coverUrlEl.value, attach: attachEl.value,
+      flag: Array.prototype.map.call(document.querySelectorAll('input[name="fFlag"]:checked'), function(el){ return el.value; }),
+      isTop: document.getElementById('fIsTop').checked,
+      attachShow: document.getElementById('fAttachShow').checked,
+      authorId: p.authorId
     };
   }
   function persistDraft(silent){
@@ -2342,10 +2396,16 @@ function renderEditor(id){
       document.getElementById('fCat').value = d.cat || p.cat;
       document.getElementById('fTags').value = d.tags || '';
       document.getElementById('fStatus').value = d.status || p.status;
-      document.getElementById('fKeywords').value = d.keywords || '';
       document.getElementById('fExcerpt').value = d.excerpt || '';
       coverUrlEl.value = d.cover || '';
       attachEl.value = d.attach || '';
+      document.getElementById('fIsTop').checked = !!d.isTop;
+      document.getElementById('fAttachShow').checked = !!d.attachShow;
+      if (d.authorId) p.authorId = d.authorId;
+      var dFlags = d.flag || [];
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="fFlag"]'), function(el){
+        el.checked = dFlags.indexOf(el.value) > -1;
+      });
       ta.value = d.md || '';
       syncCover(); syncAttach(); refresh();
       banner.hidden = true;
@@ -2369,8 +2429,12 @@ function renderEditor(id){
       var notes = [];
       document.getElementById('fTitle').value = payload.title;
       if (payload.date) document.getElementById('fDate').value = dateToInput(payload.date);
-      document.getElementById('fTags').value = payload.tags.join(', ');
-      if (payload.keywords) document.getElementById('fKeywords').value = payload.keywords;
+      var impTags = payload.tags.slice();
+      /* 文章级 keywords 无独立字段，导入时并入标签，避免信息丢失 */
+      if (payload.keywords) {
+        payload.keywords.split(/[,，]/).forEach(function(k){ k = k.trim(); if (k && impTags.indexOf(k) < 0) impTags.push(k); });
+      }
+      document.getElementById('fTags').value = impTags.join(', ');
       document.getElementById('fExcerpt').value = payload.excerpt || '';
       if (payload.status) document.getElementById('fStatus').value = payload.status;
 
@@ -2475,7 +2539,6 @@ function renderEditor(id){
       p.status = 'pending';
     }
     p.md = ta.value;
-    p.keywords = document.getElementById('fKeywords').value.trim();
     p.excerpt = document.getElementById('fExcerpt').value.trim();
     var dateEl = document.getElementById('fDate');
     var prevDate = p.date, rawDate = dateEl.value, untouched = rawDate === dateInitVal;
@@ -2487,6 +2550,10 @@ function renderEditor(id){
     var cvUrl = coverUrlEl.value.trim();
     p.cover = cvUrl ? cvUrl : (coverEl.value === 'auto' ? '' : +coverEl.value);
     p.attach = attachEl.value.trim();
+    p.attachShow = document.getElementById('fAttachShow').checked;
+    p.isTop = document.getElementById('fIsTop').checked;
+    p.authorId = currentUser().id;
+    p.flag = Array.prototype.map.call(document.querySelectorAll('input[name="fFlag"]:checked'), function(el){ return el.value; });
     if (isNew){
       p.id = db.seq.post++;
       if (!p.author) p.author = currentUser().name;
@@ -2497,7 +2564,7 @@ function renderEditor(id){
     draftClear(isNew ? 'new' : p.id);
     clearInterval(AUTOSAVE_T);
     save();
-    location.hash = '#/posts';
+    location.hash = '#/edit';
   });
 }
 
@@ -2519,7 +2586,7 @@ function pgCnt(s){ return db.pages.filter(function(p){ return p.status === s; })
 function vPages(){
   view.innerHTML =
     '<div class="page-head reveal"><div><h1>单页</h1><p>共 '+livePages().length+' 个 · 固定页面不进入文章流，靠层级与导航位置组织「关于」「联系」等内容</p></div>' +
-    '<div class="head-actions"><button class="btn primary" onclick="location.hash=\'#/page/new\'">+ 撰写单页</button></div></div>' +
+    '<div class="head-actions"><button class="btn primary" onclick="location.hash=\'#/page\'">+ 撰写单页</button></div></div>' +
     '<div class="filter-row reveal" style="animation-delay:.04s">' +
       '<div class="filter-tabs" id="pgtabs">' +
         '<button class="ftab'+(PGSTATE.status==='all'?' on':'')+'" data-pgs="all">全部 <span class="n">'+livePages().length+'</span></button>' +
@@ -2782,9 +2849,20 @@ function renderPageView(id){
 /* ================= 视图：媒体库 ================= */
 var MSTATE = {page:1, type:'all', q:''};
 var UP_MAX = 400 * 1024;   /* 单张图片上限，与演示存储配额匹配 */
-function mediaUrl(m){ return (m && m.data) ? m.data : '/uploads/' + (m ? m.file : ''); }
-function mediaThumbSrc(m){
+function mediaUrl(m){
   if (m && m.data) return m.data;
+  if (m && m.url) return m.url;                 /* 后端映射的真实相对路径 */
+  return '/uploads/' + (m ? m.file : '');
+}
+function mediaThumbSrc(m){
+  if (m && m.data) return m.data;               /* 编辑器内上传的 base64 */
+  if (m && m.url) return m.url;                 /* 真实附件：直接显示原图 */
+  /* 演示数据没有真实文件，用 SVG 占位图；颜色兜底防止缺字段时崩溃 */
+  if (m && !Array.isArray(m.c)){
+    m = Object.assign({}, m, {c: m && m.type === 'zip'
+      ? ['#5b5bd6','#8b8bf5','#c7d2fe']
+      : ['#5b5bd6','#8b8bf5','#c7d2fe']});
+  }
   return m && m.type === 'image' ? imgThumb(m) : zipThumb(m);
 }
 /* 把 /uploads/xxx.png 这类虚拟地址解析成本地媒体数据（未上传的真实 URL 原样返回） */
@@ -2840,8 +2918,7 @@ function mediaRow(m){
     '<td class="id-cell">'+(m.post!=null ? m.post : '—')+'</td>' +
     '<td class="col-post-title">'+(post ? esc(post.title) : '—')+'</td>' +
     '<td class="date-cell">'+m.date+'</td>' +
-    '<td><span class="row-actions"><a data-malt="'+m.id+'">alt</a><span class="sep">|</span>' +
-      '<a class="danger" data-mdel="'+m.id+'">删除</a></span></td></tr>';
+    '<td><span class="row-actions"><a class="danger" data-mdel="'+m.id+'">删除</a></span></td></tr>';
 }
 /* 页码窗口：超过 7 页时用省略号收拢首尾 */
 function pageList(cur, total){
@@ -2910,15 +2987,6 @@ function vMedia(){
   card.addEventListener('click', function(e){
     var pg = e.target.closest('button[data-mp]');
     if (pg && !pg.disabled){ MSTATE.page = +pg.dataset.mp; renderMediaRows(); return; }
-    var al = e.target.closest('[data-malt]');
-    if (al){
-      var mm = db.media.filter(function(x){ return x.id === +al.dataset.malt; })[0];
-      if (!mm) return;
-      var v = prompt('替代文本（alt）', mm.alt || '');
-      if (v === null) return;
-      mm.alt = v.trim(); save(); vMedia(); toast('alt 已更新', 'ok');
-      return;
-    }
     var d = e.target.closest('[data-mdel]');
     if (d){
       if (!can('media')){ toast('当前角色无权删除媒体文件', 'bad'); return; }
@@ -3103,7 +3171,7 @@ function searchIndex(){
       hay:(m.file+' '+(m.alt||'')).toLowerCase()});
   });
   db.categories.forEach(function(c){
-    out.push({g:'栏目', ic:'栏', t:c, s:catUrl(c), href:'#/taxonomy/edit',
+    out.push({g:'栏目', ic:'栏', t:c, s:catUrl(c), href:'#/compile',
       hay:(c+' '+catSlug(c)).toLowerCase()});
   });
   return out;
@@ -3197,7 +3265,7 @@ function openAccount(){
       nbFlush();
       var f = document.createElement('form');
       f.method = 'post'; f.action = '';
-      var t = document.createElement('input'); t.type='hidden'; t.name='_token'; t.value=NEBULA_TOKEN;
+      var t = document.createElement('input'); t.type='hidden'; t.name='_token'; t.value=LEGACY_TOKEN;
       var d = document.createElement('input'); d.type='hidden'; d.name='do'; d.value='logout';
       f.appendChild(t); f.appendChild(d); document.body.appendChild(f); f.submit();
     }
@@ -3213,7 +3281,7 @@ function applyAccount(){
   if (nm) nm.textContent = u.name;
   if (rl) rl.textContent = roleLabel(u.role) + (SESSION ? '' : ' · 未登录');
   var show = {
-    'settings':['admin'], 'data':['admin'], 'templates':['admin'],
+    'settings':['admin'], 'update':['admin'], 'data':['admin'], 'templates':['admin'],
     'deploy':['admin','editor'], 'trash':['admin','editor'], 'media':['admin','editor'],
     'cat-add':['admin','editor'], 'cat-edit':['admin','editor'], 'tags':['admin','editor']
   };
@@ -3287,9 +3355,8 @@ var TAXMETA = {
 var TAXQ = '';
 var TAXEDIT = null;
 
-/* ============ 编辑栏目：暂用媒体管理页版式 ============ */
+/* ============ 编辑栏目：列表页 ============ */
 var CSTATE = {page:1, tab:'all', q:''};
-var CFORM = false, CEDIT = null;
 
 function catId(name){
   if (db.catIds[name] == null){
@@ -3384,18 +3451,9 @@ function vCatTable(){
   var all = catRows();
   var used = all.filter(function(r){ return r.n > 0; }).length;
   var postTotal = all.reduce(function(a,r){ return a + r.n; }, 0);
-  var curCover = CEDIT ? db.catCovers[CEDIT] : null;
-  var coverIdx = typeof curCover === 'number' ? curCover : -1;
-  var coverUrl = typeof curCover === 'string' ? curCover : '';
-  var curSlug = CEDIT ? catSlug(CEDIT) : '';
-  var coverOpts = '<option value="auto"'+(coverIdx < 0 && !coverUrl ? ' selected':'')+'>自动配色</option>' +
-    CAT_COVERS.map(function(k,i){
-      return '<option value="'+i+'"'+(coverIdx === i ? ' selected':'')+'>'+k.label+'</option>';
-    }).join('');
   var svg = '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>';
   view.innerHTML =
-    '<div class="page-head reveal"><div><h1>'+meta.title+'</h1><p>共 '+all.length+' 个栏目 · 关联 '+postTotal+' 篇文章（不含回收站）</p></div>' +
-      '<div class="head-actions"><button class="btn primary" id="addCatBtn">+ 添加栏目</button></div></div>' +
+    '<div class="page-head reveal"><div><h1>'+meta.title+'</h1><p>共 '+all.length+' 个栏目 · 关联 '+postTotal+' 篇文章（不含回收站）</p></div></div>' +
     '<div class="filter-row reveal" style="animation-delay:.02s">' +
       '<div class="filter-tabs" id="ctabs">' +
         '<button class="ftab'+(CSTATE.tab==='all'?' on':'')+'" data-ct="all">全部 <span class="n">'+all.length+'</span></button>' +
@@ -3403,21 +3461,6 @@ function vCatTable(){
         '<button class="ftab'+(CSTATE.tab==='empty'?' on':'')+'" data-ct="empty">空栏目 <span class="n">'+(all.length-used)+'</span></button>' +
       '</div>' +
       '<label class="search">'+svg+'<input id="cq" value="'+esc(CSTATE.q)+'" placeholder="搜索栏目名称 / 别名 / 地址…"></label>' +
-    '</div>' +
-    '<div class="card reveal" id="catForm" style="display:'+(CFORM?'block':'none')+';animation:none;padding:14px;margin-bottom:14px">' +
-      '<div class="field-grid" style="margin-bottom:0">' +
-        '<div class="field"><label id="cFormTitle">'+(CEDIT?'编辑栏目':'新建栏目')+'</label>' +
-          '<input id="cName" value="'+esc(CEDIT || '')+'" placeholder="如 产品设计"></div>' +
-        '<div class="field"><label>栏目别名</label>' +
-          '<input id="cSlug" value="'+esc(curSlug)+'" placeholder="英文，留空自动生成"></div>' +
-        '<div class="field"><label>栏目背景图</label><select id="cCover">'+coverOpts+'</select></div>' +
-        '<div class="field"><label>自定义图片 URL</label>' +
-          '<input id="cCoverUrl" value="'+esc(coverUrl)+'" placeholder="填了则优先使用"></div>' +
-      '</div>' +
-      '<div class="cat-form-hint">栏目地址由别名自动生成：'+CAT_URL_PREFIX+'&lt;别名&gt;.html · 别名仅支持小写字母、数字与连字符</div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
-        '<button class="btn sm" id="cCancel">取消</button>' +
-        '<button class="btn sm primary" id="cSave">'+(CEDIT?'保存':'添加')+'</button></div>' +
     '</div>' +
     '<div class="card reveal" id="catCard" style="animation-delay:.06s"><div class="table-wrap">' +
       '<table class="media-table cat-table">' +
@@ -3427,33 +3470,6 @@ function vCatTable(){
         '<tbody id="cbody"></tbody></table></div>' +
       '<div class="pager media-pager" id="cpager"></div></div>';
 
-  document.getElementById('addCatBtn').addEventListener('click', function(){
-    CEDIT = null; CFORM = true; vCatTable();
-  });
-  document.getElementById('cCancel').addEventListener('click', function(){
-    CEDIT = null; CFORM = false; vCatTable();
-  });
-  document.getElementById('cSave').addEventListener('click', function(){
-    var v = document.getElementById('cName').value.trim();
-    if (!v){ alert('请填写栏目名称'); return; }
-    if (db.categories.indexOf(v) !== -1 && v !== CEDIT){ alert('栏目「'+v+'」已存在'); return; }
-    var cs = document.getElementById('cSlug').value.trim();
-    var cv = document.getElementById('cCover').value;
-    var cu = document.getElementById('cCoverUrl').value.trim();
-    if (CEDIT){
-      db.categories = db.categories.map(function(c){ return c === CEDIT ? v : c; });
-      db.posts.forEach(function(p){ if (p.cat === CEDIT) p.cat = v; });
-      moveCatMeta(CEDIT, v);
-    } else {
-      db.categories.push(v); catId(v);
-      CSTATE.page = 1; CSTATE.tab = 'all'; CSTATE.q = '';
-    }
-    setCatSlug(v, cs);
-    delete db.catCovers[v];
-    if (cu) db.catCovers[v] = cu;
-    else if (cv !== 'auto') db.catCovers[v] = +cv;
-    CEDIT = null; CFORM = false; save(); vCatTable();
-  });
   document.getElementById('ctabs').addEventListener('click', function(e){
     var b = e.target.closest('[data-ct]'); if (!b) return;
     CSTATE.tab = b.dataset.ct; CSTATE.page = 1;
@@ -3481,7 +3497,11 @@ function vCatTable(){
       return;
     }
     var ed = e.target.closest('[data-cedit]');
-    if (ed){ CEDIT = ed.dataset.cedit; CFORM = true; vCatTable(); return; }
+    if (ed){
+      var nm = ed.dataset.cedit;
+      location.hash = '#/cat-edit/' + encodeURIComponent(nm);
+      return;
+    }
     var vw = e.target.closest('[data-cview]');
     if (vw){ openCatPreview(vw.dataset.cview); return; }
     var dl = e.target.closest('[data-cdel2]');
@@ -3666,7 +3686,7 @@ function vCatAdd(){
   view.innerHTML =
     '<div class="page-head reveal"><div><h1>添加栏目</h1>' +
       '<p>按行填写栏目信息 · 别名决定栏目地址，背景图可实时预览</p></div>' +
-      '<div class="head-actions"><a class="btn" href="#/taxonomy/edit" style="text-decoration:none">查看栏目列表</a></div></div>' +
+      '<div class="head-actions"><a class="btn" href="#/compile" style="text-decoration:none">查看栏目列表</a></div></div>' +
     '<div class="card reveal" style="animation-delay:.04s">' +
       '<div class="cat-add-form">' +
         catAddRow('aName', '栏目名称', '<input id="aName" placeholder="如 产品设计">', '必填，不能与已有栏目重名') +
@@ -3724,7 +3744,7 @@ function vCatAdd(){
     reset();
     $('aOk').style.display = 'block';
     $('aOk').innerHTML = '✓ 栏目「'+esc(added)+'」已添加 · 地址 '+esc(address) +
-      ' · <a href="#/taxonomy/edit">去栏目列表查看 →</a>';
+      ' · <a href="#/compile">去栏目列表查看 →</a>';
   }
 
   $('aName').addEventListener('input', syncUrl);
@@ -3733,6 +3753,90 @@ function vCatAdd(){
   $('aCover').addEventListener('change', syncCover);
   $('aCoverUrl').addEventListener('input', syncCover);
   $('aReset').addEventListener('click', reset);
+  $('aSubmit').addEventListener('click', submit);
+  $('aName').focus();
+}
+
+/* ============ 编辑栏目：添加栏目同款版式，填充现有数据 ============ */
+function vCatEdit(name){
+  if (!name || db.categories.indexOf(name) === -1){
+    location.hash = '#/compile'; return;
+  }
+  var $ = function(id){ return document.getElementById(id); };
+  var opts = '<option value="auto" selected>自动配色（按栏目 ID）</option>' +
+    CAT_COVERS.map(function(k,i){ return '<option value="'+i+'">'+k.label+'</option>'; }).join('');
+  var urlTouched = true; /* 编辑时保留已填地址，不随别名自动覆盖 */
+  var cv0 = db.catCovers && db.catCovers[name];
+  var curSel = typeof cv0 === 'number' ? String(cv0) : 'auto';
+  var curUrl = typeof cv0 === 'string' ? cv0 : '';
+  var optsFilled = '<option value="auto"'+(curSel==='auto'?' selected':'')+'>自动配色（按栏目 ID）</option>' +
+    CAT_COVERS.map(function(k,i){ return '<option value="'+i+'"'+(curSel===String(i)?' selected':'')+'>'+k.label+'</option>'; }).join('');
+
+  view.innerHTML =
+    '<div class="page-head reveal"><div><h1>编辑栏目</h1>' +
+      '<p>修改栏目信息 · 别名决定栏目地址，背景图可实时预览</p></div>' +
+      '<div class="head-actions"><a class="btn" href="#/compile" style="text-decoration:none">返回栏目列表</a></div></div>' +
+    '<div class="card reveal" style="animation-delay:.04s">' +
+      '<div class="cat-add-form">' +
+        catAddRow('aName', '栏目名称', '<input id="aName" value="'+esc(name)+'" placeholder="如 产品设计">', '必填，不能与已有栏目重名') +
+        catAddRow('aSlug', '栏目别名', '<input id="aSlug" value="'+esc(catSlug(name))+'" placeholder="英文小写，留空自动生成">',
+          '仅支持小写字母、数字与连字符；与其他栏目重名会自动加后缀') +
+        catAddRow('aUrl', '栏目地址', '<input id="aUrl" value="'+esc(catUrl(name))+'" placeholder="由别名自动生成，如 /category/design.html">',
+          '随栏目别名自动更新；手动修改后以填写值为准') +
+        catAddRow('aKeywords', '栏目关键词', '<input id="aKeywords" value="'+esc(catKeywords(name))+'" placeholder="多个关键词用逗号分隔">',
+          '用于 SEO 描述，会显示在栏目预览中') +
+        catAddRow('aCover', '栏目背景图',
+          '<div class="cover-line"><select id="aCover">'+optsFilled+'</select>' +
+            '<input id="aCoverUrl" value="'+esc(curUrl)+'" placeholder="或填自定义图片 URL">' +
+            '<img id="aCoverPreview" class="cover-preview" alt="" src="'+esc(catFormCoverSrc(curSel, curUrl))+'"></div>',
+          '留空 URL 时按所选预设生成；不选预设则按栏目 ID 自动配色') +
+        catAddRow('aDesc', '栏目简介',
+          '<textarea id="aDesc" placeholder="一句话介绍这个栏目的内容定位…">'+esc(catDesc(name))+'</textarea>',
+          '会显示在栏目预览中') +
+        '<div class="form-actions"><a class="btn" href="#/compile" style="text-decoration:none">取消</a>' +
+          '<button class="btn primary" id="aSubmit">保存修改</button></div>' +
+      '</div></div>';
+
+  function syncUrl(){
+    if (urlTouched) return;
+    var s = cleanSlug($('aSlug').value) || CAT_SLUG_FALLBACK[$('aName').value.trim()] || '';
+    $('aUrl').value = s ? CAT_URL_PREFIX + s + '.html' : '';
+  }
+  function syncCover(){
+    $('aCoverPreview').src = catFormCoverSrc($('aCover').value, $('aCoverUrl').value.trim());
+  }
+  function submit(){
+    var v = $('aName').value.trim();
+    if (!v){ alert('请填写栏目名称'); return; }
+    if (db.categories.indexOf(v) !== -1 && v !== name){ alert('栏目「'+v+'」已存在'); return; }
+    var urlV = $('aUrl').value.trim(), kw = $('aKeywords').value.trim(), desc = $('aDesc').value.trim();
+    var cv = $('aCover').value, cu = $('aCoverUrl').value.trim();
+    /* 改名：同步栏目名、文章归属与全部元数据 */
+    if (v !== name){
+      db.categories = db.categories.map(function(c){ return c === name ? v : c; });
+      db.posts.forEach(function(p){ if (p.cat === name) p.cat = v; });
+      moveCatMeta(name, v);
+      db.catIds[v] = db.catIds[name]; delete db.catIds[name];
+      if (CAT_SLUG_FALLBACK[name] != null){ CAT_SLUG_FALLBACK[v] = CAT_SLUG_FALLBACK[name]; delete CAT_SLUG_FALLBACK[name]; }
+      name = v;
+    }
+    setCatSlug(name, $('aSlug').value.trim() || CAT_SLUG_FALLBACK[name] || '');
+    var autoUrl = CAT_URL_PREFIX + catSlug(name) + '.html';
+    if (urlV && urlV !== autoUrl) db.catUrls[name] = urlV; else delete db.catUrls[name];
+    if (kw) db.catKeywords[name] = kw; else delete db.catKeywords[name];
+    if (desc) db.catDescs[name] = desc; else delete db.catDescs[name];
+    delete db.catCovers[name];
+    if (cu) db.catCovers[name] = cu;
+    else if (cv !== 'auto') db.catCovers[name] = +cv;
+    save();
+    toastCenter('✓ 栏目「'+name+'」已保存', 'ok');
+    location.hash = '#/compile';
+  }
+  $('aName').addEventListener('input', syncUrl);
+  $('aSlug').addEventListener('input', syncUrl);
+  $('aUrl').addEventListener('input', function(){ urlTouched = true; });
+  $('aCover').addEventListener('change', syncCover);
+  $('aCoverUrl').addEventListener('input', syncCover);
   $('aSubmit').addEventListener('click', submit);
   $('aName').focus();
 }
@@ -3752,61 +3856,7 @@ function fmtSize(b){
   if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
   return (b / 1048576).toFixed(2) + ' MB';
 }
-/* 快照不含 backups 自身，避免备份套备份 */
-function dmSnapshotText(){
-  var copy = {};
-  Object.keys(db).forEach(function(k){ if (k !== 'backups') copy[k] = db[k]; });
-  return JSON.stringify(copy, null, 2);
-}
-function dmDownload(name, text){
-  var blob = new Blob([text], {type:'application/json'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-function dmBackupName(){
-  return 'nebula-cms-' + nowStamp().replace(/[/:]/g,'-').replace(/ /g,'_') + '.json';
-}
-/* 备份：快照写独立 key，元信息进 db.backups，最多留 5 份 */
-function dmMakeBackup(kind){
-  var text = dmSnapshotText();
-  var id = (new Date()).getTime() + Math.floor(Math.random() * 1000);
-  /* 同一毫秒内连续备份可能撞号，撞了就把 id +1，保证快照 key 唯一 */
-  while (db.backups.some(function(b){ return b.id === id; })) id++;
-  var rec = {id:id, name:dmBackupName(), kind:kind || 'manual', bytes:byteLen(text), time:nowStamp()};
-  try{ localStorage.setItem(BK_PREFIX + id, text); }
-  catch(e){ return null; }
-  db.backups.unshift(rec);
-  while (db.backups.length > 5){
-    var old = db.backups.pop();
-    try{ localStorage.removeItem(BK_PREFIX + old.id); }catch(e){}
-  }
-  save();
-  return rec;
-}
-function dmRestoreData(data, label){
-  if (!data || typeof data !== 'object' || !Array.isArray(data.posts) ||
-      !Array.isArray(data.categories) || !data.settings){
-    alert('备份文件结构不正确：缺少 posts / categories / settings');
-    return false;
-  }
-  if (!confirm('恢复「' + label + '」会覆盖当前全部文章、单页、栏目与设置，确定继续？')) return false;
-  dmMakeBackup('auto');              /* 恢复前先给当前数据留一份，误操作可回退 */
-  var backups = db.backups;
-  db = data;
-  db.backups = backups;
-  ensurePages(); ensureTagIds(); ensureCatIds(); ensureCatMeta(); ensureSettings(); ensureDataTools();
-  save(); applySiteMeta(); route();
-  return true;
-}
-function dmRestoreText(text, label){
-  var data = null;
-  try{ data = JSON.parse(String(text)); }
-  catch(e){ alert('不是合法的 JSON 文件，无法恢复'); return false; }
-  return dmRestoreData(data, label);
-}
+/* 数据库备份已改为服务器端 MySQL .sql，见 vData() 的 db-* 接口调用 */
 function copyText(text, btn){
   var done = function(){
     if (!btn) return;
@@ -3825,45 +3875,25 @@ function copyText(text, btn){
 
 function vData(){
   ensureDataTools();
-  var ftp = db.ftp;
   var dbBytes = byteLen(JSON.stringify(db));
-  var bkBytes = db.backups.reduce(function(n, b){ return n + (+b.bytes || 0); }, 0);
   var tagN = Object.keys(db.tagIds || {}).length;
-  var pub = db.posts.filter(function(p){ return p.status === 'publish'; }).length;
-  var quota = Math.max(1, +ftp.quotaMB || 2048);
-  var used = Math.max(0, +ftp.usedMB || 0);
-  var qpct = Math.min(100, used / quota * 100);
-  var quotaTxt = quota >= 1024 ? (quota / 1024).toFixed(0) + ' GB' : quota + ' MB';
-  var usedTxt = used >= 1024 ? (used / 1024).toFixed(2) + ' GB' : used + ' MB';
-  var freeTxt = (quota - used) >= 1024 ? ((quota - used) / 1024).toFixed(2) + ' GB' : (quota - used) + ' MB';
-  var backups = db.backups.slice().sort(function(a, b){ return b.id - a.id; });
+  var sqlBase = (LEGACY_API || '../api.php').replace(/api\.php.*$/, '');
 
-  var rows = backups.length ? backups.map(function(b){
-    return '<tr><td class="col-file">' + esc(b.name) + '</td>' +
-      '<td><span class="pill ' + (b.kind === 'auto' ? 'draft' : 'pub') + '">' +
-        (b.kind === 'auto' ? '自动' : '手动') + '</span></td>' +
-      '<td>' + fmtSize(b.bytes) + '</td>' +
-      '<td class="date-cell">' + esc(b.time) + '</td>' +
-      '<td><span class="row-actions">' +
-        '<a data-act="dl" data-id="' + b.id + '">下载</a><span class="sep">|</span>' +
-        '<a data-act="rs" data-id="' + b.id + '">恢复</a><span class="sep">|</span>' +
-        '<a class="danger" data-act="rm" data-id="' + b.id + '">删除</a>' +
-      '</span></td></tr>';
-  }).join('') : '<tr class="empty-row"><td colspan="5">还没有备份记录，点上方「立即备份」生成第一份快照</td></tr>';
+  /* 服务器上的备份列表由 API 提供，先渲染空表格再异步填充 */
+  var rows = '<tr class="empty-row"><td colspan="5">正在读取服务器备份列表…</td></tr>';
 
   view.innerHTML =
-    '<div class="page-head reveal"><div><h1>数据管理</h1><p>数据库备份与恢复、数据库信息与空间 FTP</p></div></div>' +
+    '<div class="page-head reveal"><div><h1>数据管理</h1><p>MySQL 数据库备份与恢复</p></div></div>' +
 
     '<div class="dm-cols reveal" id="dmCols">' +
-    '<div class="card dm-col-bk">' +
+    '<div class="card">' +
       '<div class="dm-bk">' +
       '<div class="set-sec">数据库备份</div>' +
-      '<div class="gen-intro">把 <b>' + db.posts.length + ' 篇文章</b>、<b>' + db.pages.length +
-        ' 个单页</b>、<b>' + db.media.length + ' 条媒体记录</b>、栏目、标签与站点设置打包成一个 JSON 快照，可下载保存，' +
-        '恢复时整站内容回到备份时的状态。</div>' +
+      '<div class="gen-intro">把当前 <b>' + db.posts.length + ' 篇文章</b>、<b>' + db.pages.length +
+        ' 个单页</b>、<b>' + db.media.length + ' 条媒体记录</b>及栏目、标签、站点设置等 7 张数据表，' +
+        '导出为标准 <b>MySQL .sql</b> 文件，保存到服务器。可下载留存，也可用 phpMyAdmin 等工具导入。</div>' +
       '<div class="dm-actions">' +
-        '<button class="btn primary" id="dmBk">立即备份</button>' +
-        '<button class="btn" id="dmDl">下载完整快照</button>' +
+        '<button class="btn primary" id="dmBk">一键备份</button>' +
         '<span class="dm-tip" id="dmTip"></span>' +
       '</div>' +
       '<div class="dm-chips"><span class="dm-chip">文章 ' + db.posts.length + '</span>' +
@@ -3871,167 +3901,200 @@ function vData(){
         '<span class="dm-chip">媒体 ' + db.media.length + '</span>' +
         '<span class="dm-chip">栏目 ' + db.categories.length + '</span>' +
         '<span class="dm-chip">标签 ' + tagN + '</span>' +
-        '<span class="dm-chip">站点设置</span>' +
+        '<span class="dm-chip">共 7 张表</span>' +
         '<span class="dm-chip">当前体积 ' + fmtSize(dbBytes) + '</span></div>' +
       '<div class="set-sec">数据库恢复</div>' +
-      '<div class="gen-intro">把导出的 JSON 快照拖到下面，或点击选择文件。' +
-        '恢复前会自动留存当前数据，误操作也能回退。</div>' +
+      '<div class="gen-intro">选择此前导出的 <b>.sql</b> 备份文件上传并导入，整站数据会回到备份时的状态。' +
+        '导入前系统会自动再备份一次当前数据，误操作也能回退。</div>' +
       '<div class="dm-drop" id="dmDrop">' +
         '<svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4l4 4"/>' +
           '<path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>' +
-        '<b>拖拽备份文件到这里，或点击选择</b>' +
-        '<span>支持 .json 快照，建议不超过 2 MB</span>' +
-        '<input type="file" id="dmFile" accept=".json,application/json">' +
+        '<b>拖拽 .sql 备份文件到这里，或点击选择</b>' +
+        '<span>仅接受 CiciCMS 导出的 .sql 文件，最大 64 MB</span>' +
+        '<input type="file" id="dmFile" accept=".sql,text/sql,application/sql">' +
       '</div>' +
       '<div class="dm-pick" id="dmPicked">' +
         '<span class="nm" id="dmPickedName"></span>' +
         '<span class="sz" id="dmPickedSize"></span>' +
-        '<button class="btn sm primary" id="dmDoRestore">开始恢复</button></div>' +
+        '<button class="btn sm primary" id="dmDoRestore">开始导入</button></div>' +
       '</div>' +
     '</div>' +
 
-      '<div class="card"><div class="dm-info">' +
-        '<h3>数据库信息</h3><p class="dm-sub">当前站点内容存储概况</p>' +
-        '<div class="dm-row"><span class="k">数据库类型</span><span class="v">浏览器本地存储 <em>localStorage</em></span></div>' +
-        '<div class="dm-row"><span class="k">存储引擎</span><span class="v">JSON 文档存储</span></div>' +
-        '<div class="dm-row"><span class="k">存储键名</span><span class="v mono">' + KEY + '</span></div>' +
-        '<div class="dm-row"><span class="k">字符集</span><span class="v">UTF-8</span></div>' +
-        '<div class="dm-row"><span class="k">数据表（集合）</span><span class="v" title="posts / pages / media / categories / settings / tagIds / backups">7 <em>个</em></span></div>' +
-        '<div class="dm-row"><span class="k">记录总数</span><span class="v">' +
-          (db.posts.length + db.pages.length + db.media.length + db.categories.length + tagN) + ' <em>条</em></span></div>' +
-        '<div class="dm-row"><span class="k">内容分布</span><span class="v wrap" style="font-weight:500">文章 ' +
-          db.posts.length + ' · 单页 ' + db.pages.length + ' · 媒体 ' + db.media.length +
-          ' · 栏目 ' + db.categories.length + ' · 标签 ' + tagN + '</span></div>' +
-        '<div class="dm-row"><span class="k">数据体积</span><span class="v">' + fmtSize(dbBytes) + '</span></div>' +
-        '<div class="dm-row"><span class="k">备份占用</span><span class="v">' + backups.length + ' 份 · ' + fmtSize(bkBytes) + '</span></div>' +
-        '<div class="dm-row"><span class="k">最后写入</span><span class="v">' + esc(db.touchedAt || '—') + '</span></div>' +
-      '</div></div>' +
-
-      '<div class="card"><div class="dm-info">' +
-        '<h3>空间 FTP 信息 <span class="dm-tag">示例</span></h3>' +
-        '<p class="dm-sub">上传静态文件与远程备份用，正式部署时替换为空间服务商下发的账号</p>' +
-        '<div class="dm-row"><span class="k">空间主机</span><span class="v mono">' + esc(ftp.host) + '</span>' +
-          '<button class="dm-mini" data-copy="' + esc(ftp.host) + '">复制</button></div>' +
-        '<div class="dm-row"><span class="k">端口</span><span class="v mono">' + esc(ftp.port) + '</span></div>' +
-        '<div class="dm-row"><span class="k">用户名</span><span class="v mono">' + esc(ftp.user) + '</span>' +
-          '<button class="dm-mini" data-copy="' + esc(ftp.user) + '">复制</button></div>' +
-        '<div class="dm-row"><span class="k">密码</span><span class="v mono" id="dmPass">••••••••</span>' +
-          '<button class="dm-mini" id="dmPassShow">显示</button></div>' +
-        '<div class="dm-row"><span class="k">登录目录</span><span class="v mono">' + esc(ftp.root) + '</span></div>' +
-        '<div class="dm-row"><span class="k">连接状态</span>' +
-          '<span class="v"><span class="dm-dot' + (ftp.status === 'ok' ? '' : ' off') + '" id="dmDot"></span>' +
-          '<span id="dmState">' + (ftp.status === 'ok' ? '已连接' : '未连接') + '</span></span>' +
-          '<button class="dm-mini" id="dmPing">测试连接</button></div>' +
-        '<div class="dm-quota">' +
-          '<div class="qh"><span>空间容量</span><b>' + usedTxt + ' / ' + quotaTxt + '</b></div>' +
-          '<div class="qbar"><i style="width:' + qpct.toFixed(1) + '%"></i></div>' +
-          '<div class="qfoot">已用 ' + qpct.toFixed(1) + '% · 剩余 ' + freeTxt + '（FTP 与静态文件共用）</div>' +
-        '</div>' +
-      '</div></div>' +
-    '</div>' +
-
     '<div class="card reveal" style="animation-delay:.09s">' +
-      '<div class="dm-head"><b>备份记录</b><span>最多保留 5 份，超出后自动清理最早的一份</span></div>' +
+      '<div class="dm-head"><b>备份记录</b><span>保存在服务器 data/backup 目录，可下载或用 phpMyAdmin 导入</span></div>' +
       '<div class="table-wrap" id="dmTable"><table class="dm-table">' +
         '<thead><tr><th class="col-file">文件名</th><th>类型</th><th>大小</th><th>创建时间</th><th>操作</th></tr></thead>' +
         '<tbody id="dmRows">' + rows + '</tbody></table></div>' +
+    '</div>' +
     '</div>';
 
   var $ = function(id){ return document.getElementById(id); };
   var picked = null;
-  var passShown = false;
+  var sqlList = [];
+
+  /* 通用 API 请求 */
+  function api(action, opts, cb){
+    opts = opts || {};
+    try{
+      var xhr = new XMLHttpRequest();
+      xhr.open(opts.method || 'POST', LEGACY_API + '?r=' + action, true);
+      xhr.onreadystatechange = function(){
+        if (xhr.readyState !== 4) return;
+        var j = null;
+        try{ j = JSON.parse(xhr.responseText); }catch(e){}
+        if (xhr.status < 200 || xhr.status >= 300 || !j || !j.ok){
+          var em = (j && j.msg) || '';
+          if (!em && xhr.status === 413) em = '文件太大，服务器拒绝了上传（单次上限约 30MB），请改用下方「备份记录」里的「导入」';
+          else if (!em && xhr.status === 0) em = '连接中断，可能文件过大或网络超时，请改用「备份记录」导入';
+          else if (!em) em = '请求失败（HTTP ' + xhr.status + '）';
+          cb(null, em);
+          return;
+        }
+        cb(j, '');
+      };
+      xhr.send(opts.body || JSON.stringify({ _token: LEGACY_TOKEN }));
+    }catch(e){ cb(null, '网络错误：' + e.message); }
+  }
+
+  function fmtTime(ts){
+    var d = new Date(ts * 1000);
+    function p(n){ return n < 10 ? '0' + n : '' + n; }
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) +
+      ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  function renderList(list){
+    sqlList = list || [];
+    var rowsHtml = sqlList.length ? sqlList.map(function(b){
+      return '<tr><td class="col-file">' + esc(b.name) + '</td>' +
+        '<td><span class="pill pub">SQL</span></td>' +
+        '<td>' + fmtSize(b.size) + '</td>' +
+        '<td class="date-cell">' + esc(fmtTime(b.time)) + '</td>' +
+        '<td><span class="row-actions">' +
+          '<a data-act="dl" data-name="' + esc(b.name) + '">下载</a><span class="sep">|</span>' +
+          '<a data-act="rs" data-name="' + esc(b.name) + '">导入</a><span class="sep">|</span>' +
+          '<a class="danger" data-act="rm" data-name="' + esc(b.name) + '">删除</a>' +
+        '</span></td></tr>';
+    }).join('') : '<tr class="empty-row"><td colspan="5">还没有备份记录，点上方「一键备份」生成第一份 .sql 文件</td></tr>';
+    $('dmRows').innerHTML = rowsHtml;
+  }
+
+  function loadList(){
+    api('db-list', {method:'GET'}, function(j, err){
+      renderList(err ? [] : j.list);
+      if (err) $('dmTip').textContent = '读取备份列表失败：' + err;
+    });
+  }
+  loadList();
 
   $('dmBk').addEventListener('click', function(){
-    var rec = dmMakeBackup('manual');
-    if (!rec){ alert('备份失败：浏览器存储空间不足'); return; }
-    route();
-    var tip = $('dmTip');
-    tip.textContent = '已生成快照 ' + fmtSize(rec.bytes) + '，可在下方备份记录中下载';
-  });
-  $('dmDl').addEventListener('click', function(){
-    dmDownload(dmBackupName(), dmSnapshotText());
+    var btn = this;
+    btn.disabled = true; btn.textContent = '备份中…';
+    $('dmTip').textContent = '正在导出数据库，请稍候…';
+    api('db-backup', {}, function(j, err){
+      btn.disabled = false; btn.textContent = '一键备份';
+      if (err){ $('dmTip').textContent = '备份失败：' + err; return; }
+      $('dmTip').textContent = '备份完成：' + j.name + '（' + fmtSize(j.size) + '），已保存到服务器';
+      loadList();
+    });
   });
 
   function pickFile(file){
     if (!file) return;
+    /* 前端先拦截超大文件，避免传到一半被服务器 413 拒绝、用户一头雾水 */
+    var UP_MAX = 30 * 1024 * 1024;  /* 与服务器 nginx client_max_body_size 32m 对齐，留 2MB 余量 */
+    if (file.size > UP_MAX){
+      picked = null;
+      $('dmPicked').className = 'dm-pick';
+      $('dmTip').textContent = '文件 ' + fmtSize(file.size) + ' 超过单次上传上限 30MB。可改用下方「备份记录」里的「导入」按钮（服务器端文件，无上传限制）。';
+      if (toastCenter) toastCenter('✗ 文件超过上传上限 30MB', 'bad');
+      return;
+    }
     picked = file;
-    $('dmPickedName').textContent = file.name || '未命名快照';
+    $('dmPickedName').textContent = file.name || '未命名备份';
     $('dmPickedSize').textContent = fmtSize(file.size || 0);
     $('dmPicked').className = 'dm-pick show';
   }
   $('dmFile').addEventListener('change', function(){ pickFile(this.files && this.files[0]); });
-  $('dmDrop').addEventListener('dragover', function(e){
-    e.preventDefault(); this.className = 'dm-drop over';
-  });
-  $('dmDrop').addEventListener('dragleave', function(e){
-    e.preventDefault(); this.className = 'dm-drop';
-  });
+  $('dmDrop').addEventListener('dragover', function(e){ e.preventDefault(); this.className = 'dm-drop over'; });
+  $('dmDrop').addEventListener('dragleave', function(e){ e.preventDefault(); this.className = 'dm-drop'; });
   $('dmDrop').addEventListener('drop', function(e){
     e.preventDefault(); this.className = 'dm-drop';
     var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
     pickFile(f);
   });
-  $('dmDoRestore').addEventListener('click', function(){
-    if (!picked) return;
-    if (typeof FileReader === 'undefined'){ alert('当前环境不支持读取本地文件，请改用备份记录的「恢复」'); return; }
-    var fr = new FileReader();
-    fr.onload = function(){
-      if (dmRestoreText(String(fr.result), picked.name || '本地文件')) alert('已恢复：' + picked.name);
-    };
-    fr.readAsText(picked);
-  });
+
+  /* 导入本地上传的 .sql */
+  function doRestore(file, label){
+    if (!file) return;
+    if (!confirm('导入「' + label + '」会覆盖当前全部数据，确定继续？')) return;
+    var btn = $('dmDoRestore');
+    if (btn){ btn.disabled = true; btn.textContent = '导入中…'; }
+    $('dmTip').textContent = '正在导入 ' + label + '，请勿关闭页面…';
+    var fd = new FormData();
+    fd.append('_token', LEGACY_TOKEN);
+    fd.append('file', file, label);
+    api('db-restore', {body:fd}, function(j, err){ restoreDone(j, err, btn); });
+  }
+
+  /* 导入服务器上已有的 .sql（备份记录里的「导入」按钮） */
+  function doRestoreServer(name){
+    if (!name) return;
+    if (!confirm('导入「' + name + '」会覆盖当前全部数据，确定继续？')) return;
+    $('dmTip').textContent = '正在导入 ' + name + '，请勿关闭页面…';
+    api('db-restore-file', {body:JSON.stringify({_token:LEGACY_TOKEN, name:name})}, function(j, err){
+      restoreDone(j, err, null);
+    });
+  }
+
+  function restoreDone(j, err, btn){
+    if (btn){ btn.disabled = false; btn.textContent = '开始导入'; }
+    if (err){ $('dmTip').textContent = '导入失败：' + err; if (toastCenter) toastCenter('✗ 恢复失败：' + err, 'bad'); return; }
+    /* 关键：数据库已在后端恢复，丢弃前端尚未写回的旧 db，防止定时保存把旧数据整库盖回去 */
+    try{ if (_nbTimer){ clearTimeout(_nbTimer); _nbTimer = null; } _nbPending = null; }catch(e){}
+    var msg = '✓ 恢复成功：已执行 ' + j.executed + ' 条语句' +
+      (j.backup ? '，恢复前数据已自动备份为 ' + j.backup : '');
+    $('dmTip').textContent = msg + '，正在同步页面数据…';
+    if (toastCenter) toastCenter(msg + '，正在刷新…', 'ok');
+    /* 重新从 MySQL 拉取恢复后的状态，替换内存里的旧 db，再重绘当前页 */
+    try{
+      var res = nbFetchState();
+      db = res.db;
+      migrate(); ensurePages(); ensureTagIds(); ensureCatIds(); ensureCatMeta();
+      ensureSettings(); ensureDataTools(); ensureTemplates(); ensureAccounts();
+      ensureTrashMarks(); ensureRevisions(); applySiteMeta();
+      vData();
+      $('dmTip').textContent = msg + ' · 页面数据已同步';
+    }catch(e){
+      /* 兜底：拉取失败就整页刷新，保证不会停留在旧数据上 */
+      $('dmTip').textContent = msg + '，即将刷新页面…';
+      setTimeout(function(){ location.reload(); }, 900);
+    }
+  }
+
+  $('dmDoRestore').addEventListener('click', function(){ doRestore(picked, picked ? picked.name : ''); });
 
   $('dmTable').addEventListener('click', function(e){
     var a = e.target.closest('[data-act]');
     if (!a) return;
     e.preventDefault();
-    var id = +a.dataset.id, act = a.dataset.act, rec = null;
-    db.backups.forEach(function(b){ if (b.id === id) rec = b; });
-    if (!rec) return;
-    var text = null;
-    try{ text = localStorage.getItem(BK_PREFIX + rec.id); }catch(e){}
+    var name = a.dataset.name, act = a.dataset.act;
+    if (!name) return;
     if (act === 'dl'){
-      if (!text){ alert('快照内容已丢失，无法下载'); return; }
-      dmDownload(rec.name, text);
+      window.location.href = sqlBase + 'download.php?f=' + encodeURIComponent(name);
       return;
     }
     if (act === 'rs'){
-      if (!text){ alert('快照内容已丢失，无法恢复'); return; }
-      if (dmRestoreText(text, rec.name)) alert('已恢复到「' + rec.name + '」');
+      doRestoreServer(name);
       return;
     }
     if (act === 'rm'){
-      if (!confirm('删除备份「' + rec.name + '」？')) return;
-      try{ localStorage.removeItem(BK_PREFIX + rec.id); }catch(e){}
-      db.backups = db.backups.filter(function(b){ return b.id !== id; });
-      save(); route();
+      if (!confirm('删除备份「' + name + '」？此操作不可恢复。')) return;
+      api('db-delete', {body:JSON.stringify({_token:LEGACY_TOKEN, name:name})}, function(j, err){
+        if (err){ alert('删除失败：' + err); return; }
+        loadList();
+      });
     }
-  });
-
-  $('dmPassShow').addEventListener('click', function(){
-    passShown = !passShown;
-    $('dmPass').textContent = passShown ? String(ftp.pass) : '••••••••';
-    this.textContent = passShown ? '隐藏' : '显示';
-  });
-  $('dmPing').addEventListener('click', function(){
-    var btn = this;
-    btn.disabled = true; btn.textContent = '检测中…';
-    $('dmState').textContent = '连接中';
-    $('dmDot').className = 'dm-dot off';
-    setTimeout(function(){
-      ftp.status = 'ok';
-      save();
-      btn.disabled = false; btn.textContent = '测试连接';
-      $('dmState').textContent = '已连接';
-      $('dmDot').className = 'dm-dot';
-    }, 700);
-  });
-
-  /* 复制按钮统一代理（主机 / 用户名） */
-  $('dmCols').addEventListener('click', function(e){
-    var b = e.target.closest('[data-copy]');
-    if (!b) return;
-    copyText(b.dataset.copy, b);
   });
 }
 
@@ -4437,7 +4500,7 @@ function fileDownload(name, data, mime){
   URL.revokeObjectURL(a.href);
 }
 
-/* ================= 视图：一键更新 ================= */
+/* ================= 视图：一键生成 ================= */
 var genTimer = null;
 function vDeploy(){
   var s = db.settings;
@@ -4450,15 +4513,15 @@ function vDeploy(){
   var nStatic = pub + catN + pgPub + 5;   // 文章页 + 栏目页 + 单页 + index/404/sitemap/rss/theme.css
   var nDynamic = 2;               // data.json + api.php
   var lastText = s.lastGenAt
-    ? '上次更新：' + esc(s.lastGenAt) + ' · ' + (s.genMode === 'dynamic' ? '动态' : '静态')
-    : '尚未更新过';
+    ? '上次生成：' + esc(s.lastGenAt) + ' · ' + (s.genMode === 'dynamic' ? '动态' : '静态')
+    : '尚未生成过';
 
   view.innerHTML =
-    '<div class="page-head reveal"><div><h1>一键更新</h1><p>把后台内容重新构建成可发布的站点文件</p></div></div>' +
+    '<div class="page-head reveal"><div><h1>一键生成</h1><p>把后台内容生成可发布的 HTML 静态站点文件</p></div></div>' +
     '<div class="card reveal" style="animation-delay:.04s">' +
       '<div class="gen-form">' +
-      '<div class="set-sec">一键更新文章</div>' +
-      '<div class="gen-intro">更新会把当前的 <b>'+total+' 篇文章</b>（已发布 '+pub+' 篇）、<b>'+catN+' 个栏目</b>、' +
+      '<div class="set-sec">生成站点文件</div>' +
+      '<div class="gen-intro">生成会把当前的 <b>'+total+' 篇文章</b>（已发布 '+pub+' 篇）、<b>'+catN+' 个栏目</b>、' +
         '<b>'+pageN+' 个单页</b>（已发布 '+pgPub+' 个）与媒体引用一次性重新构建，两种方式<b>只能选一个</b>：<br>' +
         '· <b>一键生成静态文件</b>：套用「模板管理」里的布局与片段，输出可直接托管的 <code>HTML / CSS</code> 与 <code>sitemap / rss</code>，不依赖数据库，访问最快；<br>' +
         '· <b>一键生成动态文件</b>：输出 <code>data.json</code> 与 <code>api.php</code>，由服务器按请求实时读取，适合需要评论、会员等交互的站点。</div>' +
@@ -4477,7 +4540,7 @@ function vDeploy(){
         '</label>' +
       '</div>' +
       '<div class="gen-act">' +
-        '<button class="btn primary" id="genBtn">一键更新</button>' +
+        '<button class="btn primary" id="genBtn">一键生成</button>' +
         '<span class="gen-last" id="genLast">'+lastText+'</span>' +
       '</div>' +
       '<div class="gen-bar" id="genBar"><i id="genFill"></i></div>' +
@@ -4485,7 +4548,7 @@ function vDeploy(){
         '<span class="gen-state" id="genState"></span>' +
         '<b id="genPct">0%</b>' +
       '</div>' +
-      '<div class="gen-foot">更新只重新生成输出文件，不会改动已有文章、单页与媒体；中途离开页面会中断本次更新，再次点击「一键更新」即可重新开始。构建完成后可逐个下载产物，或打包成 zip 直接上传到空间。</div>' +
+      '<div class="gen-foot">生成只会重新输出站点文件，不会改动已有文章、单页与媒体；中途离开页面会中断本次生成，再次点击「一键生成」即可重新开始。默认生成静态 HTML 文档，完成后可逐个下载产物，或打包成 zip 直接上传到空间。</div>' +
       '<div class="gen-result" id="genResult" hidden>' +
         '<div class="gr-head"><b>构建产物</b><span id="genTotal"></span>' +
           '<button class="btn sm primary" id="genZip">下载全部 .zip</button></div>' +
@@ -4571,10 +4634,10 @@ function vDeploy(){
     var product = null;
     try{ product = buildOutput(s.genMode === 'dynamic' ? 'dynamic' : 'static'); }catch(e){}
     var n = product ? product.files.length : 0;
-    var steps = ['保存内容到数据库', '渲染文章页与栏目页', '写入静态资源', '生成 sitemap 与索引', '完成更新'];
+    var steps = ['保存内容到数据库', '渲染文章页与栏目页', '写入静态资源', '生成 sitemap 与索引', '完成生成'];
     var pct = 0;
     $('genBtn').disabled = true;
-    $('genBtn').textContent = '正在更新…';
+    $('genBtn').textContent = '正在生成…';
     $('genBar').className = 'gen-bar run';
     $('genPct').className = '';
     $('genPct').textContent = '0%';
@@ -4583,9 +4646,9 @@ function vDeploy(){
 
     var tick = 0, failed = false;
     function poll(){
-      var body = JSON.stringify({ _token: NEBULA_TOKEN });
+      var body = JSON.stringify({ _token: LEGACY_TOKEN });
       var xhr = new XMLHttpRequest();
-      xhr.open('POST', NEBULA_API + '?r=build', true);
+      xhr.open('POST', LEGACY_API + '?r=build', true);
       xhr.setRequestHeader('Content-Type','application/json;charset=utf-8');
       xhr.onreadystatechange = function(){
         if (xhr.readyState !== 4) return;
@@ -4595,9 +4658,9 @@ function vDeploy(){
         if (!j || !j.ok){
           failed = true;
           $('genBar').className = 'gen-bar';
-          $('genState').textContent = '更新失败：' + (j && j.msg ? j.msg : '服务器无响应');
+          $('genState').textContent = '生成失败：' + (j && j.msg ? j.msg : '服务器无响应');
           $('genBtn').disabled = false;
-          $('genBtn').textContent = '一键更新';
+          $('genBtn').textContent = '一键生成';
           running = false;
           return;
         }
@@ -4615,18 +4678,18 @@ function vDeploy(){
           s.lastGenAt = nowStamp();
           save();
           $('genBtn').disabled = false;
-          $('genBtn').textContent = '一键更新';
+          $('genBtn').textContent = '一键生成';
           var made = typeof j.files === 'number' ? j.files : n;
-          $('genState').textContent = '更新完成 · 服务器已写入 ' + made + ' 个文件';
-          $('genLast').textContent = '上次更新：' + esc(s.lastGenAt) + ' · 服务器静态文件';
+          $('genState').textContent = '生成完成 · 服务器已写入 ' + made + ' 个文件';
+          $('genLast').textContent = '上次生成：' + esc(s.lastGenAt) + ' · 服务器静态文件';
           if (product) showResult(product);
           running = false;
           return;
         }
         if (tick > 120){
-          $('genState').textContent = '更新超时，请到「数据管理」检查';
+          $('genState').textContent = '生成超时，请到「数据管理」检查';
           $('genBtn').disabled = false;
-          $('genBtn').textContent = '一键更新';
+          $('genBtn').textContent = '一键生成';
           running = false;
         }
       };
@@ -4645,8 +4708,8 @@ function vSettings(){
   var s = db.settings;
   var pv = function(kind){ return esc(sitePreviewSrc(kind)); };
   view.innerHTML =
-    '<div class="page-head reveal"><div><h1>站点设置</h1><p>基本信息、站点形象与数据管理</p></div></div>' +
-    '<div class="card reveal" style="animation-delay:.04s">' +
+    '<div class="page-head reveal"><div><h1>站点设置</h1><p>基本信息与站点形象</p></div></div>' +
+    '<div class="card settings-card reveal" style="animation-delay:.04s">' +
       '<div class="set-form">' +
       '<div class="set-sec">基本信息</div>' +
       '<div class="settings-grid">' +
@@ -4678,11 +4741,7 @@ function vSettings(){
           '<div class="logo-thumb"><img id="pvFavicon" class="site-ico" alt="站点图标预览" src="'+pv('favicon')+'"></div>' +
         '</div>' +
       '</div>' +
-      '</div>' +
-      '<div class="set-hint">留空即使用内置图标；填写图片 URL 会即时预览。保存后关键词与描述写入页面 meta，图标写入浏览器标签，明亮 Logo 显示在左上角侧栏。</div>' +
-      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap">' +
-        '<button class="btn" id="expBtn">导出 JSON 备份</button>' +
-        '<button class="btn danger" id="resetBtn">重置演示数据</button>' +
+      '<div class="set-actions">' +
         '<button class="btn primary" id="sSave">保存设置</button>' +
       '</div>' +
       '</div>' +
@@ -4727,23 +4786,213 @@ function vSettings(){
     s.favicon = $('sFavicon').value.trim();
     save(); applySiteMeta(); alert('设置已保存');
   });
-  $('expBtn').addEventListener('click', function(){
-    var blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'});
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'cicicms-backup.json';
-    a.click(); URL.revokeObjectURL(a.href);
+
+}
+
+/* ================= 视图：系统更新 ================= */
+function vUpdate(){
+  view.innerHTML =
+    '<div class="page-head reveal"><div><h1>系统更新</h1>' +
+      '<p>检查新版本、一键更新与版本回滚，更新只覆盖系统区文件</p></div></div>' +
+
+    '<div class="card upd-card reveal" style="animation-delay:.04s">' +
+      '<div class="set-form">' +
+      '<div class="set-sec">版本信息</div>' +
+      '<div class="upd-ver-row">' +
+        '<div class="upd-ver"><span>当前版本</span><b id="updCurVer">—</b>' +
+          '<span class="upd-badge" id="updBadge">读取中…</span></div>' +
+        '<button class="btn sm" id="updCheck">检查更新</button>' +
+      '</div>' +
+      '<div class="upd-line" id="updLine">正在读取更新状态…</div>' +
+      '<div class="upd-new" id="updNew" style="display:none">' +
+        '<div class="upd-new-head"><b id="updNewVer">发现新版本</b>' +
+          '<span class="upd-new-sha" id="updNewSha"></span></div>' +
+        '<div class="upd-new-msg" id="updNewMsg"></div>' +
+        '<div class="upd-new-foot"><span id="updNewDate"></span>' +
+          '<button class="btn primary sm" id="updApply">立即更新</button></div>' +
+      '</div>' +
+      '<div class="set-sec">更新设置</div>' +
+      '<div class="settings-grid">' +
+        '<div class="field"><label>自动检查更新</label><select id="updAutoCheck">' +
+          '<option value="1">开启</option><option value="0">关闭</option></select></div>' +
+        '<div class="field"><label>检查间隔（小时）</label>' +
+          '<input id="updInterval" type="number" min="1" max="168" value="6"></div>' +
+        '<div class="field"><label>发现新版本时</label><select id="updAutoApply">' +
+          '<option value="0">只提醒，手动更新</option><option value="1">自动安装</option></select></div>' +
+        '<div class="field"><label>通知邮箱</label>' +
+          '<input id="updEmail" placeholder="留空则不发送通知"></div>' +
+      '</div>' +
+      '<div class="upd-note">更新只覆盖系统区（includes/、admin/ 与根入口文件），content/ 与 config.php 不受影响；' +
+        '每次更新前会自动备份，可在下方一键回滚。</div>' +
+      '<div class="set-actions">' +
+        '<button class="btn primary" id="updSave">保存更新设置</button>' +
+      '</div>' +
+      '<div class="set-sec">更新备份</div>' +
+      '<div class="upd-bks" id="updBackups"><div class="upd-bk empty">正在读取…</div></div>' +
+      '</div>' +
+    '</div>';
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  /* ---------- 系统更新 ---------- */
+  function updTime(ts){
+    if (!ts) return '';
+    var d = new Date(ts * 1000);
+    function p(n){ return n < 10 ? '0' + n : '' + n; }
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) +
+      ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function updGet(cb){
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', LEGACY_API + '?r=update-status', true);
+    xhr.onreadystatechange = function(){
+      if (xhr.readyState !== 4) return;
+      var j = null;
+      try{ j = JSON.parse(xhr.responseText); }catch(e){}
+      if (xhr.status < 200 || xhr.status >= 300 || !j || !j.ok){
+        cb(null, (j && j.msg) || ('请求失败（HTTP ' + xhr.status + '）')); return;
+      }
+      cb(j, '');
+    };
+    try{ xhr.send(null); }catch(e){ cb(null, '网络错误：' + e.message); }
+  }
+  function updPost(action, data, cb){
+    data = data || {};
+    data._token = LEGACY_TOKEN;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', LEGACY_API + '?r=' + action, true);
+    xhr.setRequestHeader('Content-Type','application/json;charset=utf-8');
+    xhr.onreadystatechange = function(){
+      if (xhr.readyState !== 4) return;
+      var j = null;
+      try{ j = JSON.parse(xhr.responseText); }catch(e){}
+      if (xhr.status < 200 || xhr.status >= 300 || !j || !j.ok){
+        cb(null, (j && j.msg) || ('请求失败（HTTP ' + xhr.status + '）')); return;
+      }
+      cb(j, '');
+    };
+    try{ xhr.send(JSON.stringify(data)); }catch(e){ cb(null, '网络错误：' + e.message); }
+  }
+  function updRender(d){
+    $('updCurVer').textContent = 'v' + (d.version || '—');
+    var badge = $('updBadge');
+    if (d.hasUpdate){ badge.className = 'upd-badge new'; badge.textContent = '有新版本'; }
+    else if (d.lastError){ badge.className = 'upd-badge err'; badge.textContent = '检查失败'; }
+    else { badge.className = 'upd-badge ok'; badge.textContent = '已是最新'; }
+
+    var parts = [];
+    if (d.repoError){ parts.push('更新源不可用：' + d.repoError); }
+    else { parts.push('更新源 ' + d.repo + ' @ ' + d.branch); }
+    parts.push(d.checkedAt ? ('上次检查 ' + updTime(d.checkedAt)) : '尚未检查过');
+    if (d.lastError && !d.hasUpdate){ parts.push('上次错误：' + d.lastError); }
+    $('updLine').textContent = parts.join(' · ');
+
+    if (d.hasUpdate){
+      $('updNew').style.display = '';
+      $('updNewVer').textContent = d.remote.version ? ('新版本 v' + d.remote.version) : '发现新提交';
+      $('updNewSha').textContent = d.remote.sha ? d.remote.sha.slice(0, 7) : '';
+      $('updNewMsg').textContent = d.remote.msg || '';
+      $('updNewDate').textContent = d.remote.date ? ('提交于 ' + d.remote.date) : '';
+    } else {
+      $('updNew').style.display = 'none';
+    }
+
+    $('updAutoCheck').value = d.settings.autoCheck ? '1' : '0';
+    $('updInterval').value = d.settings.interval || 6;
+    $('updAutoApply').value = d.settings.autoApply ? '1' : '0';
+    $('updEmail').value = d.settings.notifyEmail || '';
+
+    var box = $('updBackups');
+    if (d.backups && d.backups.length){
+      box.innerHTML = d.backups.map(function(b){
+        return '<div class="upd-bk"><span class="nm" title="' + esc(b.name) + '">' + esc(b.name) + '</span>' +
+          '<span class="tm">' + esc(updTime(b.time)) + '</span>' +
+          '<button class="btn sm" data-rb="' + esc(b.name) + '">回滚</button></div>';
+      }).join('');
+    } else {
+      box.innerHTML = '<div class="upd-bk empty">还没有更新备份，执行一次更新后自动生成</div>';
+    }
+  }
+  function updLoad(){
+    updGet(function(d, err){
+      if (err){ $('updLine').textContent = '读取更新状态失败：' + err; return; }
+      updRender(d);
+    });
+  }
+  updLoad();
+
+  $('updCheck').addEventListener('click', function(){
+    var btn = this;
+    btn.disabled = true; btn.textContent = '检查中…';
+    $('updLine').textContent = '正在连接更新服务器…';
+    updPost('update-check', {}, function(j, err){
+      btn.disabled = false; btn.textContent = '检查更新';
+      if (err){
+        $('updLine').textContent = '检查失败：' + err;
+        if (toastCenter) toastCenter('✗ 检查更新失败：' + err, 'bad');
+        return;
+      }
+      updLoad();
+      if (toastCenter) toastCenter(j.hasUpdate ? '发现新版本' : '✓ 已是最新版本', 'ok');
+    });
   });
-  $('resetBtn').addEventListener('click', function(){
-    if (!confirm('重置为演示数据？当前所有内容将被覆盖。')) return;
-    localStorage.removeItem(KEY); load(); applySiteMeta(); route(); alert('已重置');
+
+  $('updApply').addEventListener('click', function(){
+    if (!confirm('立即更新会用新版本覆盖系统文件（includes/、admin/ 与根入口）。\n\n' +
+      '更新前会自动备份，失败自动回滚；content/ 与 config.php 不受影响。\n\n确定继续？')) return;
+    var btn = this;
+    btn.disabled = true; btn.textContent = '更新中…';
+    $('updLine').textContent = '正在下载并安装更新，请勿关闭页面…';
+    updPost('update-apply', {}, function(j, err){
+      btn.disabled = false; btn.textContent = '立即更新';
+      if (err){
+        $('updLine').textContent = '更新失败：' + err;
+        if (toastCenter) toastCenter('✗ 更新失败：' + err, 'bad');
+        return;
+      }
+      var msg = '✓ 已更新到 v' + (j.version || '') + '（覆盖 ' + j.files + ' 个文件）' +
+        (j.backup ? '，更新前备份：' + j.backup : '');
+      $('updLine').textContent = msg + '，正在刷新页面…';
+      if (toastCenter) toastCenter(msg + '，正在刷新…', 'ok');
+      setTimeout(function(){ location.reload(); }, 1800);
+    });
+  });
+
+  $('updSave').addEventListener('click', function(){
+    var btn = this;
+    btn.disabled = true;
+    updPost('update-save', {
+      autoCheck:   $('updAutoCheck').value === '1',
+      autoApply:   $('updAutoApply').value === '1',
+      interval:    parseInt($('updInterval').value, 10) || 6,
+      notifyEmail: $('updEmail').value.trim()
+    }, function(j, err){
+      btn.disabled = false;
+      if (err){ if (toastCenter) toastCenter('✗ 保存失败：' + err, 'bad'); return; }
+      if (toastCenter) toastCenter('✓ 更新设置已保存', 'ok');
+      updLoad();
+    });
+  });
+
+  $('updBackups').addEventListener('click', function(e){
+    var b = e.target.closest('[data-rb]');
+    if (!b) return;
+    var name = b.dataset.rb;
+    if (!confirm('回滚到「' + name + '」？\n\n会用这份备份覆盖当前系统文件，数据库内容不受影响。')) return;
+    b.disabled = true; b.textContent = '回滚中…';
+    updPost('update-rollback', { name: name }, function(j, err){
+      b.disabled = false; b.textContent = '回滚';
+      if (err){ if (toastCenter) toastCenter('✗ 回滚失败：' + err, 'bad'); return; }
+      if (toastCenter) toastCenter('✓ 已回滚到 ' + name + '，正在刷新…', 'ok');
+      setTimeout(function(){ location.reload(); }, 1500);
+    });
   });
 }
 
 function renderArticle(id, back){
   var p = findPost(id);
   if (!p){ view.innerHTML = '<div class="page-head"><h1>文章不存在</h1></div>'; return; }
-  var backHash = back || '#/posts';
+  var backHash = back || '#/edit';
   var hasCover = (typeof p.cover === 'string' && p.cover) || typeof p.cover === 'number';
   view.innerHTML =
     '<div class="preview-wrap reveal"><div class="article">' +
@@ -4767,7 +5016,7 @@ route();
 
 /* 关掉加载遮罩；离开页面前把未落盘的改动刷出去 */
 (function(){
-  var boot = document.getElementById('nebula-boot');
+  var boot = document.getElementById('legacy-boot');
   if (boot){
     boot.style.transition = 'opacity .18s';
     boot.style.opacity = '0';
@@ -4775,9 +5024,9 @@ route();
   }
   window.addEventListener('beforeunload', function(){
     if (!_nbPending) return;
-    var body = JSON.stringify({ _token: NEBULA_TOKEN, db: _nbPending });
+    var body = JSON.stringify({ _token: LEGACY_TOKEN, db: _nbPending });
     _nbPending = null;
-    try{ navigator.sendBeacon(NEBULA_API + '?r=save', new Blob([body],{type:'application/json'})); }catch(e){}
+    try{ navigator.sendBeacon(LEGACY_API + '?r=save', new Blob([body],{type:'application/json'})); }catch(e){}
   });
 })();
 

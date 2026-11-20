@@ -73,7 +73,7 @@ function val($sql, $params = array())
 }
 
 /** 白名单表名，防止表名注入 */
-function cms_table($table)
+function CMS_table($table)
 {
     $allow = array('config', 'user', 'category', 'article', 'page', 'attachment', 'flink');
     return in_array($table, $allow, true) ? $table : 'config';
@@ -83,9 +83,9 @@ function insert_row($table, $data)
 {
     $cols = array_keys($data);
     foreach ($cols as $c) {
-        cms_col_check($c);
+        CMS_col_check($c);
     }
-    $sql  = 'INSERT INTO {p}' . cms_table($table) . ' (`' . implode('`,`', $cols) . '`) VALUES ('
+    $sql  = 'INSERT INTO {p}' . CMS_table($table) . ' (`' . implode('`,`', $cols) . '`) VALUES ('
           . implode(',', array_fill(0, count($cols), '?')) . ')';
     q($sql, array_values($data));
     return (int) CmsDb::pdo()->lastInsertId();
@@ -97,7 +97,7 @@ function insert_row($table, $data)
  * 列名进的是 SQL 标识符位置，占位符保护不到。现在所有调用都是代码里写死的，
  * 但这层校验能让「某天有人用变量拼列名」直接报错，而不是悄悄变成注入点。
  */
-function cms_col_check($col)
+function CMS_col_check($col)
 {
     if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]{0,63}$/', (string) $col)) {
         throw new InvalidArgumentException('非法的列名：' . (string) $col);
@@ -115,7 +115,7 @@ function cms_col_check($col)
  *
  * 参数个数是否与 ? 个数相等，交给 PDO 报错（不在这里重复实现 SQL 词法分析）。
  */
-function cms_where_check($where)
+function CMS_where_check($where)
 {
     $w = trim((string) $where);
     if ($w === '') {
@@ -136,16 +136,16 @@ function update_row($table, $data, $where, $whereParams = array())
 {
     $set = array();
     foreach (array_keys($data) as $c) {
-        cms_col_check($c);
+        CMS_col_check($c);
         $set[] = '`' . $c . '`=?';
     }
-    cms_where_check($where);
-    $sql = 'UPDATE {p}' . cms_table($table) . ' SET ' . implode(',', $set) . ' WHERE ' . $where;
+    CMS_where_check($where);
+    $sql = 'UPDATE {p}' . CMS_table($table) . ' SET ' . implode(',', $set) . ' WHERE ' . $where;
     return q($sql, array_merge(array_values($data), $whereParams))->rowCount();
 }
 
 function delete_row($table, $where, $params = array())
 {
-    cms_where_check($where);
-    return q('DELETE FROM {p}' . cms_table($table) . ' WHERE ' . $where, $params)->rowCount();
+    CMS_where_check($where);
+    return q('DELETE FROM {p}' . CMS_table($table) . ' WHERE ' . $where, $params)->rowCount();
 }

@@ -15,13 +15,13 @@ if (!defined('CMS_TAG_NS')) {
 
 
 /** 相关文档：同分类优先，不足时用标签补 */
-function cms_tag_related($o = array())
+function CMS_tag_related($o = array())
 {
     $o      = is_array($o) ? $o : array();
-    $limit  = cms_tag_int(isset($o['limit']) ? $o['limit'] : 6, 6, 1, 50);
+    $limit  = CMS_tag_int(isset($o['limit']) ? $o['limit'] : 6, 6, 1, 50);
     $byTag  = !isset($o['bytag']) || (string) $o['bytag'] !== '0';
 
-    $scope = cms_scope();
+    $scope = CMS_scope();
     $post  = isset($scope['post']) ? $scope['post'] : null;
     if (!is_array($post) || empty($post['id'])) {
         return array();
@@ -75,7 +75,7 @@ function cms_tag_related($o = array())
 
     $out = array();
     foreach ($rows as $r) {
-        $out[] = cms_row_expand($r);
+        $out[] = CMS_row_expand($r);
     }
     return array_slice($out, 0, $limit);
 }

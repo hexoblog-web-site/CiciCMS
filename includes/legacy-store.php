@@ -1,18 +1,18 @@
 <?php
 /**
- * Nebula 后台数据适配层
+ * Legacy 后台数据适配层
  *
  * 原型 db 对象是浏览器里的完整状态；CiciCMS 是 7 张 MySQL 表。
  * 这里做双向转换，让界面代码只面对 db，不关心底层表结构。
  *
  * 映射：
  *   db.posts      → article     （tags 逗号串 ↔ 数组，md ↔ content_src + content）
- *   db.pages      → page        （展示开关存在 config.nebula_pages_meta）
+ *   db.pages      → page        （展示开关存在 config.nebula_pages_meta，键名沿用旧值以免升级丢数据）
  *   db.categories → category    （slug/desc 等已是真列）
  *   db.media      → attachment  （file/path、post/content_id、trashed/deleted_at）
  *   db.settings   → config      （site_name 等键）
  *   db.users      → user
- *   其余（revisions/templates/backups/ftp/seq/…）→ config.nebula_extra（JSON）
+ *   其余（revisions/templates/backups/ftp/seq/…）→ config.nebula_extra（JSON，键名同上）
  *
  * 不新增表，不动现有前端构建器。
  */
@@ -32,19 +32,19 @@ function nb_substr($s, $start, $len, $enc = 'UTF-8')
 }
 
 /** 原型 status ↔ article.status */
-function nebula_status_to_db($s)
+function legacy_status_to_db($s)
 {
     $map = array('publish' => 1, 'draft' => 0, 'pending' => 2, 'trash' => 3);
     return isset($map[$s]) ? $map[$s] : 0;
 }
-function nebula_status_from_db($n)
+function legacy_status_from_db($n)
 {
     $map = array(1 => 'publish', 0 => 'draft', 2 => 'pending', 3 => 'trash');
     return isset($map[(int) $n]) ? $map[(int) $n] : 'draft';
 }
 
 /** '2026/11/08 10:20:00' ↔ Unix 时间戳 */
-function nebula_time_to_db($s)
+function legacy_time_to_db($s)
 {
     $s = trim((string) $s);
     if ($s === '') {
@@ -54,19 +54,19 @@ function nebula_time_to_db($s)
     $t = strtotime($s);
     return $t === false ? time() : $t;
 }
-function nebula_time_from_db($ts)
+function legacy_time_from_db($ts)
 {
     $ts = (int) $ts;
     return $ts > 0 ? date('Y/m/d H:i:s', $ts) : '';
 }
-function nebula_date_from_db($ts)
+function legacy_date_from_db($ts)
 {
     $ts = (int) $ts;
     return $ts > 0 ? date('Y/m/d', $ts) : '';
 }
 
 /** 体积：'486 KB' ↔ 字节 */
-function nebula_size_to_db($s)
+function legacy_size_to_db($s)
 {
     $s = strtoupper(trim((string) $s));
     if (!preg_match('/^([\d.]+)\s*(B|KB|MB|GB)?$/', $s, $m)) {
@@ -76,7 +76,7 @@ function nebula_size_to_db($s)
     $mul  = array('B' => 1, 'KB' => 1024, 'MB' => 1048576, 'GB' => 1073741824);
     return (int) round((float) $m[1] * (isset($mul[$unit]) ? $mul[$unit] : 1));
 }
-function nebula_size_from_db($bytes)
+function legacy_size_from_db($bytes)
 {
     $b = (int) $bytes;
     if ($b >= 1073741824) {
@@ -92,7 +92,7 @@ function nebula_size_from_db($bytes)
 }
 
 /** 从文件名兜一个 slug */
-function nebula_slug($name, $fallback = '')
+function legacy_slug($name, $fallback = '')
 {
     $s = strtolower(trim((string) $name));
     $s = preg_replace('/[^\x{4e00}-\x{9fa5}a-z0-9]+/u', '-', $s);
@@ -104,7 +104,7 @@ function nebula_slug($name, $fallback = '')
 }
 
 /** 读 config 里的一个 JSON 块 */
-function nebula_extra_read($key)
+function legacy_extra_read($key)
 {
     $raw = setting($key, '');
     if ($raw === '') {
@@ -113,13 +113,13 @@ function nebula_extra_read($key)
     $v = json_decode($raw, true);
     return is_array($v) ? $v : array();
 }
-function nebula_extra_write($key, $value)
+function legacy_extra_write($key, $value)
 {
     set_setting($key, json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
 
 /** 标签字符串 ↔ 数组（原型存名字，article.tags 逗号串） */
-function nebula_tags_from_db($s)
+function legacy_tags_from_db($s)
 {
     $s = trim((string) $s);
     if ($s === '') {
@@ -134,7 +134,7 @@ function nebula_tags_from_db($s)
     }
     return array_values(array_unique($out));
 }
-function nebula_tags_to_db($arr)
+function legacy_tags_to_db($arr)
 {
     if (!is_array($arr)) {
         return '';
@@ -149,14 +149,48 @@ function nebula_tags_to_db($arr)
     return implode(',', $out);
 }
 
+/* 推荐位标记：数据库逗号串 <-> 前端数组，白名单来自 CMS_flag_map() */
+function legacy_flag_keys()
+{
+    $keys = function_exists('CMS_flag_map') ? array_keys(CMS_flag_map()) : array();
+    return $keys ? $keys : array('c', 'h', 'p', 'f', 'a', 's', 'b', 'j');
+}
+function legacy_flags_from_db($s)
+{
+    $allow = legacy_flag_keys();
+    $out = array();
+    foreach (explode(',', trim((string) $s)) as $f) {
+        $f = trim($f);
+        if ($f !== '' && in_array($f, $allow, true) && !in_array($f, $out, true)) {
+            $out[] = $f;
+        }
+    }
+    return $out;
+}
+function legacy_flags_to_db($arr)
+{
+    if (!is_array($arr)) {
+        return '';
+    }
+    $allow = legacy_flag_keys();
+    $out = array();
+    foreach ($arr as $f) {
+        $f = trim((string) $f);
+        if ($f !== '' && in_array($f, $allow, true) && !in_array($f, $out, true)) {
+            $out[] = $f;
+        }
+    }
+    return implode(',', $out);
+}
+
 /* ================================================================
  * 拉取完整状态
  * ================================================================ */
 
-function nebula_bootstrap()
+function legacy_bootstrap()
 {
-    $extra   = nebula_extra_read('nebula_extra');
-    $pgMeta  = nebula_extra_read('nebula_pages_meta');
+    $extra   = legacy_extra_read('nebula_extra');
+    $pgMeta  = legacy_extra_read('nebula_pages_meta');
     $tagIds  = isset($extra['tagIds']) && is_array($extra['tagIds']) ? $extra['tagIds'] : array();
     $catIds  = isset($extra['catIds']) && is_array($extra['catIds']) ? $extra['catIds'] : array();
     $catMeta = isset($extra['catMeta']) && is_array($extra['catMeta']) ? $extra['catMeta'] : array();
@@ -211,19 +245,23 @@ function nebula_bootstrap()
     $posts = array();
     foreach (all('SELECT * FROM {p}article ORDER BY id ASC') as $r) {
         $md  = isset($r['content_src']) && $r['content_src'] !== null ? (string) $r['content_src'] : (string) $r['content'];
-        $st  = nebula_status_from_db($r['status']);
+        $st  = legacy_status_from_db($r['status']);
         $row = array(
             'id'      => (int) $r['id'],
             'title'   => $r['title'],
             'status'  => $st,
             'cat'     => '',                    // 下面用 cat_id 反查
-            'tags'    => nebula_tags_from_db($r['tags']),
-            'date'    => nebula_date_from_db($r['created_at']),
-            'updated' => nebula_date_from_db($r['updated_at'] ? $r['updated_at'] : $r['created_at']),
+            'tags'    => legacy_tags_from_db($r['tags']),
+            'flag'    => legacy_flags_from_db(isset($r['flag']) ? $r['flag'] : ''),
+            'isTop'   => (int) (isset($r['is_top']) ? $r['is_top'] : 0) === 1,
+            'attach'  => isset($r['attachment']) ? (string) $r['attachment'] : '',
+            'authorId' => (int) (isset($r['author_id']) ? $r['author_id'] : 0),
+            'date'    => legacy_date_from_db($r['created_at']),
+            'updated' => legacy_date_from_db($r['updated_at'] ? $r['updated_at'] : $r['created_at']),
             'md'      => $md,
             'views'   => (int) $r['views'],
         );
-        $row['cat'] = nebula_cat_name((int) $r['cat_id']);
+        $row['cat'] = legacy_cat_name((int) $r['cat_id']);
         if ($r['cover'] !== '') {
             $row['cover'] = $r['cover'];
         }
@@ -246,9 +284,9 @@ function nebula_bootstrap()
             'title'     => $r['title'],
             'slug'      => $r['slug'],
             'template'  => isset($meta['template']) ? $meta['template'] : 'page',
-            'status'    => nebula_status_from_db($r['status']),
-            'date'      => nebula_time_from_db($r['created_at']),
-            'updated'   => nebula_date_from_db($r['updated_at'] ? $r['updated_at'] : $r['created_at']),
+            'status'    => legacy_status_from_db($r['status']),
+            'date'      => legacy_time_from_db($r['created_at']),
+            'updated'   => legacy_date_from_db($r['updated_at'] ? $r['updated_at'] : $r['created_at']),
             'parent'    => isset($meta['parent']) ? (int) $meta['parent'] : 0,
             'inNav'     => !empty($meta['inNav']),
             'navOrder'  => isset($meta['navOrder']) ? (int) $meta['navOrder'] : 0,
@@ -264,23 +302,47 @@ function nebula_bootstrap()
 
     /* 媒体 */
     $media = array();
+    /* 老数据 content_id 常为 0：从文章内容反查附件归属，仅用于展示，不写回库 */
+    $refMap = array();
+    $allFiles = array();
+    foreach (all('SELECT path FROM {p}attachment') as $ar) {
+        $f = basename((string) $ar['path']);
+        if ($f !== '') $allFiles[$f] = true;
+    }
+    foreach ($posts as $p) {
+        $hay = $p['md'] . ' ' . (isset($p['cover']) ? $p['cover'] : '') . ' ' . $p['attach'];
+        foreach (array_keys($allFiles) as $f) {
+            if (strpos($hay, $f) !== false && !isset($refMap[$f])) {
+                $refMap[$f] = (int) $p['id'];
+            }
+        }
+    }
     foreach (all('SELECT * FROM {p}attachment ORDER BY id ASC') as $r) {
         $path = (string) $r['path'];
+        $file = basename($path);
+        /* 相对站点根的完整路径（如 content/uploads/images/2026/1119/xxx.webp），
+           前端据此拼出可访问的缩略图 URL；basename 仅供显示 */
+        $url  = $path !== '' ? (strpos($path, '/') === 0 ? $path : '/' . $path) : '';
         $mm   = isset($mediaMeta[$r['id']]) && is_array($mediaMeta[$r['id']]) ? $mediaMeta[$r['id']] : array();
         $mime = (string) $r['mime'];
+        $postId = (int) $r['content_id'];
+        if ($postId < 1 && isset($refMap[$file])) {
+            $postId = $refMap[$file];
+        }
         $row  = array(
             'id'    => (int) $r['id'],
-            'file'  => basename($path),
+            'file'  => $file,
+            'url'   => $url,
             'type'  => strpos($mime, 'image/') === 0 ? 'image' : (preg_match('#/(zip|rar|7z|gzip|octet-stream)$#', $mime) ? 'zip' : 'file'),
             'dim'   => isset($mm['dim']) ? $mm['dim'] : '',
-            'size'  => nebula_size_from_db($r['size']),
-            'post'  => (int) $r['content_id'] > 0 ? (int) $r['content_id'] : null,
-            'date'  => nebula_date_from_db($r['created_at']),
+            'size'  => legacy_size_from_db($r['size']),
+            'post'  => $postId > 0 ? $postId : null,
+            'date'  => legacy_date_from_db($r['created_at']),
             'alt'   => (string) $r['alt'],
         );
         if ((int) $r['deleted_at'] > 0) {
             $row['trashed']   = true;
-            $row['trashedAt'] = nebula_time_from_db($r['deleted_at']);
+            $row['trashedAt'] = legacy_time_from_db($r['deleted_at']);
         }
         if (!empty($mm['variant'])) {
             $row['variant'] = $mm['variant'];
@@ -353,7 +415,7 @@ function nebula_bootstrap()
 }
 
 /** cat_id → 栏目名（缓存一次） */
-function nebula_cat_name($id)
+function legacy_cat_name($id)
 {
     static $map = null;
     if ($map === null) {
@@ -364,7 +426,7 @@ function nebula_cat_name($id)
     }
     return isset($map[(int) $id]) ? $map[(int) $id] : '';
 }
-function nebula_cat_id($name)
+function legacy_cat_id($name)
 {
     static $map = null;
     if ($map === null) {
@@ -381,7 +443,7 @@ function nebula_cat_id($name)
  * 提交完整状态（增量写回）
  * ================================================================ */
 
-function nebula_commit($db)
+function legacy_commit($db)
 {
     if (!is_array($db)) {
         throw new InvalidArgumentException('无效的数据包');
@@ -410,7 +472,7 @@ function nebula_commit($db)
         $keepCats[] = $name;
         $id = isset($oldCats[$name]) ? $oldCats[$name] : 0;
         $slug = isset($db['catSlugs'][$name]) && $db['catSlugs'][$name] !== ''
-            ? $db['catSlugs'][$name] : nebula_slug($name, 'cat-' . $id);
+            ? $db['catSlugs'][$name] : legacy_slug($name, 'cat-' . $id);
         $desc = isset($db['catDescs'][$name]) ? $db['catDescs'][$name] : '';
         $kw   = isset($db['catKeywords'][$name]) ? $db['catKeywords'][$name] : '';
         $cover= isset($db['catCovers'][$name]) ? $db['catCovers'][$name] : '';
@@ -463,18 +525,40 @@ function nebula_commit($db)
         $md = isset($p['md']) ? (string) $p['md'] : '';
         $slug = isset($p['slug']) && $p['slug'] !== ''
             ? (string) $p['slug'] : 'post-' . $id;
+        /* 附件链接：沿用 legacy 的清洗规则，地址留空则一并清空名字/大小/显示 */
+        $attach = function_exists('CMS_file_clean')
+            ? CMS_file_clean(isset($p['attach']) ? (string) $p['attach'] : '')
+            : trim(isset($p['attach']) ? (string) $p['attach'] : '');
+        $attachName = $attach !== ''
+            ? nb_substr(basename((string) parse_url($attach, PHP_URL_PATH)), 0, 100, 'UTF-8')
+            : '';
+        $attachShow = ($attach !== '' && !empty($p['attachShow'])) ? 1 : 0;
+        /* 作者：优先前端传来的 authorId，缺省时取当前登录用户 */
+        $authorId = isset($p['authorId']) ? (int) $p['authorId'] : 0;
+        if ($authorId < 1 && function_exists('auth_user')) {
+            $me = auth_user();
+            if ($me) {
+                $authorId = (int) (isset($me['id']) ? $me['id'] : 0);
+            }
+        }
         $data = array(
-            'cat_id'      => nebula_cat_id(isset($p['cat']) ? $p['cat'] : ''),
+            'cat_id'      => legacy_cat_id(isset($p['cat']) ? $p['cat'] : ''),
             'title'       => nb_substr(isset($p['title']) ? (string) $p['title'] : '（无标题）', 0, 200, 'UTF-8'),
             'slug'        => nb_substr($slug, 0, 120, 'UTF-8'),
-            'excerpt'     => nb_substr(isset($p['excerpt']) ? (string) $p['excerpt'] : nebula_excerpt($md), 0, 500, 'UTF-8'),
+            'excerpt'     => nb_substr(isset($p['excerpt']) ? (string) $p['excerpt'] : legacy_excerpt($md), 0, 500, 'UTF-8'),
             'content'     => function_exists('render_content') ? render_content($md) : '<p>' . e($md) . '</p>',
             'content_src' => $md,
-            'tags'        => nebula_tags_to_db(isset($p['tags']) ? $p['tags'] : array()),
+            'tags'        => legacy_tags_to_db(isset($p['tags']) ? $p['tags'] : array()),
+            'flag'        => legacy_flags_to_db(isset($p['flag']) ? $p['flag'] : array()),
+            'attachment'  => $attach,
+            'attach_name' => $attachName,
+            'attach_show' => $attachShow,
+            'author_id'   => $authorId,
             'cover'       => isset($p['cover']) ? (string) $p['cover'] : '',
-            'status'      => nebula_status_to_db(isset($p['status']) ? $p['status'] : 'draft'),
+            'is_top'      => !empty($p['isTop']) ? 1 : 0,
+            'status'      => legacy_status_to_db(isset($p['status']) ? $p['status'] : 'draft'),
             'views'       => isset($p['views']) ? (int) $p['views'] : 0,
-            'created_at'  => nebula_time_to_db(isset($p['date']) ? $p['date'] : ''),
+            'created_at'  => legacy_time_to_db(isset($p['date']) ? $p['date'] : ''),
             'updated_at'  => $now,
         );
         // slug 唯一索引：别人占了就加后缀
@@ -499,7 +583,7 @@ function nebula_commit($db)
     }
 
     /* ---- 单页 ---- */
-    $pgMeta = nebula_extra_read('nebula_pages_meta');
+    $pgMeta = legacy_extra_read('nebula_pages_meta');
     $oldPages = array();
     foreach (all('SELECT id FROM {p}page') as $r) {
         $oldPages[(int) $r['id']] = true;
@@ -518,9 +602,9 @@ function nebula_commit($db)
             'slug'        => nb_substr($slug, 0, 120, 'UTF-8'),
             'content'     => function_exists('render_content') ? render_content($md) : '<p>' . e($md) . '</p>',
             'content_src' => $md,
-            'status'      => nebula_status_to_db(isset($pg['status']) ? $pg['status'] : 'draft'),
+            'status'      => legacy_status_to_db(isset($pg['status']) ? $pg['status'] : 'draft'),
             'sort'        => isset($pg['navOrder']) ? (int) $pg['navOrder'] : 0,
-            'created_at'  => nebula_time_to_db(isset($pg['date']) ? $pg['date'] : ''),
+            'created_at'  => legacy_time_to_db(isset($pg['date']) ? $pg['date'] : ''),
             'updated_at'  => $now,
         );
         $dupe = one('SELECT id FROM {p}page WHERE slug = ? AND id <> ?', array($data['slug'], $id));
@@ -553,7 +637,7 @@ function nebula_commit($db)
             unset($pgMeta[$id]);
         }
     }
-    nebula_extra_write('nebula_pages_meta', $pgMeta);
+    legacy_extra_write('nebula_pages_meta', $pgMeta);
 
     /* ---- 媒体 ---- */
     $oldMedia = array();
@@ -577,10 +661,10 @@ function nebula_commit($db)
             'name'       => nb_substr(basename($file), 0, 200, 'UTF-8'),
             'alt'        => nb_substr(isset($m['alt']) ? (string) $m['alt'] : '', 0, 200, 'UTF-8'),
             'mime'       => $mime,
-            'size'       => nebula_size_to_db(isset($m['size']) ? $m['size'] : 0),
+            'size'       => legacy_size_to_db(isset($m['size']) ? $m['size'] : 0),
             'content_id' => isset($m['post']) && $m['post'] !== null ? (int) $m['post'] : 0,
-            'deleted_at' => !empty($m['trashed']) ? nebula_time_to_db(isset($m['trashedAt']) ? $m['trashedAt'] : '') : 0,
-            'created_at' => nebula_time_to_db(isset($m['date']) ? $m['date'] : ''),
+            'deleted_at' => !empty($m['trashed']) ? legacy_time_to_db(isset($m['trashedAt']) ? $m['trashedAt'] : '') : 0,
+            'created_at' => legacy_time_to_db(isset($m['date']) ? $m['date'] : ''),
         );
         if (isset($oldMedia[$id])) {
             update_row('attachment', $data, 'id = ?', array($id));
@@ -622,7 +706,7 @@ function nebula_commit($db)
     if (isset($set['favicon']))     { set_setting('favicon', (string) $set['favicon']); }
 
     /* ---- 其余状态整块存回 ---- */
-    $extra = nebula_extra_read('nebula_extra');
+    $extra = legacy_extra_read('nebula_extra');
     foreach (array('seq', 'revisions', 'templates', 'backups', 'ftp', 'catTrash',
                    'catCovers', 'catSlugs', 'catDescs', 'catUrls', 'catKeywords',
                    'touchedAt', 'lastPurge', 'seedVer') as $k) {
@@ -641,12 +725,12 @@ function nebula_commit($db)
     $extra['catIds']   = $catExtra;
     $extra['catMeta']  = isset($extra['catMeta']) ? $extra['catMeta'] : array();
     $extra['mediaMeta'] = $mediaMeta;
-    nebula_extra_write('nebula_extra', $extra);
+    legacy_extra_write('nebula_extra', $extra);
 
     return $counts;
 }
 
-function nebula_excerpt($md)
+function legacy_excerpt($md)
 {
     $s = preg_replace('/^[#>\s`\-]+/m', '', (string) $md);
     $s = strip_tags($s);

@@ -16,7 +16,7 @@ require_once __DIR__ . '/markdown.php';
  * 在左侧菜单里挂一个入口，放在「文章管理」后面——导入完就要去发文章，顺序顺手。
  * 菜单项的 key 就是后台路由 ?p=<key>，与本插件 ID 一致。
  */
-cms_add_filter('admin_menu', function ($nav) {
+CMS_add_filter('admin_menu', function ($nav) {
     if (!is_array($nav)) {
         return $nav;
     }

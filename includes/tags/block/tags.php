@@ -14,23 +14,23 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-function cms_tag_block_tags($attrRaw, $body, $hot = false)
+function CMS_tag_block_tags($attrRaw, $body, $hot = false)
 {
-    $a = cms_tag_attrs($attrRaw);
+    $a = CMS_tag_attrs($attrRaw);
     $o = array(
         'limit'   => isset($a['limit']) ? $a['limit'] : (isset($a['row']) ? $a['row'] : ($hot ? 12 : 50)),
         'sort'    => isset($a['sort']) ? $a['sort'] : 'count',
         'current' => (isset($a['type']) && strtolower($a['type']) === 'current') ? '1' : '0',
     );
-    list($main, $empty) = cms_tag_split_block_empty($body);
-    $uid = cms_tag_uid();
+    list($main, $empty) = CMS_tag_split_block_empty($body);
+    $uid = CMS_tag_uid();
     $st  = '$__tg' . $uid;
 
-    return '<?php ' . $st . ' = cms_tag_taglist(' . cms_tag_qcode($o) . '); ?>'
+    return '<?php ' . $st . ' = CMS_tag_taglist(' . CMS_tag_qcode($o) . '); ?>'
          . '<?php if (empty(' . $st . ')): ?>'
-         . cms_tag_parse($empty)
+         . CMS_tag_parse($empty)
          . '<?php else: ?>'
-         . cms_tag_loop_code($st, $main)
+         . CMS_tag_loop_code($st, $main)
          . '<?php endif; ?>';
 }
 /* ── 标签注册（引擎按这份声明找到本文件）───────────────── */
@@ -39,5 +39,5 @@ return array(
     'name'    => 'tags',
     'desc'    => '标签云',
     'block'   => true,
-    'compile' => 'cms_tag_block_tags',
+    'compile' => 'CMS_tag_block_tags',
 );

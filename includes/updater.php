@@ -236,7 +236,7 @@ function update_mail_host()
  */
 function update_mail($to, $subject, $body, &$err = '')
 {
-    return cms_mail_send($to, $subject, $body, $err);
+    return CMS_mail_send($to, $subject, $body, $err);
 }
 
 /**
@@ -1177,7 +1177,7 @@ function update_install_zip($zipPath, $info, &$err)
 {
     $err = '';
 
-    $zip = new Cms_Zip_Reader($zipPath);
+    $zip = new CMS_Zip_Reader($zipPath);
     if ($zip->error() !== '') {
         $err = '压缩包无法读取：' . $zip->error();
         return false;

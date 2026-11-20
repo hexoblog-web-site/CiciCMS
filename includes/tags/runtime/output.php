@@ -18,7 +18,7 @@ if (!defined('CMS_TAG_NS')) {
  * 输出一个值：先跑修饰器，再按需转义。
  * $rawDefault 为 true 时不做 HTML 转义（正文类字段）。
  */
-function cms_tag_out($val, $filters = array(), $rawDefault = false)
+function CMS_tag_out($val, $filters = array(), $rawDefault = false)
 {
     $raw = (bool) $rawDefault;
     foreach ((array) $filters as $f) {
@@ -32,23 +32,23 @@ function cms_tag_out($val, $filters = array(), $rawDefault = false)
             $raw = false;
             continue;
         }
-        $val = cms_tag_filter($val, $name, $args);
+        $val = CMS_tag_filter($val, $name, $args);
     }
-    $s = cms_val_str($val);
+    $s = CMS_val_str($val);
     return $raw ? $s : e($s);
 }
 
-function cms_tag_filter($val, $name, $args = array())
+function CMS_tag_filter($val, $name, $args = array())
 {
-    $s = cms_val_str($val);
+    $s = CMS_val_str($val);
     switch ($name) {
         case 'date':
         case 'datetime':
             $fmt = !empty($args[0]) ? $args[0] : ($name === 'datetime' ? 'Y-m-d H:i' : 'Y-m-d');
-            $ts  = cms_tag_to_ts($val);
+            $ts  = CMS_tag_to_ts($val);
             return $ts > 0 ? date($fmt, $ts) : '';
         case 'ago':
-            return human_date(cms_tag_to_ts($val));
+            return human_date(CMS_tag_to_ts($val));
         case 'limit':
         case 'cut':
             $len    = isset($args[0]) && $args[0] !== '' ? (int) $args[0] : 100;
@@ -85,7 +85,7 @@ function cms_tag_filter($val, $name, $args = array())
 }
 
 /** 把各种时间表示统一成时间戳 */
-function cms_tag_to_ts($v)
+function CMS_tag_to_ts($v)
 {
     if (is_numeric($v)) {
         $n = (int) $v;
@@ -99,7 +99,7 @@ function cms_tag_to_ts($v)
     return $t === false ? 0 : $t;
 }
 
-function cms_tag_int($v, $default = 0, $min = null, $max = null)
+function CMS_tag_int($v, $default = 0, $min = null, $max = null)
 {
     if (!is_numeric($v)) {
         $v = $default;
@@ -114,7 +114,7 @@ function cms_tag_int($v, $default = 0, $min = null, $max = null)
     return $v;
 }
 
-function cms_substr($s, $len)
+function CMS_substr($s, $len)
 {
     $s = (string) $s;
     $len = (int) $len;

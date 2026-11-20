@@ -3,7 +3,7 @@
 按功能分类的函数清单。写插件、改模板、读源码时当字典查。
 
 ::: tip 全部是全局函数
-没有命名空间。靠前缀区分归属：`cms_` 公共 / `fe_` 前台 / `build_` 生成 / `db_` 数据库备份 / `update_` 更新 / `cms_tag_` 标签引擎。自己写插件时请加自己的前缀，避免撞名白屏。
+没有命名空间。靠前缀区分归属：`CMS_` 公共 / `fe_` 前台 / `build_` 生成 / `db_` 数据库备份 / `update_` 更新 / `CMS_tag_` 标签引擎。自己写插件时请加自己的前缀，避免撞名白屏。
 :::
 
 ## 数据库 `includes/db.php`
@@ -17,7 +17,7 @@
 | `insert_row($table, $data)` | 插入，返回自增 ID |
 | `update_row($table, $data, $where, $params)` | 更新，返回影响行数 |
 | `delete_row($table, $where, $params)` | 删除 |
-| `cms_table($name)` | 返回带前缀的表名 |
+| `CMS_table($name)` | 返回带前缀的表名 |
 
 ```php
 $posts = all('SELECT * FROM {p}article WHERE status = ? ORDER BY id DESC LIMIT 10', array(1));
@@ -25,7 +25,7 @@ $name  = val('SELECT name FROM {p}category WHERE id = ?', array(2));
 insert_row('flink', array('name' => '某某站', 'url' => 'https://a.com'));
 ```
 
-`{p}` 会自动替换成表前缀（默认 `cms_`）。
+`{p}` 会自动替换成表前缀（默认 `CMS_`）。
 
 ## 配置 `includes/functions.php`
 
@@ -72,17 +72,17 @@ set_setting('site_name', '我的站');
 
 | 函数 | 说明 |
 | --- | --- |
-| `cms_session_start()` | 按需启动会话（重复调用安全） |
+| `CMS_session_start()` | 按需启动会话（重复调用安全） |
 | `csrf_token()` | 生成/取当前令牌 |
 | `csrf_field()` | 输出 `<input type="hidden" name="_token">` |
 | `csrf_verify()` | 校验令牌，不符直接 403 并结束 |
 | `clean_html($html)` | 净化 HTML：按标签/属性白名单重建，非白名单标签去标签留文字 |
-| `cms_url_public_check($url)` | 是否公网地址，返回空串表示通过 |
+| `CMS_url_public_check($url)` | 是否公网地址，返回空串表示通过 |
 
 ```php
 csrf_verify();                                   // 后台每个 POST 的第一行
 echo csrf_field();                               // 表单里
-if (($err = cms_url_public_check($url)) !== '') { echo $err; }
+if (($err = CMS_url_public_check($url)) !== '') { echo $err; }
 ```
 
 ## URL
@@ -101,7 +101,7 @@ if (($err = cms_url_public_check($url)) !== '') { echo $err; }
 | `cat_static_url($catId)` | 栏目静态地址 |
 | `tag_slug($name)` | 标签的 URL 片段（名字 MD5 前 10 位） |
 | `detect_site_url()` | 自动探测站点地址（安装时用） |
-| `cms_static_mode()` | 当前是否静态模式（有没有 `index.html`） |
+| `CMS_static_mode()` | 当前是否静态模式（有没有 `index.html`） |
 
 ::: tip 为什么标签用哈希
 标签名可能是中文、可能带空格斜杠。用 `md5(名字)` 前 10 位当文件名，既避免编码问题，又保证唯一。代价是不能自定义标签路径。
@@ -116,7 +116,7 @@ if (($err = cms_url_public_check($url)) !== '') { echo $err; }
 | `theme_url($path = '')` | 主题的 URL |
 | `render($tpl, $vars)` | 渲染标签模板（`.html`），返回 HTML |
 | `render_php_file($file, $vars)` | 渲染 PHP 模板 |
-| `cms_finalize_html($html)` | 跑 `html_final` 钩子 |
+| `CMS_finalize_html($html)` | 跑 `html_final` 钩子 |
 
 ```php
 $html = render('article', array('post' => $post, 'site' => $site));
@@ -155,9 +155,9 @@ $html = render('article', array('post' => $post, 'site' => $site));
 | `ensure_dir($dir)` | 目录不存在就建（递归） |
 | `write_file_atomic($path, $data)` | 原子写：临时文件 + `rename` |
 | `log_msg($msg, $level)` | 写日志到 `content/data/logs/` |
-| `cms_is_system_rel($rel)` | 某个相对路径是不是系统区 |
-| `cms_reserved_dirs()` | 保留目录名（不能当栏目别名） |
-| `cms_system_dirs()` | 系统目录清单 |
+| `CMS_is_system_rel($rel)` | 某个相对路径是不是系统区 |
+| `CMS_reserved_dirs()` | 保留目录名（不能当栏目别名） |
+| `CMS_system_dirs()` | 系统目录清单 |
 
 ::: danger 写文件一律走 write_file_atomic
 直接 `file_put_contents($path, $data)` 在写入过程中被中断，会留下半个文件——前台就读到半截 HTML。
@@ -165,7 +165,7 @@ $html = render('article', array('post' => $post, 'site' => $site));
 
 ## 上传
 
-**图片** `includes/uploader.php`（类 `Cms_Image_Uploader`）
+**图片** `includes/uploader.php`（类 `CMS_Image_Uploader`）
 
 | 方法 | 说明 |
 | --- | --- |
@@ -180,25 +180,25 @@ $html = render('article', array('post' => $post, 'site' => $site));
 
 | 函数 | 说明 |
 | --- | --- |
-| `cms_upload_image($file)` | 上传图片 |
-| `cms_upload_remote($url)` | 抓远程图 |
-| `cms_upload_delete($path)` | 删图 + 删记录 |
-| `cms_banner_clean($url)` | 校验横幅地址 |
-| `cms_upload_exts()` | 允许的图片后缀 |
-| `cms_upload_max_bytes()` | 大小上限（程序 5MB 与 php.ini 取小） |
+| `CMS_upload_image($file)` | 上传图片 |
+| `CMS_upload_remote($url)` | 抓远程图 |
+| `CMS_upload_delete($path)` | 删图 + 删记录 |
+| `CMS_banner_clean($url)` | 校验横幅地址 |
+| `CMS_upload_exts()` | 允许的图片后缀 |
+| `CMS_upload_max_bytes()` | 大小上限（程序 5MB 与 php.ini 取小） |
 
 **附件** `includes/fileupload.php`
 
 | 函数 | 说明 |
 | --- | --- |
-| `cms_file_upload($file)` | 上传附件 |
-| `cms_file_exts()` | 允许的后缀 |
-| `cms_file_deny_exts()` | 明确拒绝的后缀 |
-| `cms_file_ext_ok($name)` | 后缀校验 |
-| `cms_file_max_bytes()` | 大小上限（20MB 与 php.ini 取小） |
-| `cms_file_guard_dir($dir)` | 写防护 `.htaccess` |
-| `cms_file_delete($path)` | 删附件 |
-| `cms_file_clean($dir)` | 清空目录 |
+| `CMS_file_upload($file)` | 上传附件 |
+| `CMS_file_exts()` | 允许的后缀 |
+| `CMS_file_deny_exts()` | 明确拒绝的后缀 |
+| `CMS_file_ext_ok($name)` | 后缀校验 |
+| `CMS_file_max_bytes()` | 大小上限（20MB 与 php.ini 取小） |
+| `CMS_file_guard_dir($dir)` | 写防护 `.htaccess` |
+| `CMS_file_delete($path)` | 删附件 |
+| `CMS_file_clean($dir)` | 清空目录 |
 
 ## 前台数据 `includes/frontend.php`
 
@@ -260,32 +260,32 @@ $html = render('article', array('post' => $post, 'site' => $site));
 
 | 函数 | 说明 |
 | --- | --- |
-| `cms_clean_scan()` | 扫描，返回结构体 |
-| `cms_clean_refs()` | 建立引用索引 |
-| `cms_clean_is_used($name, $refs)` | 是否被引用 |
-| `cms_clean_delete_many($paths)` | 批量删除（重新核对） |
-| `cms_clean_forget_record($id)` | 清失效记录 |
-| `cms_clean_skip($name)` | 是否跳过该文件 |
-| `cms_clean_is_image_name($name)` | 按后缀判断是不是图 |
+| `CMS_clean_scan()` | 扫描，返回结构体 |
+| `CMS_clean_refs()` | 建立引用索引 |
+| `CMS_clean_is_used($name, $refs)` | 是否被引用 |
+| `CMS_clean_delete_many($paths)` | 批量删除（重新核对） |
+| `CMS_clean_forget_record($id)` | 清失效记录 |
+| `CMS_clean_skip($name)` | 是否跳过该文件 |
+| `CMS_clean_is_image_name($name)` | 按后缀判断是不是图 |
 
 ## 插件 `includes/plugin.php`
 
 | 函数 | 说明 |
 | --- | --- |
-| `cms_add_filter($hook, $cb, $prio = 10)` | 注册过滤器 |
-| `cms_add_action($hook, $cb, $prio = 10)` | 注册动作 |
-| `cms_apply_filters($hook, $value, ...)` | 执行过滤器，返回处理后值 |
-| `cms_do_action($hook, ...)` | 执行动作 |
-| `cms_plugin_scan()` | 扫描插件目录 |
-| `cms_plugin_load()` | 加载已启用的插件 |
-| `cms_plugin_active($id)` | 某插件是否启用 |
-| `cms_plugin_save_active($ids)` | 保存启用列表 |
-| `cms_plugin_active_ids()` | 当前启用的 ID 列表 |
-| `cms_plugin_url($id, $path = '')` | 插件资源 URL |
-| `cms_plugin_path($id, $path = '')` | 插件磁盘路径 |
-| `cms_plugin_id_ok($id)` | ID 合法性 |
-| `cms_plugin_admin_pages()` | 已注册的后台页 |
-| `cms_hook_docs()` | 钩子文档数据（后台展示用） |
+| `CMS_add_filter($hook, $cb, $prio = 10)` | 注册过滤器 |
+| `CMS_add_action($hook, $cb, $prio = 10)` | 注册动作 |
+| `CMS_apply_filters($hook, $value, ...)` | 执行过滤器，返回处理后值 |
+| `CMS_do_action($hook, ...)` | 执行动作 |
+| `CMS_plugin_scan()` | 扫描插件目录 |
+| `CMS_plugin_load()` | 加载已启用的插件 |
+| `CMS_plugin_active($id)` | 某插件是否启用 |
+| `CMS_plugin_save_active($ids)` | 保存启用列表 |
+| `CMS_plugin_active_ids()` | 当前启用的 ID 列表 |
+| `CMS_plugin_url($id, $path = '')` | 插件资源 URL |
+| `CMS_plugin_path($id, $path = '')` | 插件磁盘路径 |
+| `CMS_plugin_id_ok($id)` | ID 合法性 |
+| `CMS_plugin_admin_pages()` | 已注册的后台页 |
+| `CMS_hook_docs()` | 钩子文档数据（后台展示用） |
 
 ## 更新 `includes/updater.php`
 
@@ -314,12 +314,12 @@ $html = render('article', array('post' => $post, 'site' => $site));
 
 | 函数 | 说明 |
 | --- | --- |
-| `cms_mail_send($to, $subject, $body)` | 统一发信入口 |
-| `cms_mail_config()` | 读邮件设置 |
-| `cms_mail_addr($addr)` | 规范化邮箱地址 |
-| `cms_smtp_send(...)` | SMTP 发信 |
-| `cms_smtp_cmd($fp, $cmd)` | 发命令并读回复 |
-| `cms_smtp_read($fp)` / `cms_smtp_code($line)` | 读回复 / 解析状态码 |
+| `CMS_mail_send($to, $subject, $body)` | 统一发信入口 |
+| `CMS_mail_config()` | 读邮件设置 |
+| `CMS_mail_addr($addr)` | 规范化邮箱地址 |
+| `CMS_smtp_send(...)` | SMTP 发信 |
+| `CMS_smtp_cmd($fp, $cmd)` | 发命令并读回复 |
+| `CMS_smtp_read($fp)` / `CMS_smtp_code($line)` | 读回复 / 解析状态码 |
 
 ## 登录 `includes/auth.php`
 
@@ -341,7 +341,7 @@ $html = render('article', array('post' => $post, 'site' => $site));
 | --- | --- |
 | `admin_url($p = '')` | 拼后台地址 |
 | `admin_pager_html($pager, $base)` | 生成后台分页 HTML |
-| `cms_permission_audit()` | 目录权限自检数据 |
+| `CMS_permission_audit()` | 目录权限自检数据 |
 | `is_ajax()` | 是否 AJAX 请求 |
 
 ## 标签引擎 `includes/tags/`
@@ -350,16 +350,16 @@ $html = render('article', array('post' => $post, 'site' => $site));
 
 | 函数 | 说明 |
 | --- | --- |
-| `cms_tag_registry()` | 标签注册表 |
-| `cms_tag_compile($tpl)` | 把模板编译成 PHP |
-| `cms_tag_parse($tpl)` | 解析标签结构 |
-| `cms_tag_locate($name)` | 找标签实现文件 |
-| `cms_tag_is_block($name)` | 是不是块标签 |
-| `cms_tag_attrs($str)` | 解析属性串 |
-| `cms_tag_filters_code($filters)` | 修饰器转 PHP 代码 |
-| `cms_tag_where($attrs)` | `list` 标签的 where 条件生成 |
-| `cms_flag_map()` | 推荐位代号映射 |
-| `cms_tag_field_alias()` | 字段别名表 |
+| `CMS_tag_registry()` | 标签注册表 |
+| `CMS_tag_compile($tpl)` | 把模板编译成 PHP |
+| `CMS_tag_parse($tpl)` | 解析标签结构 |
+| `CMS_tag_locate($name)` | 找标签实现文件 |
+| `CMS_tag_is_block($name)` | 是不是块标签 |
+| `CMS_tag_attrs($str)` | 解析属性串 |
+| `CMS_tag_filters_code($filters)` | 修饰器转 PHP 代码 |
+| `CMS_tag_where($attrs)` | `list` 标签的 where 条件生成 |
+| `CMS_flag_map()` | 推荐位代号映射 |
+| `CMS_tag_field_alias()` | 字段别名表 |
 
 ## 下一步
 

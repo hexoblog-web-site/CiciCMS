@@ -21,12 +21,12 @@ if (!defined('CMS_TAG_NS')) {
 return array(
     'name'    => 'global',
     'desc'    => '系统变量，兼容 cfg_xxx 写法',
-    'compile' => 'cms_tag_single_global',
+    'compile' => 'CMS_tag_single_global',
 );
 
-function cms_tag_single_global($ctx)
+function CMS_tag_single_global($ctx)
 {
     $a     = $ctx['attrs'];
     $gname = isset($a['name']) ? $a['name'] : (isset($a['']) ? $a[''] : '');
-    return '<?php echo cms_tag_out(cms_tag_global(' . cms_tag_attr_expr($gname) . '), ' . $ctx['fcode'] . ', false); ?>';
+    return '<?php echo CMS_tag_out(CMS_tag_global(' . CMS_tag_attr_expr($gname) . '), ' . $ctx['fcode'] . ', false); ?>';
 }

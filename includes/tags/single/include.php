@@ -21,15 +21,15 @@ if (!defined('CMS_TAG_NS')) {
 return array(
     'name'    => 'include',
     'desc'    => '引入模板片段，继承当前变量',
-    'compile' => 'cms_tag_single_include',
+    'compile' => 'CMS_tag_single_include',
 );
 
-function cms_tag_single_include($ctx)
+function CMS_tag_single_include($ctx)
 {
     $a    = $ctx['attrs'];
     $file = isset($a['file']) ? $a['file'] : (isset($a['filename']) ? $a['filename'] : '');
     if ($file === '' && isset($a[''])) {
         $file = $a[''];
     }
-    return '<?php echo cms_tag_include(' . var_export($file, true) . '); ?>';
+    return '<?php echo CMS_tag_include(' . var_export($file, true) . '); ?>';
 }

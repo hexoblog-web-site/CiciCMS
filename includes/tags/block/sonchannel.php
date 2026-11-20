@@ -14,9 +14,9 @@ if (!defined('CMS_TAG_NS')) {
     exit;
 }
 
-function cms_tag_block_sonchannel($attrRaw, $body)
+function CMS_tag_block_sonchannel($attrRaw, $body)
 {
-    return cms_tag_block_nav($attrRaw, $body, 'son');
+    return CMS_tag_block_nav($attrRaw, $body, 'son');
 }
 
 return array(
@@ -24,6 +24,6 @@ return array(
     'desc'    => '子栏目导航',
     'block'   => true,
     'auto'    => true,
-    'compile' => 'cms_tag_block_sonchannel',
+    'compile' => 'CMS_tag_block_sonchannel',
     'inline'  => '',
 );

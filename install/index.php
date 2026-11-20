@@ -11,7 +11,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
-define('INS_VERSION', '2.3.0');
+define('INS_VERSION', '2.3.1');
 define('INS_ROOT', dirname(__DIR__));
 define('INS_CONTENT', INS_ROOT . '/content');
 define('INS_LOCK', INS_CONTENT . '/data/install.lock');
@@ -220,7 +220,7 @@ $old     = array(
     'db_host'    => 'localhost',
     'db_port'    => '3306',
     'db_name'    => 'cicicms',
-    'db_prefix'  => 'cms_',
+    'db_prefix'  => 'CMS_',
     'db_user'    => 'root',
     'site_name'  => '我的网站',
     'site_url'   => detect_install_url(),

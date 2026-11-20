@@ -352,7 +352,7 @@ function fe_archive_groups($limit = 0)
                 'posts' => array(),
             );
         }
-        $years[$y]['months'][$m]['posts'][] = cms_row_expand($r);
+        $years[$y]['months'][$m]['posts'][] = CMS_row_expand($r);
         $years[$y]['months'][$m]['count']++;
         $years[$y]['count']++;
         $n++;

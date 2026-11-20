@@ -42,7 +42,7 @@ function build_put($rel, $html, &$files, &$errors)
     }
     // 程序目录只读是推荐部署方式，生成器必须自己保证不往那里写。
     // 正常数据走不到这里，只有栏目别名被直接改库改成 admin/content 才会命中。
-    if (cms_is_system_rel($rel)) {
+    if (CMS_is_system_rel($rel)) {
         build_err($errors, '拒绝写入系统目录：' . $rel . '（请把栏目别名改成普通名称）');
         return false;
     }
@@ -58,7 +58,7 @@ function build_put($rel, $html, &$files, &$errors)
         return false;
     }
     // 插件最后一道：插入 CSS / JS、改链接、加统计代码都在这时生效
-    $html = cms_finalize_html($html, 'static');
+    $html = CMS_finalize_html($html, 'static');
 
     if (write_file_atomic(CMS_ROOT . '/' . $rel, $html)) {
         if (!isset($GLOBALS['build_file_seen'][$rel])) {
@@ -221,7 +221,7 @@ function build_exec_task($task, &$files, &$errors)
                 return null;
             }
             $dir = cat_dir_of($cat);
-            if (in_array($dir, cms_reserved_dirs(), true)) {
+            if (in_array($dir, CMS_reserved_dirs(), true)) {
                 build_err($errors, '分类「' . $cat['name'] . '」的目录名 ' . $dir . ' 与系统目录冲突，已跳过，请换一个');
                 return null;
             }
@@ -420,7 +420,7 @@ function build_tick($budgetSec = 8.0)
                      'files' => 0, 'errors' => array(), 'msg' => '没有待执行的任务');
     }
 
-    $GLOBALS['cms_static_mode'] = true;
+    $GLOBALS['CMS_static_mode'] = true;
     $files  = (array) $state['files'];
     $errors = (array) $state['errors'];
     $GLOBALS['build_file_seen'] = $files ? array_flip($files) : array();
@@ -431,7 +431,7 @@ function build_tick($budgetSec = 8.0)
 
     // 只在队列开头触发一次，tick 会被重复调用，不能每批都算开始
     if ($pos === 0) {
-        cms_do_action('build_start', $total);
+        CMS_do_action('build_start', $total);
     }
 
     try {
@@ -465,7 +465,7 @@ function build_tick($budgetSec = 8.0)
             build_write_state($state);
         }
     } finally {
-        $GLOBALS['cms_static_mode'] = false;
+        $GLOBALS['CMS_static_mode'] = false;
         flock($lock, LOCK_UN);
         fclose($lock);
     }
@@ -510,7 +510,7 @@ function build_finish($state)
 
     build_clear_state();
 
-    cms_do_action('build_done', $files, $errors);
+    CMS_do_action('build_done', $files, $errors);
 }
 
 /**
@@ -620,7 +620,7 @@ function build_cleanup($old, $current)
         }
         $rel = ltrim((string) $rel, '/');
         // 清单文件在可写的 content/data 下，万一被改脏也不允许删到程序区
-        if ($rel === '' || strpos($rel, '..') !== false || cms_is_system_rel($rel)) {
+        if ($rel === '' || strpos($rel, '..') !== false || CMS_is_system_rel($rel)) {
             continue;
         }
         $path = CMS_ROOT . '/' . $rel;
@@ -643,7 +643,7 @@ function static_forget($rels)
     foreach ($rels as $rel) {
         $rel = ltrim((string) $rel, '/');
         // 清单文件在可写的 content/data 下，万一被改脏也不允许删到程序区
-        if ($rel === '' || strpos($rel, '..') !== false || cms_is_system_rel($rel)) {
+        if ($rel === '' || strpos($rel, '..') !== false || CMS_is_system_rel($rel)) {
             continue;
         }
         $path = CMS_ROOT . '/' . $rel;
@@ -673,7 +673,7 @@ function static_clean()
     foreach ($list as $rel) {
         $rel = ltrim((string) $rel, '/');
         // 清单文件在可写的 content/data 下，万一被改脏也不允许删到程序区
-        if ($rel === '' || strpos($rel, '..') !== false || cms_is_system_rel($rel)) {
+        if ($rel === '' || strpos($rel, '..') !== false || CMS_is_system_rel($rel)) {
             continue;
         }
         $path = CMS_ROOT . '/' . $rel;

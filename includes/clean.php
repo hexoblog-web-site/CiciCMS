@@ -14,7 +14,7 @@
  */
 
 /** 跳过这些文件：目录保护文件与占位页，不算附件 */
-function cms_clean_skip($rel)
+function CMS_clean_skip($rel)
 {
     $base = basename($rel);
     if ($base === '' || $base[0] === '.') {
@@ -24,7 +24,7 @@ function cms_clean_skip($rel)
 }
 
 /** 没有入库记录的文件，按后缀判断是不是图片（附件目录里全是 pdf / zip 这些） */
-function cms_clean_is_image_name($rel)
+function CMS_clean_is_image_name($rel)
 {
     $ext = strtolower(pathinfo((string) $rel, PATHINFO_EXTENSION));
     return in_array($ext, array('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'ico', 'avif'), true);
@@ -35,7 +35,7 @@ function cms_clean_is_image_name($rel)
  *
  * @return array 每项：type 来源类型 / label 来源名称 / text 文本
  */
-function cms_clean_index()
+function CMS_clean_index()
 {
     $idx = array();
 
@@ -121,10 +121,10 @@ function cms_clean_index()
  * 某个附件被哪些地方引用
  *
  * @param string $rel   相对 uploads 的路径，如 2026/11/a.png
- * @param array  $index cms_clean_index() 的结果
+ * @param array  $index CMS_clean_index() 的结果
  * @return array 引用来源列表，空数组表示没被引用
  */
-function cms_clean_refs($rel, $index)
+function CMS_clean_refs($rel, $index)
 {
     $name = basename($rel);
     if ($name === '') {
@@ -145,9 +145,9 @@ function cms_clean_refs($rel, $index)
 }
 
 /** 是否被引用（删除前复核用） */
-function cms_clean_is_used($rel)
+function CMS_clean_is_used($rel)
 {
-    return cms_clean_refs($rel, cms_clean_index()) !== array();
+    return CMS_clean_refs($rel, CMS_clean_index()) !== array();
 }
 
 /**
@@ -155,9 +155,9 @@ function cms_clean_is_used($rel)
  *
  * @return array files 列表 / total 总数 / used 已引用 / unused 未引用 / bytes 可释放 / missing 记录失效数
  */
-function cms_clean_scan()
+function CMS_clean_scan()
 {
-    $index   = cms_clean_index();
+    $index   = CMS_clean_index();
     $records = array();
     /* deleted_at 是 v8 才加的：老库没升级时不能因为这一列把整段扫描带崩 */
     $hasDel  = !empty(all("SHOW COLUMNS FROM {p}attachment LIKE 'deleted_at'"));
@@ -191,12 +191,12 @@ function cms_clean_scan()
                 }
                 $abs = str_replace('\\', '/', $f->getPathname());
                 $rel = ltrim(substr($abs, strlen(str_replace('\\', '/', $root))), '/');
-                if ($rel === '' || strpos($rel, '..') !== false || cms_clean_skip($rel)) {
+                if ($rel === '' || strpos($rel, '..') !== false || CMS_clean_skip($rel)) {
                     continue;
                 }
                 $rec   = isset($records[$rel]) ? $records[$rel] : null;
                 $trash = $inTrash($rec);
-                $refs  = $trash ? $trashRef : cms_clean_refs($rel, $index);
+                $refs  = $trash ? $trashRef : CMS_clean_refs($rel, $index);
                 $files[$rel] = array(
                     'rel'      => $rel,
                     'url'      => upload_url(CMS_CONTENT_REL . '/uploads/' . $rel),
@@ -209,7 +209,7 @@ function cms_clean_scan()
                     'used'     => $refs !== array(),
                     'refs'     => $refs,
                     'trash'    => $trash,
-                    'is_image' => $rec ? strpos((string) $rec['mime'], 'image/') === 0 : cms_clean_is_image_name($rel),
+                    'is_image' => $rec ? strpos((string) $rec['mime'], 'image/') === 0 : CMS_clean_is_image_name($rel),
                 );
             }
         } catch (Throwable $ex) {
@@ -273,7 +273,7 @@ function cms_clean_scan()
 }
 
 /** 删除某附件的入库记录 */
-function cms_clean_forget_record($rel)
+function CMS_clean_forget_record($rel)
 {
     foreach (all('SELECT id, path FROM {p}attachment') as $r) {
         if (upload_rel($r['path']) === $rel) {
@@ -291,9 +291,9 @@ function cms_clean_forget_record($rel)
  * @param array $paths 相对 uploads 的路径列表
  * @return array ok 成功 / skip 已引用被跳过 / fail 失败
  */
-function cms_clean_delete_many($paths)
+function CMS_clean_delete_many($paths)
 {
-    $index = cms_clean_index();
+    $index = CMS_clean_index();
     $ok    = 0;
     $skip  = array();
     $fail  = array();
@@ -344,14 +344,14 @@ function cms_clean_delete_many($paths)
         // 文件本来就不在：有入库记录才清掉，否则说明这是个无效路径，不算成功
         if (!is_file($abs)) {
             if (isset($known[$rel])) {
-                cms_clean_forget_record($rel);
+                CMS_clean_forget_record($rel);
                 $ok++;
             } else {
                 $fail[] = $rel;
             }
             continue;
         }
-        if (cms_clean_refs($rel, $index) !== array()) {
+        if (CMS_clean_refs($rel, $index) !== array()) {
             $skip[] = $rel;
             continue;
         }
@@ -359,7 +359,7 @@ function cms_clean_delete_many($paths)
             $fail[] = $rel;
             continue;
         }
-        cms_clean_forget_record($rel);
+        CMS_clean_forget_record($rel);
         $ok++;
     }
 

@@ -18,7 +18,7 @@ if (!defined('CMS_TAG_NS')) {
  *   |limit:20|date:"Y-m-d" catid="1"
  * 返回 array($filters, $attrRaw)
  */
-function cms_tag_split_filters($rest)
+function CMS_tag_split_filters($rest)
 {
     $rest    = (string) $rest;
     $filters = array();
@@ -74,7 +74,7 @@ function cms_tag_split_filters($rest)
  *   {cici:field name="pubdate"|date:"Y-m-d"}
  * 引号内的 | 不算分隔符。
  */
-function cms_tag_extract_filters($raw)
+function CMS_tag_extract_filters($raw)
 {
     $raw     = (string) $raw;
     $filters = array();
@@ -140,7 +140,7 @@ function cms_tag_extract_filters($raw)
 }
 
 /** 解析 key="v" 形式的属性串；没有 key 的整体放到 '' 键下（if 条件用） */
-function cms_tag_attrs($raw)
+function CMS_tag_attrs($raw)
 {
     $out = array();
     $raw = (string) $raw;
@@ -165,27 +165,27 @@ function cms_tag_attrs($raw)
 }
 
 /** 属性值 → PHP 表达式；以 $ 开头视为变量路径，运行时取值 */
-function cms_tag_attr_expr($v)
+function CMS_tag_attr_expr($v)
 {
     $v = (string) $v;
     if ($v !== '' && $v[0] === '$') {
         $path = substr($v, 1);
         if (preg_match('/^[A-Za-z_][A-Za-z0-9_.]*$/', $path)) {
-            return 'cms_val(' . var_export($path, true) . ')';
+            return 'CMS_val(' . var_export($path, true) . ')';
         }
     }
     return var_export($v, true);
 }
 
 /** 去掉 $ 前缀，得到变量路径 */
-function cms_tag_attrv($v)
+function CMS_tag_attrv($v)
 {
     $v = (string) $v;
     return ($v !== '' && $v[0] === '$') ? substr($v, 1) : $v;
 }
 
 /** 数组 → PHP 数组字面量，允许其中混入变量表达式 */
-function cms_tag_qcode(array $q)
+function CMS_tag_qcode(array $q)
 {
     if (empty($q)) {
         return 'array()';
@@ -195,14 +195,14 @@ function cms_tag_qcode(array $q)
         if (is_int($v) || is_float($v) || is_bool($v)) {
             $pairs[] = var_export($k, true) . ' => ' . ($v ? '1' : '0');
         } else {
-            $pairs[] = var_export($k, true) . ' => ' . cms_tag_attr_expr($v);
+            $pairs[] = var_export($k, true) . ' => ' . CMS_tag_attr_expr($v);
         }
     }
     return 'array(' . implode(', ', $pairs) . ')';
 }
 
 /** 修饰器链 → PHP 数组字面量 */
-function cms_tag_filters_code(array $filters)
+function CMS_tag_filters_code(array $filters)
 {
     if (empty($filters)) {
         return 'array()';
@@ -219,16 +219,16 @@ function cms_tag_filters_code(array $filters)
 }
 
 /** 路径末段是否属于「原样输出」字段 */
-function cms_tag_is_raw_path($path)
+function CMS_tag_is_raw_path($path)
 {
     $path = (string) $path;
     $last = strrpos($path, '.');
     $last = $last === false ? $path : substr($path, $last + 1);
-    return in_array(strtolower($last), cms_tag_raw_fields(), true);
+    return in_array(strtolower($last), CMS_tag_raw_fields(), true);
 }
 
 /** {cici:field name="x"} → 变量路径（兼容字段别名） */
-function cms_tag_path($name)
+function CMS_tag_path($name)
 {
     $name = trim((string) $name);
     if ($name === '') {
@@ -237,7 +237,7 @@ function cms_tag_path($name)
     if (strpos($name, '.') !== false) {
         return $name;
     }
-    $alias = cms_tag_field_alias();
+    $alias = CMS_tag_field_alias();
     if (isset($alias[$name])) {
         $name = $alias[$name];
     }
@@ -250,18 +250,18 @@ function cms_tag_path($name)
 }
 
 /** 共用：列表类块标签的循环体生成 */
-function cms_tag_loop_code($rowsExpr, $body)
+function CMS_tag_loop_code($rowsExpr, $body)
 {
-    $uid = cms_tag_uid();
+    $uid = CMS_tag_uid();
     $k   = '$__k' . $uid;
     $v   = '$__v' . $uid;
-    return '<?php foreach (' . $rowsExpr . ' as ' . $k . ' => ' . $v . '): cms_loop_push(' . $v . ', ' . $k . '); ?>'
-         . cms_tag_parse($body)
-         . '<?php cms_loop_pop(); endforeach; ?>';
+    return '<?php foreach (' . $rowsExpr . ' as ' . $k . ' => ' . $v . '): CMS_loop_push(' . $v . ', ' . $k . '); ?>'
+         . CMS_tag_parse($body)
+         . '<?php CMS_loop_pop(); endforeach; ?>';
 }
 
 /** 在外层 if 的 body 里找 {cici:else}，跳过嵌套 if */
-function cms_tag_split_else($body)
+function CMS_tag_split_else($body)
 {
     $ns      = CMS_TAG_NS;
     $openTok = '{' . $ns . ':if';
@@ -296,7 +296,7 @@ function cms_tag_split_else($body)
 }
 
 /** 列表块：把属性映射成查询参数 */
-function cms_tag_list_q(array $a, $defaultType = 'article')
+function CMS_tag_list_q(array $a, $defaultType = 'article')
 {
     $map = array(
         'type'     => 'type',
@@ -337,7 +337,7 @@ function cms_tag_list_q(array $a, $defaultType = 'article')
     return $q;
 }
 
-function cms_tag_split_block_empty($body)
+function CMS_tag_split_block_empty($body)
 {
     $ns   = CMS_TAG_NS;
     $tag  = '{' . $ns . ':empty}';

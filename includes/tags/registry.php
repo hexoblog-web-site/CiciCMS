@@ -27,7 +27,7 @@ if (!defined('CMS_TAG_NS')) {
  * 标签注册表。只在编译模板时构建，编译结果缓存命中后完全不参与运行。
  * @return array
  */
-function cms_tag_registry()
+function CMS_tag_registry()
 {
     static $reg = null;
     if ($reg !== null) {
@@ -42,7 +42,7 @@ function cms_tag_registry()
         }
         sort($files);
         foreach ($files as $f) {
-            $def = cms_tag_load_def($f);
+            $def = CMS_tag_load_def($f);
             if (!$def) {
                 continue;
             }
@@ -61,7 +61,7 @@ function cms_tag_registry()
  * 载入单个标签定义文件。文件格式错误不抛异常，记日志后跳过，
  * 避免一个标签写坏导致整站白屏。
  */
-function cms_tag_load_def($file)
+function CMS_tag_load_def($file)
 {
     $def = include $file;
     if (!is_array($def) || empty($def['name'])) {
@@ -72,24 +72,24 @@ function cms_tag_load_def($file)
 }
 
 /** 取某个标签的定义，没有返回 null */
-function cms_tag_def($name)
+function CMS_tag_def($name)
 {
-    $reg = cms_tag_registry();
+    $reg = CMS_tag_registry();
     $key = strtolower((string) $name);
     return isset($reg[$key]) ? $reg[$key] : null;
 }
 
 /** 是否是块标签（需要闭合） */
-function cms_tag_is_block($name)
+function CMS_tag_is_block($name)
 {
-    $def = cms_tag_def($name);
+    $def = CMS_tag_def($name);
     return $def ? !empty($def['block']) : false;
 }
 
 /** 允许省略闭合标签、直接输出默认结果的块标签 */
-function cms_tag_auto_ok($name)
+function CMS_tag_auto_ok($name)
 {
-    $def = cms_tag_def($name);
+    $def = CMS_tag_def($name);
     return $def ? !empty($def['auto']) : false;
 }
 
@@ -97,7 +97,7 @@ function cms_tag_auto_ok($name)
  * 字段级覆盖：includes/tags/fields/<字段名>.php
  * 命中时返回定义，字段编译器据此决定取值路径与是否原样输出。
  */
-function cms_tag_field_def($name)
+function CMS_tag_field_def($name)
 {
     static $cache = array();
     $key = strtolower((string) $name);
@@ -110,7 +110,7 @@ function cms_tag_field_def($name)
     }
     $file = CMS_INC . '/tags/fields/' . $key . '.php';
     if (is_file($file)) {
-        $def = cms_tag_load_def($file);
+        $def = CMS_tag_load_def($file);
         if ($def) {
             $cache[$key] = $def;
             return $def;
@@ -124,7 +124,7 @@ function cms_tag_field_def($name)
  * 列出全部标签定义，供后台「可用标签」参考或排错使用。
  * @return array 标签名 => 定义
  */
-function cms_tag_all()
+function CMS_tag_all()
 {
-    return cms_tag_registry();
+    return CMS_tag_registry();
 }

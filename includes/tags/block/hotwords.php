@@ -14,9 +14,9 @@ if (!defined('CMS_TAG_NS')) {
     exit;
 }
 
-function cms_tag_block_hotwords($attrRaw, $body)
+function CMS_tag_block_hotwords($attrRaw, $body)
 {
-    return cms_tag_block_tags($attrRaw, $body, true);
+    return CMS_tag_block_tags($attrRaw, $body, true);
 }
 
 return array(
@@ -24,6 +24,6 @@ return array(
     'desc'    => '热门标签',
     'block'   => true,
     'auto'    => true,
-    'compile' => 'cms_tag_block_hotwords',
+    'compile' => 'CMS_tag_block_hotwords',
     'inline'  => '',
 );

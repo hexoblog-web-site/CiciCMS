@@ -11,25 +11,27 @@
 | `index.php` | 61 | 前台入口。检查有没有对应的静态文件，有就交给服务器；没有就走动态渲染（搜索、404、预览） |
 | `api.php` | 40 | 浏览量计数接口。只接受 POST，按文章 ID +1，防刷按会话去重 |
 | `config.php` | 生成 | 数据库配置。安装时写入，之后只读 |
-| `admin/index.php` | 115 | 后台单入口路由，`?p=页面名` 分发 |
+| `admin/index.php` | 8 | 后台入口，直接载入唯一后台外壳 `admin/legacy/index.php` |
+| `admin/legacy/index.php` | 139 | 后台外壳：鉴权 + 输出侧栏骨架，页面由 `assets/app.js` 渲染 |
+| `admin/api.php` | 180 | 后台 JSON 接口：state / save / upload / build / logout |
+| `includes/legacy-store.php` | 715 | 后台结构 ↔ 数据库表的映射与写回 |
 | `install/index.php` | 635 | 安装向导（环境检测 / 配置 / 建表 / 生成首页） |
 
-### `admin/index.php` 的路由规则
+### `admin/index.php` 与后台结构
+
+后台只有一套界面，入口只做一件事：
 
 ```php
-$allow = array('dashboard','article','category','page','media','flink',
-               'build','clean','data','theme','setting','plugin','update');
+require __DIR__ . '/legacy/index.php';
 ```
 
-- 白名单里的 → 核心页面
-- 不在白名单 → 查插件注册的后台页
-- 都不是 → 回仪表盘
+- `admin/legacy/index.php`：`require_login()` 后输出侧栏骨架，把 API 地址、CSRF token、用户名注入 `<meta>`。
+- `admin/legacy/assets/app.js`：所有页面的视图与交互，靠 `location.hash` 切页（`#/posts`、`#/edit/12`）。
+- `admin/api.php`：`?r=state` 一次返回整站数据；`?r=save` 接收整包增量写回；另有 `upload` / `build` / `logout` / `me`。
+- `includes/legacy-store.php`：把 `article` / `page` / `category` / `attachment` / `config` 映射成界面用的结构，写回时做字段清洗与栏目/标签关联。
 
-::: warning 插件 ID 不能抢占核心路由
-插件 ID 叫 `setting` 是无效的，永远进不到插件页。这是故意的——防止插件把核心页面顶掉。
-:::
-
-里面还有一条特殊分支：`?p=build&action=tick`，是**分批生成**的接口。前端每完成一批就再调一次，每次给 `build_tick(8.0)` 一个 8 秒预算，避免撞上 `max_execution_time`。这个接口同样校验 CSRF，不通过返回 403。
+保存是**整包提交 + 增量写回**：前端只回传改过的条目，服务端逐条 `insert_row` / `update_row` / `delete_row`。
+`?r=save` 带防误删阀值——文章/单页/媒体数量骤降 30% 以上直接拒绝，避免前端没拉全就把库写空。
 
 ## 引导与基础
 
@@ -41,9 +43,9 @@ $allow = array('dashboard','article','category','page','media','flink',
 
 **注意点**
 
-- 会话是**按需启动**的（`cms_session_start()`），前台静态请求不建 session 文件。虚拟主机上访客多了不会堆出几十万个空会话
+- 会话是**按需启动**的（`CMS_session_start()`），前台静态请求不建 session 文件。虚拟主机上访客多了不会堆出几十万个空会话
 - 错误统一捕获，日志写 `content/data/logs/YYYY-MM-DD.log`，生产环境不向浏览器暴露堆栈
-- `cms_migrate_dirs()` 会补齐 `content/` 下缺失的子目录，升级后不会因为少个目录报错
+- `CMS_migrate_dirs()` 会补齐 `content/` 下缺失的子目录，升级后不会因为少个目录报错
 
 ### `includes/db.php`（104 行）
 
@@ -58,7 +60,7 @@ $allow = array('dashboard','article','category','page','media','flink',
 | `insert_row($table, $data)` | 插入，返回自增 ID |
 | `update_row($table, $data, $where, $params)` | 更新 |
 | `delete_row($table, $where, $params)` | 删除 |
-| `cms_table($name)` | 拼表前缀 |
+| `CMS_table($name)` | 拼表前缀 |
 
 **关键设计**
 
@@ -68,7 +70,7 @@ PDO::ATTR_EMULATE_PREPARES => false
 
 关掉模拟预处理，SQL 和参数真的分两次发给 MySQL，注入面小得多。
 
-`{p}` 是表前缀占位符，`q()` 会自动替换成 `cms_`。
+`{p}` 是表前缀占位符，`q()` 会自动替换成 `CMS_`。
 
 ::: warning 表名和字段名不能参数化
 `insert_row` / `update_row` 的字段名是直接拼进 SQL 的。所以这些函数只接受**代码里写死的字段名**，不能把用户输入当字段名传进来。
@@ -82,15 +84,15 @@ PDO::ATTR_EMULATE_PREPARES => false
 | --- | --- |
 | 输入 | `is_post` `post` `get` `post_str` `get_str` `get_int` `client_ip` |
 | 输出 | `e` `json_out` `redirect` `flash` `flashes` |
-| 会话 | `cms_session_start` |
+| 会话 | `CMS_session_start` |
 | 配置 | `settings_all` `setting` `set_setting` |
 | URL | `site_url` `u_home` `u_post` `u_cat` `u_page` `u_tag` `u_search` `cat_dir_of` `post_static_rel` `tag_slug` |
 | 主题 | `theme_name` `theme_path` `theme_url` `render` `render_php_file` |
-| 上传 | `upload_path` `upload_rel` `upload_url` `cms_url_public_check` |
+| 上传 | `upload_path` `upload_rel` `upload_url` `CMS_url_public_check` |
 | 安全 | `csrf_token` `csrf_field` `csrf_verify` `clean_html` |
 | 文本 | `str_limit` `make_excerpt` `make_slug` `unique_slug` `format_date` `human_date` `format_bytes` `normalize_tags` |
 | 文件 | `ensure_dir` `write_file_atomic` `log_msg` |
-| 后台 | `admin_url` `admin_pager_html` `cms_permission_audit` |
+| 后台 | `admin_url` `admin_pager_html` `CMS_permission_audit` |
 
 **三个值得单独看的**
 
@@ -106,9 +108,9 @@ function write_file_atomic($path, $data)
 }
 ```
 
-`cms_url_public_check()` —— 判断一个 URL 是不是公网地址。用 `FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE` 挡掉内网和保留段，图片抓取和 Hexo 导入共用。
+`CMS_url_public_check()` —— 判断一个 URL 是不是公网地址。用 `FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE` 挡掉内网和保留段，图片抓取和 Hexo 导入共用。
 
-`cms_permission_audit()` —— 后台「系统设置 → 目录权限自检」的数据源，按三区规则逐项检查写/执行权限。
+`CMS_permission_audit()` —— 后台「系统设置 → 目录权限自检」的数据源，按三区规则逐项检查写/执行权限。
 
 ## 内容处理
 
@@ -121,7 +123,7 @@ function write_file_atomic($path, $data)
 | `render_content($src)` | 主入口：代码围栏 → HTML |
 | `code_block_html()` | 单个代码块转成 `<pre><code>` |
 | `code_lang_map()` | 语言标识映射（php / sql / js / py …） |
-| `clean_html($html)` | 净化：标签/属性白名单重建（`cms_html_tags()` 是唯一白名单） |
+| `clean_html($html)` | 净化：标签/属性白名单重建（`CMS_html_tags()` 是唯一白名单） |
 | `content_plain($html)` | 提取纯文本（先摘掉代码块） |
 | `make_excerpt`（在 functions） | 自动摘要 |
 
@@ -227,7 +229,7 @@ article.attachment added
 
 ### `includes/uploader.php`（440 行）
 
-**职责**：图片上传的**唯一实现**。类 `Cms_Image_Uploader`。
+**职责**：图片上传的**唯一实现**。类 `CMS_Image_Uploader`。
 
 流程：校验 → 命名 → 落盘 → 登记 `attachment` 表。
 
@@ -253,14 +255,14 @@ article.attachment added
 ::: warning 抓图必须逐跳校验
 `fromUrl()` 原来是"检查首地址 → 开启自动跟随"。这有个洞：公网地址返回 `302 跳转到 127.0.0.1`，就绕过去了。
 
-现在改成手动跟随，**每一跳都重新调 `cms_url_public_check()`**，最多 4 跳。`fetchOnce()` 内部 `CURLOPT_FOLLOWLOCATION = false`，自己解析 `Location` 头。
+现在改成手动跟随，**每一跳都重新调 `CMS_url_public_check()`**，最多 4 跳。`fetchOnce()` 内部 `CURLOPT_FOLLOWLOCATION = false`，自己解析 `Location` 头。
 :::
 
 ### `includes/upload.php`（111 行）
 
 **职责**：给后台页面用的函数式封装，比直接用类方便。
 
-`cms_upload_image()`、`cms_upload_remote()`、`cms_banner_clean()`、`cms_upload_delete()`、`cms_upload_exts()`、`cms_upload_max_bytes()`。
+`CMS_upload_image()`、`CMS_upload_remote()`、`CMS_banner_clean()`、`CMS_upload_delete()`、`CMS_upload_exts()`、`CMS_upload_max_bytes()`。
 
 ### `includes/fileupload.php`（256 行）
 
@@ -268,12 +270,12 @@ article.attachment added
 
 | 函数 | 作用 |
 | --- | --- |
-| `cms_file_exts()` | 允许的后缀 |
-| `cms_file_deny_exts()` | 明确拒绝的后缀 |
-| `cms_file_ext_ok()` | 校验后缀 |
-| `cms_file_upload()` | 落盘 + 登记 |
-| `cms_file_guard_dir()` | 在目录里写防护 `.htaccess` |
-| `cms_file_clean` / `cms_file_delete` | 清理 |
+| `CMS_file_exts()` | 允许的后缀 |
+| `CMS_file_deny_exts()` | 明确拒绝的后缀 |
+| `CMS_file_ext_ok()` | 校验后缀 |
+| `CMS_file_upload()` | 落盘 + 登记 |
+| `CMS_file_guard_dir()` | 在目录里写防护 `.htaccess` |
+| `CMS_file_clean` / `CMS_file_delete` | 清理 |
 
 **为什么单独一套**：图片走 `getimagesize()` 判断，附件没法这么判，只能靠后缀白名单 + 明确拒绝表（`php / phtml / phar / js / html / svg / ini / htaccess …`）。
 
@@ -311,13 +313,13 @@ php_flag engine off
 
 | 分组 | 函数 |
 | --- | --- |
-| 注册钩子 | `cms_add_filter` `cms_add_action` `cms_hook_add` |
-| 执行钩子 | `cms_apply_filters` `cms_do_action` |
-| 扫描 | `cms_plugin_scan` `cms_plugin_active_ids` `cms_plugin_save_active` `cms_plugin_active` |
-| 加载 | `cms_plugin_load` |
-| 路径 | `cms_plugin_url` `cms_plugin_path` `cms_plugin_id_ok` |
-| 后台页 | `cms_plugin_admin_pages` |
-| 文档 | `cms_hook_docs` |
+| 注册钩子 | `CMS_add_filter` `CMS_add_action` `CMS_hook_add` |
+| 执行钩子 | `CMS_apply_filters` `CMS_do_action` |
+| 扫描 | `CMS_plugin_scan` `CMS_plugin_active_ids` `CMS_plugin_save_active` `CMS_plugin_active` |
+| 加载 | `CMS_plugin_load` |
+| 路径 | `CMS_plugin_url` `CMS_plugin_path` `CMS_plugin_id_ok` |
+| 后台页 | `CMS_plugin_admin_pages` |
+| 文档 | `CMS_hook_docs` |
 
 **加载时机**：`bootstrap.php` 里，在结构升级之后。
 
@@ -329,7 +331,7 @@ php_flag engine off
 
 ### `includes/zipreader.php`（211 行）
 
-**职责**：类 `Cms_Zip_Reader`，自己实现 zip 解析（`stored` + `deflate` 两种压缩方式 + CRC 校验）。
+**职责**：类 `CMS_Zip_Reader`，自己实现 zip 解析（`stored` + `deflate` 两种压缩方式 + CRC 校验）。
 
 **为什么不用 `ZipArchive`**：很多虚拟主机不装这个扩展。在线更新、Hexo 导入的 `.zip` 都靠它。
 
@@ -363,11 +365,11 @@ php_flag engine off
 
 | 函数 | 作用 |
 | --- | --- |
-| `cms_mail_send()` | 统一入口，按设置分发 |
-| `cms_mail_config()` | 读邮件设置 |
-| `cms_smtp_send()` | SMTP 发信 |
-| `cms_smtp_cmd()` | 发一条 SMTP 命令并读回复 |
-| `cms_smtp_read()` / `cms_smtp_code()` | 读回复、解析状态码 |
+| `CMS_mail_send()` | 统一入口，按设置分发 |
+| `CMS_mail_config()` | 读邮件设置 |
+| `CMS_smtp_send()` | SMTP 发信 |
+| `CMS_smtp_cmd()` | 发一条 SMTP 命令并读回复 |
+| `CMS_smtp_read()` / `CMS_smtp_code()` | 读回复、解析状态码 |
 
 自己实现 SMTP 客户端（支持 465 SSL 和 587 STARTTLS），不需要 Composer，也不需要 `openssl` 之外的扩展。
 
@@ -377,17 +379,17 @@ php_flag engine off
 
 | 函数 | 作用 |
 | --- | --- |
-| `cms_clean_scan()` | 扫描，返回 `files / total / used / unused / bytes` |
-| `cms_clean_refs()` | 建立引用索引 |
-| `cms_clean_is_used()` | 某个文件名是否被引用 |
-| `cms_clean_index()` | 遍历上传目录 |
-| `cms_clean_delete_many()` | 批量删除（重新核对 + 路径校验） |
-| `cms_clean_forget_record()` | 清失效记录 |
+| `CMS_clean_scan()` | 扫描，返回 `files / total / used / unused / bytes` |
+| `CMS_clean_refs()` | 建立引用索引 |
+| `CMS_clean_is_used()` | 某个文件名是否被引用 |
+| `CMS_clean_index()` | 遍历上传目录 |
+| `CMS_clean_delete_many()` | 批量删除（重新核对 + 路径校验） |
+| `CMS_clean_forget_record()` | 清失效记录 |
 
-**注意返回结构**：`cms_clean_scan()` 返回的是**结构体**不是列表。
+**注意返回结构**：`CMS_clean_scan()` 返回的是**结构体**不是列表。
 
 ```php
-$s = cms_clean_scan();
+$s = CMS_clean_scan();
 $s['files'];   // 每个文件的详情
 $s['total'];   // 总数
 $s['used'];    // 被引用
@@ -438,9 +440,10 @@ download.php?f=../../../config.php   →  404
 
 计划任务入口。`?token=xxx` 校验，不对一律 404（不泄露"这里有个接口"）。用 `hash_equals()` 防时序攻击。
 
-### `admin/pages/*.php`
+### `admin/legacy/`
 
-十三个页面，结构统一：挡直接访问 → 处理 POST（先 `csrf_verify()`）→ 查数据 → 输出 HTML。
+唯一后台界面。`index.php` 只做鉴权与骨架输出，页面全部由 `assets/app.js` 按 hash 渲染；
+数据读写走 `admin/api.php`，字段映射与写回在 `includes/legacy-store.php`。不再有按页面拆分的 PHP 文件。
 
 ## 下一步
 

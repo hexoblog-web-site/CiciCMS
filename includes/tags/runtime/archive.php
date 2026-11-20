@@ -15,12 +15,12 @@ if (!defined('CMS_TAG_NS')) {
 
 
 /** 归档数据：优先用页面预置的 archive 变量，否则现算 */
-function cms_tag_archive($o = array())
+function CMS_tag_archive($o = array())
 {
     $o     = is_array($o) ? $o : array();
-    $limit = cms_tag_int(isset($o['limit']) ? $o['limit'] : 0, 0, 0, 5000);
+    $limit = CMS_tag_int(isset($o['limit']) ? $o['limit'] : 0, 0, 0, 5000);
 
-    $scope = cms_scope();
+    $scope = CMS_scope();
     if (empty($scope['archive']) || !is_array($scope['archive'])) {
         return fe_archive_groups($limit);
     }

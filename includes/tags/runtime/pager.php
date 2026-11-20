@@ -14,10 +14,10 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-function cms_tag_pager($o = array())
+function CMS_tag_pager($o = array())
 {
     $o     = is_array($o) ? $o : array();
-    $scope = cms_scope();
+    $scope = CMS_scope();
     if (empty($scope['pager']) || !is_array($scope['pager'])) {
         return '';
     }
@@ -30,7 +30,7 @@ function cms_tag_pager($o = array())
     $nextText = isset($o['next']) && $o['next'] !== '' ? $o['next'] : '下一页';
     $firstTxt = isset($o['first']) ? $o['first'] : '';
     $lastTxt  = isset($o['last']) ? $o['last'] : '';
-    $span     = cms_tag_int(isset($o['size']) ? $o['size'] : 2, 2, 1, 6);
+    $span     = CMS_tag_int(isset($o['size']) ? $o['size'] : 2, 2, 1, 6);
     $cls      = isset($o['class']) && $o['class'] !== '' ? $o['class'] : 'pager';
     $showInfo = !isset($o['info']) || (string) $o['info'] !== '0';
 

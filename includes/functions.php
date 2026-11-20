@@ -56,7 +56,7 @@ function client_ip()
  * 前台静态页面不需要 session，若每次请求都启动，等于每个访客都在服务器上
  * 留一个 session 文件。后台、登录、CSRF、flash 这些真正需要的地方再调用。
  */
-function cms_session_start()
+function CMS_session_start()
 {
     if (PHP_SAPI === 'cli' || session_status() === PHP_SESSION_ACTIVE) {
         return;
@@ -92,7 +92,7 @@ function json_out($data)
     exit;
 }
 
-/* ============ 站点配置（cms_config 键值表） ============ */
+/* ============ 站点配置（CMS_config 键值表） ============ */
 
 function settings_all($refresh = false)
 {
@@ -154,9 +154,9 @@ function site_url($path = '')
 }
 
 /** 是否处于静态生成模式（生成时模板缺失要抛异常而不是直接 exit，见 render()） */
-function cms_static_mode()
+function CMS_static_mode()
 {
-    return !empty($GLOBALS['cms_static_mode']);
+    return !empty($GLOBALS['CMS_static_mode']);
 }
 
 function u_home($page = 1)
@@ -168,7 +168,7 @@ function u_home($page = 1)
 /**
  * 顶级目录保留字：分类目录直接落在站点根，不能和系统目录/固定页重名
  */
-function cms_reserved_dirs()
+function CMS_reserved_dirs()
 {
     return array(
         'index', 'page', 'tag', 'tags', 'post', 'cat', 'archive', 'links', '404',
@@ -180,17 +180,17 @@ function cms_reserved_dirs()
 /**
  * 系统目录：程序自身代码所在位置，运行时任何写入/删除都不允许落进来。
  *
- * 与 cms_reserved_dirs() 不是一回事：那个是「栏目别名不能重名」的黑名单，
+ * 与 CMS_reserved_dirs() 不是一回事：那个是「栏目别名不能重名」的黑名单，
  * 里面的 page / tag 等仍然是系统要写静态文件的输出目录；这里列的是纯程序区，
  * 部署时可以把它们整体设成只读，静态生成、清理都不会因此失败。
  */
-function cms_system_dirs()
+function CMS_system_dirs()
 {
     return array('admin', 'includes', 'install', 'content', 'docs');
 }
 
 /** 相对路径是否落在系统目录内（静态文件写入/删除前的最后一道校验） */
-function cms_is_system_rel($rel)
+function CMS_is_system_rel($rel)
 {
     $rel = ltrim(str_replace('\\', '/', (string) $rel), '/');
     // 空路径与带 .. 的路径一律当作不可写，函数自己兜住，不依赖调用方先校验
@@ -198,7 +198,7 @@ function cms_is_system_rel($rel)
         return true;
     }
     $top = strtolower((string) strtok($rel, '/'));
-    return in_array($top, cms_system_dirs(), true);
+    return in_array($top, CMS_system_dirs(), true);
 }
 
 /** 分类目录名：非法或为空时兜底到 uncategorized，保证目录名安全 */
@@ -428,7 +428,7 @@ function upload_path($rel = '')
  * @param string $url
  * @return string 不通过时返回原因，通过返回空串
  */
-function cms_url_public_check($url)
+function CMS_url_public_check($url)
 {
     $url = trim((string) $url);
     if ($url === '') {
@@ -582,7 +582,7 @@ function render($tpl, $vars = array())
 {
     $html = theme_path($tpl . '.html');
     if (is_file($html)) {
-        return cms_tag_render_file($html, (array) $vars);
+        return CMS_tag_render_file($html, (array) $vars);
     }
 
     $file = theme_path($tpl . '.php');
@@ -591,7 +591,7 @@ function render($tpl, $vars = array())
         // 生成静态时不能 exit：exit 会跳过 build_tick 的 finally，任务状态不落盘，
         // 于是这一轮永远停在同一个任务上，用户看到的是「生成中断」且再也生成不完。
         // 抛出异常交给 build_tick 的 catch(Throwable) 处理：记致命标记、跳过该任务、本轮收尾。
-        if (!empty($GLOBALS['cms_static_mode'])) {
+        if (!empty($GLOBALS['CMS_static_mode'])) {
             throw new RuntimeException($msg);
         }
         http_response_code(500);
@@ -604,7 +604,7 @@ function render($tpl, $vars = array())
 
 function flash($msg, $type = 'ok')
 {
-    cms_session_start();
+    CMS_session_start();
     if (!isset($_SESSION['flash']) || !is_array($_SESSION['flash'])) {
         $_SESSION['flash'] = array();
     }
@@ -625,7 +625,7 @@ function flashes()
 
 function csrf_token()
 {
-    cms_session_start();
+    CMS_session_start();
     if (empty($_SESSION['_csrf'])) {
         if (function_exists('random_bytes')) {
             $t = bin2hex(random_bytes(16));
@@ -646,7 +646,7 @@ function csrf_field()
 
 function csrf_verify()
 {
-    cms_session_start();
+    CMS_session_start();
     $t = isset($_POST['_token']) ? (string) $_POST['_token'] : '';
     if ($t === '' || empty($_SESSION['_csrf']) || !hash_equals($_SESSION['_csrf'], $t)) {
         http_response_code(403);
@@ -702,7 +702,7 @@ function make_slug($str)
  * 这里改为同时检查 article 与 page 两张表，保证全站 slug 唯一。
  *
  * 注意：本函数不改变入参为空串时的既有行为——空 slug 由调用方回退为
- * tmp 随机串或文章 ID（见 admin/pages/article.php、page.php），此处原样返回。
+ * tmp 随机串或文章 ID（见后台保存逻辑），此处原样返回。
  */
 function unique_slug($table, $slug, $id = 0)
 {
@@ -740,7 +740,7 @@ function unique_slug($table, $slug, $id = 0)
  *   - dup_slug_cross     : 文章与单页之间重复的 slug（跨表冲突）
  *   - empty_slug         : slug 为空字符串的记录（正常流程不会产生，异常落库时会出现）
  */
-function cms_db_health_check()
+function CMS_db_health_check()
 {
     $result = array(
         'orphan_article_cat' => array(),
@@ -796,7 +796,7 @@ function cms_db_health_check()
  * 白名单比渲染器能力略宽一点（视频、任务清单、代码块复制按钮都在里面），
  * 目的是「净化之后不改变正常文章的渲染结果」，不是尽可能多删。
  */
-function cms_html_tags()
+function CMS_html_tags()
 {
     static $map = null;
     if ($map !== null) {
@@ -871,13 +871,13 @@ function cms_html_tags()
 }
 
 /** 全局属性：任何白名单标签都能带 */
-function cms_html_global_attrs()
+function CMS_html_global_attrs()
 {
     return array('id', 'class', 'title', 'style', 'role', 'lang', 'dir');
 }
 
 /** 空元素：不需要闭合标签，也不能写成 <img></img> */
-function cms_html_void_tags()
+function CMS_html_void_tags()
 {
     return array('br', 'hr', 'img', 'input', 'source', 'track', 'col');
 }
@@ -889,14 +889,14 @@ function cms_html_void_tags()
  * 字符、再去掉控制字符与空白，所以 java&#09;script: 是能执行的。
  * 这里先解实体、再剥控制字符，判断一定落在「浏览器真正看到的那个串」上。
  */
-function cms_html_attr_decode($val)
+function CMS_html_attr_decode($val)
 {
     $v = html_entity_decode((string) $val, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     return str_replace(array("\0"), '', $v);
 }
 
 /** URL 属性能否放行：只挡「能执行代码」与「能变成文档」的写法 */
-function cms_html_url_safe($val)
+function CMS_html_url_safe($val)
 {
     $v = (string) $val;
     // 去掉所有空白与控制字符后再判协议（与浏览器解析一致）
@@ -915,7 +915,7 @@ function cms_html_url_safe($val)
 }
 
 /** style 属性里能执行代码的老写法 */
-function cms_html_css_clean($css)
+function CMS_html_css_clean($css)
 {
     $css = preg_replace('/expression\s*\(/i', '', (string) $css);
     $css = preg_replace('/behaviou?r\s*:/i', '', $css);
@@ -931,7 +931,7 @@ function cms_html_css_clean($css)
  * @param string $attrStr 原始属性部分（不含标签名）
  * @param array  $allowed 该标签允许的属性
  */
-function cms_html_attrs($tag, $attrStr, $allowed)
+function CMS_html_attrs($tag, $attrStr, $allowed)
 {
     $attrStr = (string) $attrStr;
     if (trim($attrStr) === '') {
@@ -946,7 +946,7 @@ function cms_html_attrs($tag, $attrStr, $allowed)
         return '';
     }
 
-    $global  = cms_html_global_attrs();
+    $global  = CMS_html_global_attrs();
     $urlAttr = array('href', 'src', 'srcset', 'poster', 'cite', 'data', 'background', 'formaction', 'action', 'longdesc', 'ping', 'xlink:href', 'usemap');
     $out     = array();
     $seen    = array();
@@ -983,14 +983,14 @@ function cms_html_attrs($tag, $attrStr, $allowed)
         } elseif (isset($a[5])) {
             $val = $a[5];
         }
-        $val = cms_html_attr_decode($val);
+        $val = CMS_html_attr_decode($val);
 
         if (in_array($name, $urlAttr, true)) {
             if ($name === 'srcset') {
                 $ok = true;
                 foreach (explode(',', $val) as $part) {
                     $bits = preg_split('/\s+/', trim($part));
-                    if (!empty($bits[0]) && !cms_html_url_safe($bits[0])) {
+                    if (!empty($bits[0]) && !CMS_html_url_safe($bits[0])) {
                         $ok = false;
                         break;
                     }
@@ -998,13 +998,13 @@ function cms_html_attrs($tag, $attrStr, $allowed)
                 if (!$ok) {
                     continue;
                 }
-            } elseif (!cms_html_url_safe($val)) {
+            } elseif (!CMS_html_url_safe($val)) {
                 continue;
             }
         }
 
         if ($name === 'style') {
-            $val = cms_html_css_clean($val);
+            $val = CMS_html_css_clean($val);
             if (trim($val) === '') {
                 continue;
             }
@@ -1063,7 +1063,7 @@ function clean_html($html)
     // 3) <style> 摘出来单独消毒：CSS 里的尖括号不该被当成标签重写
     $styles = array();
     $html   = preg_replace_callback('#<style\b[^>]*>(.*?)</style>#is', function ($m) use (&$styles) {
-        $css = cms_html_css_clean((string) $m[1]);
+        $css = CMS_html_css_clean((string) $m[1]);
         $css = str_replace('</style', '&lt;/style', $css);
         $key = "\x02ST" . count($styles) . "\x03";
         $styles[$key] = '<style>' . $css . '</style>';
@@ -1071,8 +1071,8 @@ function clean_html($html)
     }, $html);
 
     // 4) 标签重写：白名单内重建，白名单外去标签留文字
-    $tags = cms_html_tags();
-    $void = cms_html_void_tags();
+    $tags = CMS_html_tags();
+    $void = CMS_html_void_tags();
     $html = preg_replace_callback(
         '#<(/)?([a-zA-Z][a-zA-Z0-9]*)((?:[^>"\']|"[^"]*"|\'[^\']*\')*)>#',
         function ($m) use ($tags, $void) {
@@ -1084,10 +1084,10 @@ function clean_html($html)
                 return in_array($name, $void, true) ? '' : '</' . $name . '>';
             }
             if (in_array($name, $void, true)) {
-                $attr = cms_html_attrs($name, isset($m[3]) ? $m[3] : '', $tags[$name]);
+                $attr = CMS_html_attrs($name, isset($m[3]) ? $m[3] : '', $tags[$name]);
                 return '<' . $name . ($attr !== '' ? ' ' . $attr : '') . '>';
             }
-            $attr = cms_html_attrs($name, isset($m[3]) ? $m[3] : '', $tags[$name]);
+            $attr = CMS_html_attrs($name, isset($m[3]) ? $m[3] : '', $tags[$name]);
             return '<' . $name . ($attr !== '' ? ' ' . $attr : '') . '>';
         },
         $html
@@ -1256,8 +1256,8 @@ function admin_pager_html($page, $pages, $urlFn, $total = 0)
     }
     $h = '<div class="pager">';
     $h .= $page > 1
-        ? '<a href="' . e($urlFn($page - 1)) . '">上一页</a>'
-        : '<span class="dis">上一页</span>';
+        ? '<a href="' . e($urlFn($page - 1)) . '" aria-label="上一页" title="上一页">‹</a>'
+        : '<span class="dis" aria-hidden="true">‹</span>';
     $start = max(1, $page - 2);
     $end   = min($pages, $page + 2);
     if ($start > 1) {
@@ -1278,8 +1278,8 @@ function admin_pager_html($page, $pages, $urlFn, $total = 0)
         $h .= '<a href="' . e($urlFn($pages)) . '">' . $pages . '</a>';
     }
     $h .= $page < $pages
-        ? '<a href="' . e($urlFn($page + 1)) . '">下一页</a>'
-        : '<span class="dis">下一页</span>';
+        ? '<a href="' . e($urlFn($page + 1)) . '" aria-label="下一页" title="下一页">›</a>'
+        : '<span class="dis" aria-hidden="true">›</span>';
     if ($total > 0) {
         $h .= '<span class="total">共 ' . (int) $total . ' 条</span>';
     }
@@ -1296,7 +1296,7 @@ function admin_pager_html($page, $pages, $urlFn, $total = 0)
  *
  * @return array 每项：label 名称 / path 路径 / want 期望 / actual 实际 / ok 是否合规 / note 说明
  */
-function cms_permission_audit()
+function CMS_permission_audit()
 {
     $rows = array();
 

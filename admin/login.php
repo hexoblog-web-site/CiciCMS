@@ -59,82 +59,61 @@ if (is_post()) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>登录 - CiciCms 管理后台</title>
-<script>
-(function () {
-    try {
-        var t = localStorage.getItem('cici-theme');
-        if (t !== 'light' && t !== 'dark') {
-            t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-        }
-        var d = localStorage.getItem('cici-density') === 'compact' ? 'compact' : 'comfortable';
-        var a = localStorage.getItem('cici-accent');
-        if (['blue', 'teal', 'green', 'purple', 'amber'].indexOf(a) < 0) { a = 'blue'; }
-        document.documentElement.setAttribute('data-theme', t);
-        document.documentElement.setAttribute('data-density', d);
-        document.documentElement.setAttribute('data-accent', a);
-    } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.documentElement.setAttribute('data-accent', 'blue');
-    }
-})();
-</script>
-<link rel="stylesheet" href="<?php echo e(site_url('admin/assets/admin.css')); ?>">
+<title>登录 · CiciCms 管理后台</title>
+<link rel="stylesheet" href="<?php echo e(site_url('admin/legacy/assets/app.css')); ?>?v=<?php echo (int) @filemtime(CMS_ROOT . '/admin/legacy/assets/app.css'); ?>">
 </head>
-<body class="login-body">
-<button class="icon-btn login-theme" type="button" data-theme-toggle title="切换深浅主题" aria-label="切换深浅主题">
-    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
-    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-</button>
+<body>
+<div class="login-gate">
+  <div class="lg-card">
 
-<div class="login-shell">
-    <aside class="login-aside">
-        <div class="login-logo">
-            <span class="logo-mark">C</span>
-            <div>
-                <b>CiciCms</b>
-                <span>静态化内容管理系统</span>
-            </div>
-        </div>
-        <div class="login-aside-body">
-            <h2>把内容，<br>发布成静态页。</h2>
-            <p>保存即生成 HTML，不需要常驻数据库和常驻进程，普通虚拟主机也能跑得很快。</p>
-            <ul class="login-points">
-                <li>静态发布，访问快、抗压好</li>
-                <li>模板与插件按需扩展</li>
-                <li>一键备份与恢复数据</li>
-            </ul>
-        </div>
-        <div class="login-aside-foot">管理后台 · v<?php echo e(CMS_VERSION); ?></div>
-    </aside>
+    <div class="lg-intro">
+      <div class="lg-logo">
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276a1 1 0 000-1.788l-4.764-2.382a1 1 0 00-.894 0L4.789 4.488a1 1 0 000 1.788l4.764 2.382a1 1 0 00.894 0l4.764-2.382zM4.447 8.342A1 1 0 003 9.236V15a2 2 0 00.553.894l4 2A1 1 0 009 17v-5.764a1 1 0 00-.553-.894l-4-2z"/></svg>
+      </div>
+      <h2>CiciCms</h2>
+      <p>静态化内容管理系统。保存即生成 HTML，不依赖常驻进程，普通虚拟主机也能跑得很快。</p>
 
-    <div class="login-panel">
-        <div class="login-head">
-            <h1 class="login-title">登录</h1>
-            <p class="login-sub">请输入管理员账号与密码</p>
-        </div>
-
-        <?php if ($err !== ''): ?><div class="alert alert-err"><?php echo e($err); ?></div><?php endif; ?>
-
-        <form method="post" action="login.php" autocomplete="off">
-            <?php echo csrf_field(); ?>
-            <?php if ($back !== ''): ?><input type="hidden" name="back" value="<?php echo e($back); ?>"><?php endif; ?>
-            <div class="form-row">
-                <label for="username">管理员账号</label>
-                <input class="input" type="text" id="username" name="username" value="<?php echo e($username); ?>" autofocus required>
-            </div>
-            <div class="form-row">
-                <label for="password">密码</label>
-                <input class="input" type="password" id="password" name="password" required>
-            </div>
-            <button class="btn btn-primary btn-block" type="submit">登 录</button>
-        </form>
-
-        <div class="login-foot">
-            <a href="<?php echo e(site_url()); ?>" target="_blank">查看站点 →</a>
-            <span>CiciCms v<?php echo e(CMS_VERSION); ?></span>
-        </div>
+      <div class="lg-role">
+        <span class="lg-dot" style="background:#8b8bf5"></span>
+        <div><b>静态发布</b><span>访问快、抗压好，不用担心数据库被打满</span></div>
+      </div>
+      <div class="lg-role">
+        <span class="lg-dot" style="background:#2dd4bf"></span>
+        <div><b>模板与插件</b><span>主题、钩子、插件按需扩展，不绑死技术栈</span></div>
+      </div>
+      <div class="lg-role">
+        <span class="lg-dot" style="background:#fbbf24"></span>
+        <div><b>数据自有</b><span>一键备份与恢复，内容始终在自己手里</span></div>
+      </div>
     </div>
+
+    <form class="lg-form" method="post" action="login.php" autocomplete="off">
+      <h3>登录后台</h3>
+      <p class="lg-hint">请输入管理员账号与密码</p>
+
+      <?php if ($err !== ''): ?><div class="lg-err"><?php echo e($err); ?></div><?php endif; ?>
+
+      <?php echo csrf_field(); ?>
+      <?php if ($back !== ''): ?><input type="hidden" name="back" value="<?php echo e($back); ?>"><?php endif; ?>
+
+      <div class="lg-field">
+        <label for="username">管理员账号</label>
+        <input type="text" id="username" name="username" value="<?php echo e($username); ?>" autofocus required>
+      </div>
+      <div class="lg-field">
+        <label for="password">密码</label>
+        <input type="password" id="password" name="password" required>
+      </div>
+
+      <button class="btn primary" type="submit">登 录</button>
+
+      <div class="lg-note">
+        CiciCms v<?php echo e(CMS_VERSION); ?> ·
+        <a href="<?php echo e(site_url()); ?>" target="_blank" rel="noopener">查看站点 ↗</a>
+      </div>
+    </form>
+
+  </div>
 </div>
 </body>
 </html>

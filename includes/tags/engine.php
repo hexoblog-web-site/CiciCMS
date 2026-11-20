@@ -13,19 +13,19 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-function cms_tag_cache_dir()
+function CMS_tag_cache_dir()
 {
     return CMS_DATA . '/cache/tpl';
 }
 
-function cms_tag_uid()
+function CMS_tag_uid()
 {
     static $n = 0;
     return ++$n;
 }
 
 /** 定位主题内的模板文件，返回绝对路径或空串 */
-function cms_tag_locate($name)
+function CMS_tag_locate($name)
 {
     $name = trim((string) $name, '/');
     if ($name === '' || !preg_match('#^[A-Za-z0-9_\-/]+$#', $name)) {
@@ -38,7 +38,7 @@ function cms_tag_locate($name)
 /**
  * 编译模板文件，返回可 include 的 PHP 缓存路径。失败返回空串。
  */
-function cms_tag_compile($file)
+function CMS_tag_compile($file)
 {
     if (!is_file($file)) {
         return '';
@@ -48,7 +48,7 @@ function cms_tag_compile($file)
     // 引擎版本进 key，升级后旧缓存自动失效
     $key   = md5($file . '|' . $mtime . '|' . $size . '|' . CMS_VERSION);
 
-    $dir = cms_tag_cache_dir();
+    $dir = CMS_tag_cache_dir();
     if (!ensure_dir($dir)) {
         return '';
     }
@@ -61,18 +61,18 @@ function cms_tag_compile($file)
     if ($src === '') {
         return '';
     }
-    $php = "<?php /* CiciCMS tag cache: " . basename($file) . " */ ?>\n" . cms_tag_parse($src);
+    $php = "<?php /* CiciCMS tag cache: " . basename($file) . " */ ?>\n" . CMS_tag_parse($src);
 
     if (!write_file_atomic($cache, $php)) {
         log_msg('模板编译写入失败：' . $cache);
         return '';
     }
-    cms_tag_gc($dir);
+    CMS_tag_gc($dir);
     return $cache;
 }
 
 /** 缓存目录只增不减会占用空间，按 1/20 概率顺手清理过期文件 */
-function cms_tag_gc($dir)
+function CMS_tag_gc($dir)
 {
     if (mt_rand(1, 20) !== 1) {
         return;
@@ -92,7 +92,7 @@ function cms_tag_gc($dir)
 /**
  * 把标签源码编译为 PHP。核心扫描器，遇到 { 就看是不是我们的标签。
  */
-function cms_tag_parse($src)
+function CMS_tag_parse($src)
 {
     if (!is_string($src) || $src === '') {
         return '';
@@ -120,37 +120,37 @@ function cms_tag_parse($src)
 
         $name  = strtolower($m[1]);
         $tagEnd = $p + strlen($m[0]);
-        list($filters, $attrRaw) = cms_tag_split_filters(isset($m[2]) ? $m[2] : '');
+        list($filters, $attrRaw) = CMS_tag_split_filters(isset($m[2]) ? $m[2] : '');
 
-        if (cms_tag_is_block($name)) {
+        if (CMS_tag_is_block($name)) {
             $closeLen = strlen('{/' . $ns . ':' . $name . '}');
-            $end      = cms_tag_find_close($src, $name, $tagEnd);
+            $end      = CMS_tag_find_close($src, $name, $tagEnd);
             if ($end < 0) {
                 // 有默认输出的块标签可写成空标签，如 {cici:position sep="/"}
-                if (cms_tag_auto_ok($name)) {
-                    $out .= cms_tag_compile_single($name, $filters, rtrim(trim($attrRaw), '/'));
+                if (CMS_tag_auto_ok($name)) {
+                    $out .= CMS_tag_compile_single($name, $filters, rtrim(trim($attrRaw), '/'));
                     $i = $tagEnd;
                     continue;
                 }
                 // 未闭合：原样输出，避免整页崩掉
-                log_msg('模板标签未闭合：{' . $ns . ':' . $name . '} @ ' . cms_tag_where());
+                log_msg('模板标签未闭合：{' . $ns . ':' . $name . '} @ ' . CMS_tag_where());
                 $out .= $m[0];
                 $i = $tagEnd;
                 continue;
             }
             $body = substr($src, $tagEnd, $end - $tagEnd);
-            $out .= cms_tag_compile_block($name, $attrRaw, $body);
+            $out .= CMS_tag_compile_block($name, $attrRaw, $body);
             $i = $end + $closeLen;
             continue;
         }
 
-        $out .= cms_tag_compile_single($name, $filters, $attrRaw);
+        $out .= CMS_tag_compile_single($name, $filters, $attrRaw);
         $i = $tagEnd;
     }
     return $out;
 }
 
-function cms_tag_where()
+function CMS_tag_where()
 {
     $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 6);
     foreach ($trace as $t) {
@@ -169,7 +169,7 @@ function cms_tag_where()
 /**
  * 从 $from 起找配对闭合标签，支持同名嵌套。返回闭合标签起始位置，找不到返回 -1。
  */
-function cms_tag_find_close($src, $name, $from)
+function CMS_tag_find_close($src, $name, $from)
 {
     $ns       = CMS_TAG_NS;
     $openTok  = '{' . $ns . ':' . $name;
@@ -218,9 +218,9 @@ function cms_tag_find_close($src, $name, $from)
  * 分发顺序：专属编译器 → 块标签残留符号（丢弃）→ 字段取值兜底。
  * ctx 由引擎统一准备，标签文件只管拼 PHP 代码。
  */
-function cms_tag_compile_single($name, $filters = array(), $attrRaw = '')
+function CMS_tag_compile_single($name, $filters = array(), $attrRaw = '')
 {
-    list($attrRaw, $moreFilters) = cms_tag_extract_filters($attrRaw);
+    list($attrRaw, $moreFilters) = CMS_tag_extract_filters($attrRaw);
     if (!empty($moreFilters)) {
         $filters = array_merge((array) $filters, $moreFilters);
     }
@@ -228,12 +228,12 @@ function cms_tag_compile_single($name, $filters = array(), $attrRaw = '')
     $ctx = array(
         'name'    => $name,
         'raw'     => $attrRaw,
-        'attrs'   => cms_tag_attrs($attrRaw),
+        'attrs'   => CMS_tag_attrs($attrRaw),
         'filters' => $filters,
-        'fcode'   => cms_tag_filters_code($filters),
+        'fcode'   => CMS_tag_filters_code($filters),
     );
 
-    $def = cms_tag_def($name);
+    $def = CMS_tag_def($name);
     if ($def) {
         // 块标签允许不写闭合时（position / prev / next），走 inline 编译器
         if (!empty($def['inline'])) {
@@ -248,15 +248,15 @@ function cms_tag_compile_single($name, $filters = array(), $attrRaw = '')
     }
 
     // 没有任何标签认领这个名字，一律按「取当前文档字段」处理
-    return cms_tag_field_compile($ctx);
+    return CMS_tag_field_compile($ctx);
 }
 
 /**
  * 编译块标签。未注册或未提供编译器的标签原样丢弃（与旧版行为一致）。
  */
-function cms_tag_compile_block($name, $attrRaw, $body)
+function CMS_tag_compile_block($name, $attrRaw, $body)
 {
-    $def = cms_tag_def($name);
+    $def = CMS_tag_def($name);
     if ($def && !empty($def['block']) && !empty($def['compile'])) {
         return call_user_func($def['compile'], $attrRaw, $body);
     }

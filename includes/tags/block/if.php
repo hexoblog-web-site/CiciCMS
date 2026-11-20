@@ -14,18 +14,18 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-function cms_tag_block_if($attrRaw, $body)
+function CMS_tag_block_if($attrRaw, $body)
 {
     $raw  = trim((string) $attrRaw);
     $cond = $raw;
     if (preg_match('/^cond\s*=\s*(?:"([^"]*)"|\'([^\']*)\')/u', $raw, $m)) {
         $cond = isset($m[1]) && $m[1] !== '' ? $m[1] : (isset($m[2]) ? $m[2] : '');
     }
-    list($yes, $no) = cms_tag_split_else($body);
-    return '<?php if (cms_cond(' . var_export($cond, true) . ')): ?>'
-         . cms_tag_parse($yes)
+    list($yes, $no) = CMS_tag_split_else($body);
+    return '<?php if (CMS_cond(' . var_export($cond, true) . ')): ?>'
+         . CMS_tag_parse($yes)
          . '<?php else: ?>'
-         . cms_tag_parse($no)
+         . CMS_tag_parse($no)
          . '<?php endif; ?>';
 }
 /* ── 标签注册（引擎按这份声明找到本文件）───────────────── */
@@ -34,5 +34,5 @@ return array(
     'name'    => 'if',
     'desc'    => '条件判断 {cici:if 条件}...{/cici:if}',
     'block'   => true,
-    'compile' => 'cms_tag_block_if',
+    'compile' => 'CMS_tag_block_if',
 );

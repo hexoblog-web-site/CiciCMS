@@ -1,7 +1,7 @@
 <?php
 /**
  * 代码高亮插件 · 后台说明页
- * 由 admin/pages/plugin.php 载入，此时后台头部已经输出。
+ * 插件后台页由框架载入，此时页面头部已经输出。
  */
 if (!defined('CMS_ADMIN')) {
     http_response_code(404);
@@ -33,7 +33,7 @@ if (!defined('CMS_ADMIN')) {
     <div class="card-body">
         <pre style="background:#161A22;color:#DDE1E8;padding:14px 16px;border-radius:14px;overflow:auto;font-size:13px;line-height:1.7">```php
 &lt;?php
-$tpl = cms_tag_compile($source);
+$tpl = CMS_tag_compile($source);
 echo render($tpl, array('post' =&gt; $post));</pre>
         <p class="hint" style="line-height:1.9">
             围栏语言名支持简写：<code>js</code>、<code>py</code>、<code>sh</code>、<code>yml</code> 都能识别。

@@ -17,23 +17,23 @@ if (!defined('CMS_TAG_NS')) {
 /**
  * 渲染 .html 标签模板。$vars 与 PHP 模板保持一致（site / posts / post / cat / pager ...）
  */
-function cms_tag_render_file($file, array $vars = array())
+function CMS_tag_render_file($file, array $vars = array())
 {
-    $cache = cms_tag_compile($file);
+    $cache = CMS_tag_compile($file);
     if ($cache === '') {
         $msg = '模板渲染失败（未找到或无法编译）：' . $file;
         log_msg($msg);
         // 生成静态时抛出，交给 build_tick 记错误并跳过该任务；
         // 返回空串会被 build_put 当成正常内容写盘，出现整站空白。
-        if (!empty($GLOBALS['cms_static_mode'])) {
+        if (!empty($GLOBALS['CMS_static_mode'])) {
             throw new RuntimeException($msg);
         }
         return '';
     }
 
-    $GLOBALS['__cms_scope'] = $vars;
-    if (!isset($GLOBALS['__cms_loop'])) {
-        $GLOBALS['__cms_loop'] = array();
+    $GLOBALS['__CMS_scope'] = $vars;
+    if (!isset($GLOBALS['__CMS_loop'])) {
+        $GLOBALS['__CMS_loop'] = array();
     }
 
     ob_start();
@@ -42,7 +42,7 @@ function cms_tag_render_file($file, array $vars = array())
 }
 
 /** 片段引入：优先 .html，其次 .php；不传 scope 时继承当前模板变量 */
-function cms_tag_include($name, $scope = null)
+function CMS_tag_include($name, $scope = null)
 {
     $name = trim((string) $name, '/');
     if ($name === '') {
@@ -52,10 +52,10 @@ function cms_tag_include($name, $scope = null)
     if (!preg_match('#^[A-Za-z0-9_\-/]+$#', $name)) {
         return '';
     }
-    $vars = is_array($scope) ? $scope : cms_scope();
+    $vars = is_array($scope) ? $scope : CMS_scope();
     $base = theme_path($name);
     if (is_file($base . '.html')) {
-        return cms_tag_render_file($base . '.html', $vars);
+        return CMS_tag_render_file($base . '.html', $vars);
     }
     if (is_file($base . '.php')) {
         return render_php_file($base . '.php', $vars);

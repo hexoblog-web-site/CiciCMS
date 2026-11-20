@@ -7,7 +7,7 @@
  */
 
 /** 读设置，给出一份完整的发信配置 */
-function cms_mail_config()
+function CMS_mail_config()
 {
     $driver = (string) setting('mail_driver', 'mail');
     if ($driver !== 'smtp') {
@@ -38,7 +38,7 @@ function cms_mail_config()
 }
 
 /** 把「名字 <地址>」拼成合法头部；名字有中文时按 RFC 2047 编码 */
-function cms_mail_addr($name, $mail)
+function CMS_mail_addr($name, $mail)
 {
     $mail = trim((string) $mail);
     $name = trim((string) $name);
@@ -54,10 +54,10 @@ function cms_mail_addr($name, $mail)
 }
 
 /** 按配置发一封纯文本邮件 */
-function cms_mail_send($to, $subject, $body, &$err = '')
+function CMS_mail_send($to, $subject, $body, &$err = '')
 {
     $err = '';
-    $cfg = cms_mail_config();
+    $cfg = CMS_mail_config();
 
     if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
         $err = '收件地址不合法';
@@ -65,7 +65,7 @@ function cms_mail_send($to, $subject, $body, &$err = '')
     }
 
     if ($cfg['driver'] === 'smtp') {
-        return cms_smtp_send($cfg, $to, $subject, $body, $err);
+        return CMS_smtp_send($cfg, $to, $subject, $body, $err);
     }
 
     if (!function_exists('mail')) {
@@ -76,7 +76,7 @@ function cms_mail_send($to, $subject, $body, &$err = '')
     $headers = "MIME-Version: 1.0\r\n"
         . "Content-Type: text/plain; charset=UTF-8\r\n"
         . "Content-Transfer-Encoding: base64\r\n"
-        . 'From: ' . cms_mail_addr($cfg['name'] !== '' ? $cfg['name'] : 'CiciCMS', 'no-reply@' . update_mail_host()) . "\r\n";
+        . 'From: ' . CMS_mail_addr($cfg['name'] !== '' ? $cfg['name'] : 'CiciCMS', 'no-reply@' . update_mail_host()) . "\r\n";
 
     $ok = @mail(
         $to,
@@ -95,7 +95,7 @@ function cms_mail_send($to, $subject, $body, &$err = '')
  * ------------------------------------------------------------------ */
 
 /** 读一条（可能是多行的）SMTP 响应 */
-function cms_smtp_read($fp, &$err = '')
+function CMS_smtp_read($fp, &$err = '')
 {
     $out = '';
     while (!feof($fp)) {
@@ -117,13 +117,13 @@ function cms_smtp_read($fp, &$err = '')
 }
 
 /** 响应码 */
-function cms_smtp_code($resp)
+function CMS_smtp_code($resp)
 {
     return (int) substr(trim((string) $resp), 0, 3);
 }
 
 /** 发一条命令并校验响应码 */
-function cms_smtp_cmd($fp, $cmd, $expect, &$err, $label = '')
+function CMS_smtp_cmd($fp, $cmd, $expect, &$err, $label = '')
 {
     if ($cmd !== null) {
         if (@fwrite($fp, $cmd . "\r\n") === false) {
@@ -131,11 +131,11 @@ function cms_smtp_cmd($fp, $cmd, $expect, &$err, $label = '')
             return false;
         }
     }
-    $resp = cms_smtp_read($fp, $err);
+    $resp = CMS_smtp_read($fp, $err);
     if ($resp === false) {
         return false;
     }
-    $code  = cms_smtp_code($resp);
+    $code  = CMS_smtp_code($resp);
     $allow = is_array($expect) ? $expect : array($expect);
     if (!in_array($code, $allow, true)) {
         $err = 'SMTP 在' . ($label !== '' ? $label : '执行 ' . trim((string) $cmd))
@@ -151,7 +151,7 @@ function cms_smtp_cmd($fp, $cmd, $expect, &$err, $label = '')
  * secure=ssl 直连 465，secure=tls 用 STARTTLS（通常 587），none 明文 25。
  * 认证优先 AUTH LOGIN，服务器不支持时退回 AUTH PLAIN。
  */
-function cms_smtp_send($cfg, $to, $subject, $body, &$err = '')
+function CMS_smtp_send($cfg, $to, $subject, $body, &$err = '')
 {
     $err = '';
     $host = $cfg['host'];
@@ -193,21 +193,21 @@ function cms_smtp_send($cfg, $to, $subject, $body, &$err = '')
 
     $ok = false;
     do {
-        if (cms_smtp_cmd($fp, null, 220, $err, '建立连接') === false) {
+        if (CMS_smtp_cmd($fp, null, 220, $err, '建立连接') === false) {
             break;
         }
 
-        $ehlo = cms_smtp_cmd($fp, 'EHLO ' . update_mail_host(), 250, $err, 'EHLO');
+        $ehlo = CMS_smtp_cmd($fp, 'EHLO ' . update_mail_host(), 250, $err, 'EHLO');
         if ($ehlo === false) {
             /* 老服务器只认 HELO */
-            $ehlo = cms_smtp_cmd($fp, 'HELO ' . update_mail_host(), 250, $err, 'HELO');
+            $ehlo = CMS_smtp_cmd($fp, 'HELO ' . update_mail_host(), 250, $err, 'HELO');
             if ($ehlo === false) {
                 break;
             }
         }
 
         if ($cfg['secure'] === 'tls') {
-            if (cms_smtp_cmd($fp, 'STARTTLS', 220, $err, 'STARTTLS') === false) {
+            if (CMS_smtp_cmd($fp, 'STARTTLS', 220, $err, 'STARTTLS') === false) {
                 break;
             }
             $crypto = @stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
@@ -215,7 +215,7 @@ function cms_smtp_send($cfg, $to, $subject, $body, &$err = '')
                 $err = 'STARTTLS 握手失败，可能是服务器证书不受信任；可以先关掉「校验证书」再试';
                 break;
             }
-            $ehlo = cms_smtp_cmd($fp, 'EHLO ' . update_mail_host(), 250, $err, 'EHLO（加密后）');
+            $ehlo = CMS_smtp_cmd($fp, 'EHLO ' . update_mail_host(), 250, $err, 'EHLO（加密后）');
             if ($ehlo === false) {
                 break;
             }
@@ -232,14 +232,14 @@ function cms_smtp_send($cfg, $to, $subject, $body, &$err = '')
         $authed = false;
         if ($authLine !== '' && strpos($authLine, 'PLAIN') !== false && strpos($authLine, 'LOGIN') === false) {
             $token = base64_encode("\0" . $cfg['user'] . "\0" . $cfg['pass']);
-            $authed = cms_smtp_cmd($fp, 'AUTH PLAIN ' . $token, 235, $err, 'AUTH PLAIN') !== false;
+            $authed = CMS_smtp_cmd($fp, 'AUTH PLAIN ' . $token, 235, $err, 'AUTH PLAIN') !== false;
         } else {
-            $r = cms_smtp_cmd($fp, 'AUTH LOGIN', 334, $err, 'AUTH LOGIN');
+            $r = CMS_smtp_cmd($fp, 'AUTH LOGIN', 334, $err, 'AUTH LOGIN');
             if ($r !== false) {
-                $r = cms_smtp_cmd($fp, base64_encode($cfg['user']), 334, $err, '发送账号');
+                $r = CMS_smtp_cmd($fp, base64_encode($cfg['user']), 334, $err, '发送账号');
             }
             if ($r !== false) {
-                $r = cms_smtp_cmd($fp, base64_encode($cfg['pass']), 235, $err, '发送授权码');
+                $r = CMS_smtp_cmd($fp, base64_encode($cfg['pass']), 235, $err, '发送授权码');
             }
             $authed = $r !== false;
             if (!$authed && strpos((string) $err, '返回 ') !== false) {
@@ -250,20 +250,20 @@ function cms_smtp_send($cfg, $to, $subject, $body, &$err = '')
             break;
         }
 
-        if (cms_smtp_cmd($fp, 'MAIL FROM:<' . $from . '>', 250, $err, 'MAIL FROM') === false) {
+        if (CMS_smtp_cmd($fp, 'MAIL FROM:<' . $from . '>', 250, $err, 'MAIL FROM') === false) {
             break;
         }
-        if (cms_smtp_cmd($fp, 'RCPT TO:<' . $to . '>', array(250, 251), $err, 'RCPT TO') === false) {
+        if (CMS_smtp_cmd($fp, 'RCPT TO:<' . $to . '>', array(250, 251), $err, 'RCPT TO') === false) {
             break;
         }
-        if (cms_smtp_cmd($fp, 'DATA', 354, $err, 'DATA') === false) {
+        if (CMS_smtp_cmd($fp, 'DATA', 354, $err, 'DATA') === false) {
             break;
         }
 
         $hostTag = update_mail_host();
         $headers = array(
             'Date: ' . date('r'),
-            'From: ' . cms_mail_addr($cfg['name'] !== '' ? $cfg['name'] : 'CiciCMS', $from),
+            'From: ' . CMS_mail_addr($cfg['name'] !== '' ? $cfg['name'] : 'CiciCMS', $from),
             'To: <' . $to . '>',
             'Subject: =?UTF-8?B?' . base64_encode((string) $subject) . '?=',
             'Message-ID: <' . bin2hex(random_bytes(8)) . '@' . $hostTag . '>',
@@ -278,7 +278,7 @@ function cms_smtp_send($cfg, $to, $subject, $body, &$err = '')
             $err = '发送正文时连接断开';
             break;
         }
-        if (cms_smtp_cmd($fp, null, 250, $err, '投递正文') === false) {
+        if (CMS_smtp_cmd($fp, null, 250, $err, '投递正文') === false) {
             break;
         }
 

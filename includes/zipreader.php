@@ -9,7 +9,7 @@
  * 解压前请自行校验路径，本类只负责取数据。
  */
 
-class Cms_Zip_Reader
+class CMS_Zip_Reader
 {
     /** @var resource|null */
     protected $fp = null;

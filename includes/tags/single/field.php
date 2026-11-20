@@ -4,7 +4,7 @@
  *
  * 两条路：
  *   1. 显式写 field name="xxx"，字段名走别名映射；
- *   2. 直接写 {cici:title} 这类字段标签，由本文件末尾的 cms_tag_field_compile() 兜底。
+ *   2. 直接写 {cici:title} 这类字段标签，由本文件末尾的 CMS_tag_field_compile() 兜底。
  *
  * 只在编译期（生成静态页 / 模板重编）加载。编译器收到统一的 ctx：
  *   $ctx['name']    标签名
@@ -23,22 +23,22 @@ if (!defined('CMS_TAG_NS')) {
 return array(
     'name'     => 'field',
     'desc'     => '按字段名取值，兼容别名；字段类标签（title / content ...）也走这里',
-    'compile'  => 'cms_tag_single_field',
+    'compile'  => 'CMS_tag_single_field',
     'fallback' => true,
 );
 
-function cms_tag_single_field($ctx)
+function CMS_tag_single_field($ctx)
 {
     $a     = $ctx['attrs'];
     $fname = isset($a['name']) ? $a['name'] : (isset($a['']) ? $a[''] : '');
 
     // 老模板里 {cici:field name="position"} 当作面包屑
     if (strtolower(trim($fname)) === 'position') {
-        return '<?php echo cms_tag_position_html(cms_tag_position(), " / "); ?>';
+        return '<?php echo CMS_tag_position_html(CMS_tag_position(), " / "); ?>';
     }
 
-    $pathCode = 'cms_tag_path(' . cms_tag_attr_expr($fname) . ')';
-    return '<?php echo cms_tag_out(cms_raw(' . $pathCode . '), ' . $ctx['fcode'] . ', cms_tag_is_raw_path(' . $pathCode . ')); ?>';
+    $pathCode = 'CMS_tag_path(' . CMS_tag_attr_expr($fname) . ')';
+    return '<?php echo CMS_tag_out(CMS_raw(' . $pathCode . '), ' . $ctx['fcode'] . ', CMS_tag_is_raw_path(' . $pathCode . ')); ?>';
 }
 
 /**
@@ -48,14 +48,14 @@ function cms_tag_single_field($ctx)
  * 存在，则用那份定义里的 path / raw 覆盖——某个字段要特殊对待时只加一个文件，
  * 不用改引擎、也不用改这里。
  */
-function cms_tag_field_compile($ctx)
+function CMS_tag_field_compile($ctx)
 {
     $name = $ctx['name'];
-    $def  = cms_tag_field_def($name);
+    $def  = CMS_tag_field_def($name);
 
     $path = ($def && isset($def['path']) && $def['path'] !== '') ? $def['path'] : $name;
-    $raw  = ($def && array_key_exists('raw', $def)) ? (bool) $def['raw'] : cms_tag_is_raw_path($path);
+    $raw  = ($def && array_key_exists('raw', $def)) ? (bool) $def['raw'] : CMS_tag_is_raw_path($path);
 
-    return '<?php echo cms_tag_out(cms_raw(' . var_export($path, true) . '), '
+    return '<?php echo CMS_tag_out(CMS_raw(' . var_export($path, true) . '), '
          . $ctx['fcode'] . ', ' . ($raw ? 'true' : 'false') . '); ?>';
 }

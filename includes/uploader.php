@@ -15,7 +15,7 @@
  *   · 落盘成功后写一条 attachment 记录，媒体信息可见，系统清理不会当无主文件删掉
  */
 
-class Cms_Image_Uploader
+class CMS_Image_Uploader
 {
     /** 最近一次失败原因 */
     protected $error = '';
@@ -411,7 +411,7 @@ class Cms_Image_Uploader
      */
     protected function urlCheck($url)
     {
-        return cms_url_public_check($url);
+        return CMS_url_public_check($url);
     }
 
     protected function uploadErrorMessage($code)

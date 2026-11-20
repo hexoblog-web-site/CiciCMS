@@ -14,40 +14,40 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-function cms_cond($expr)
+function CMS_cond($expr)
 {
     $expr = trim((string) $expr);
     if ($expr === '') {
         return false;
     }
-    $parts = cms_cond_split($expr, '||');
+    $parts = CMS_cond_split($expr, '||');
     if (count($parts) > 1) {
         foreach ($parts as $p) {
-            if (cms_cond_and($p)) {
+            if (CMS_cond_and($p)) {
                 return true;
             }
         }
         return false;
     }
-    return cms_cond_and($expr);
+    return CMS_cond_and($expr);
 }
 
-function cms_cond_and($expr)
+function CMS_cond_and($expr)
 {
-    $parts = cms_cond_split($expr, '&&');
+    $parts = CMS_cond_split($expr, '&&');
     if (count($parts) > 1) {
         foreach ($parts as $p) {
-            if (!cms_cond_atom($p)) {
+            if (!CMS_cond_atom($p)) {
                 return false;
             }
         }
         return true;
     }
-    return cms_cond_atom($expr);
+    return CMS_cond_atom($expr);
 }
 
 /** 按顶层运算符切分，引号内的不算 */
-function cms_cond_split($expr, $op)
+function CMS_cond_split($expr, $op)
 {
     $parts = array();
     $buf   = '';
@@ -80,7 +80,7 @@ function cms_cond_split($expr, $op)
     return $parts;
 }
 
-function cms_cond_atom($expr)
+function CMS_cond_atom($expr)
 {
     $e = trim($expr);
     if ($e === '') {
@@ -88,29 +88,29 @@ function cms_cond_atom($expr)
     }
     // 括号
     if ($e[0] === '(' && substr($e, -1) === ')') {
-        return cms_cond(substr($e, 1, -1));
+        return CMS_cond(substr($e, 1, -1));
     }
     // 取反
     if ($e[0] === '!') {
         if (substr($e, 0, 2) === '!=') {
             // 落到下面比较
         } else {
-            return !cms_cond_atom(substr($e, 1));
+            return !CMS_cond_atom(substr($e, 1));
         }
     }
     // 比较运算，长的先试
     foreach (array('>=', '<=', '==', '!=', '>', '<') as $op) {
-        $p = cms_cond_find_op($e, $op);
+        $p = CMS_cond_find_op($e, $op);
         if ($p !== false) {
-            $l = cms_cond_value(substr($e, 0, $p));
-            $r = cms_cond_value(substr($e, $p + strlen($op)));
-            return cms_cond_cmp($l, $r, $op);
+            $l = CMS_cond_value(substr($e, 0, $p));
+            $r = CMS_cond_value(substr($e, $p + strlen($op)));
+            return CMS_cond_cmp($l, $r, $op);
         }
     }
-    return cms_cond_truthy(cms_cond_value($e));
+    return CMS_cond_truthy(CMS_cond_value($e));
 }
 
-function cms_cond_find_op($expr, $op)
+function CMS_cond_find_op($expr, $op)
 {
     $quote = '';
     $len   = strlen($expr);
@@ -144,7 +144,7 @@ function cms_cond_find_op($expr, $op)
     return false;
 }
 
-function cms_cond_value($s)
+function CMS_cond_value($s)
 {
     $s = trim($s);
     if ($s === '') {
@@ -152,7 +152,7 @@ function cms_cond_value($s)
     }
     if ($s[0] === '$') {
         // 条件里必须保留原始类型，数组/布尔才能正确判真假
-        return cms_raw(substr($s, 1));
+        return CMS_raw(substr($s, 1));
     }
     if ($s[0] === '"' && substr($s, -1) === '"') {
         return substr($s, 1, -1);
@@ -174,18 +174,18 @@ function cms_cond_value($s)
         return null;
     }
     if (preg_match('/^[A-Za-z_][A-Za-z0-9_.]*$/', $s)) {
-        return cms_raw($s);
+        return CMS_raw($s);
     }
     return $s;
 }
 
-function cms_cond_cmp($l, $r, $op)
+function CMS_cond_cmp($l, $r, $op)
 {
     if ($op === '==') {
-        return cms_cond_equal($l, $r);
+        return CMS_cond_equal($l, $r);
     }
     if ($op === '!=') {
-        return !cms_cond_equal($l, $r);
+        return !CMS_cond_equal($l, $r);
     }
     if (is_numeric($l) && is_numeric($r)) {
         $l = $l + 0;
@@ -207,10 +207,10 @@ function cms_cond_cmp($l, $r, $op)
     return false;
 }
 
-function cms_cond_equal($l, $r)
+function CMS_cond_equal($l, $r)
 {
     if (is_bool($l) || is_bool($r)) {
-        return cms_cond_truthy($l) === cms_cond_truthy($r);
+        return CMS_cond_truthy($l) === CMS_cond_truthy($r);
     }
     if (is_numeric($l) && is_numeric($r)) {
         return ($l + 0) == ($r + 0);
@@ -218,7 +218,7 @@ function cms_cond_equal($l, $r)
     return (string) $l === (string) $r;
 }
 
-function cms_cond_truthy($v)
+function CMS_cond_truthy($v)
 {
     if (is_bool($v)) {
         return $v;

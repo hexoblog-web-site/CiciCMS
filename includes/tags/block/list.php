@@ -14,20 +14,20 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-function cms_tag_block_list($attrRaw, $body, $type = '')
+function CMS_tag_block_list($attrRaw, $body, $type = '')
 {
-    $a = cms_tag_attrs($attrRaw);
-    $q = cms_tag_list_q($a, $type !== '' ? $type : 'article');
+    $a = CMS_tag_attrs($attrRaw);
+    $q = CMS_tag_list_q($a, $type !== '' ? $type : 'article');
 
-    list($main, $empty) = cms_tag_split_block_empty($body);
-    $uid = cms_tag_uid();
+    list($main, $empty) = CMS_tag_split_block_empty($body);
+    $uid = CMS_tag_uid();
     $st  = '$__s' . $uid;
 
-    return '<?php ' . $st . ' = cms_tag_rows(' . cms_tag_qcode($q) . '); ?>'
+    return '<?php ' . $st . ' = CMS_tag_rows(' . CMS_tag_qcode($q) . '); ?>'
          . '<?php if (empty(' . $st . ')): ?>'
-         . cms_tag_parse($empty)
+         . CMS_tag_parse($empty)
          . '<?php else: ?>'
-         . cms_tag_loop_code($st, $main)
+         . CMS_tag_loop_code($st, $main)
          . '<?php endif; ?>';
 }
 /* ── 标签注册（引擎按这份声明找到本文件）───────────────── */
@@ -36,5 +36,5 @@ return array(
     'name'    => 'list',
     'desc'    => '文档列表',
     'block'   => true,
-    'compile' => 'cms_tag_block_list',
+    'compile' => 'CMS_tag_block_list',
 );

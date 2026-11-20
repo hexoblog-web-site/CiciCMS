@@ -16,7 +16,7 @@
  */
 
 /** 允许的附件后缀 */
-function cms_file_exts()
+function CMS_file_exts()
 {
     return array(
         // 文档
@@ -29,7 +29,7 @@ function cms_file_exts()
 }
 
 /** 明确拒绝的后缀：即使误加进白名单也不会收（服务端脚本、可被浏览器执行的东西） */
-function cms_file_deny_exts()
+function CMS_file_deny_exts()
 {
     return array(
         'php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phps', 'phtml', 'phar', 'pht',
@@ -40,7 +40,7 @@ function cms_file_deny_exts()
 }
 
 /** php.ini 的体积写法（20M / 512K / 1G）转成字节 */
-function cms_ini_bytes($v)
+function CMS_ini_bytes($v)
 {
     $v = trim((string) $v);
     if ($v === '') {
@@ -63,11 +63,11 @@ function cms_ini_bytes($v)
 }
 
 /** 单个附件的上限：20MB，被 php.ini 卡住时按更小的那个走 */
-function cms_file_max_bytes()
+function CMS_file_max_bytes()
 {
     $max = 20 * 1024 * 1024;
     foreach (array('upload_max_filesize', 'post_max_size') as $k) {
-        $n = cms_ini_bytes(ini_get($k));
+        $n = CMS_ini_bytes(ini_get($k));
         if ($n > 0 && $n < $max) {
             $max = $n;
         }
@@ -76,16 +76,16 @@ function cms_file_max_bytes()
 }
 
 /** 后缀是否放行 */
-function cms_file_ext_ok($ext)
+function CMS_file_ext_ok($ext)
 {
     $ext = strtolower(trim((string) $ext));
     if ($ext === '' || strpos($ext, '/') !== false) {
         return false;
     }
-    if (in_array($ext, cms_file_deny_exts(), true)) {
+    if (in_array($ext, CMS_file_deny_exts(), true)) {
         return false;
     }
-    return in_array($ext, cms_file_exts(), true);
+    return in_array($ext, CMS_file_exts(), true);
 }
 
 /**
@@ -93,7 +93,7 @@ function cms_file_ext_ok($ext)
  *
  * 后缀已经限死，这一层是防呆：万一哪天白名单被改错，目录里也跑不了脚本。
  */
-function cms_file_guard_dir($dir)
+function CMS_file_guard_dir($dir)
 {
     $f = rtrim((string) $dir, '/\\') . '/.htaccess';
     if (is_file($f)) {
@@ -124,7 +124,7 @@ function cms_file_guard_dir($dir)
  * @param string $err  失败原因（出参）
  * @return array|false 成功返回 path/rel/url/name/ext/size
  */
-function cms_file_upload($file, &$err = '')
+function CMS_file_upload($file, &$err = '')
 {
     $err = '';
 
@@ -157,7 +157,7 @@ function cms_file_upload($file, &$err = '')
         $err = '文件是空的';
         return false;
     }
-    $max = cms_file_max_bytes();
+    $max = CMS_file_max_bytes();
     if ($size > $max) {
         $err = '单个附件不能超过 ' . format_bytes($max);
         return false;
@@ -165,10 +165,10 @@ function cms_file_upload($file, &$err = '')
 
     $orig = (string) $file['name'];
     $ext  = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
-    if (!cms_file_ext_ok($ext)) {
+    if (!CMS_file_ext_ok($ext)) {
         $err = $ext === ''
             ? '这个文件没有后缀，无法判断类型'
-            : '不收 .' . $ext . ' 这类文件；允许 ' . implode(' / ', cms_file_exts());
+            : '不收 .' . $ext . ' 这类文件；允许 ' . implode(' / ', CMS_file_exts());
         return false;
     }
 
@@ -179,7 +179,7 @@ function cms_file_upload($file, &$err = '')
         $err = '创建上传目录失败，请检查 ' . CMS_CONTENT_REL . '/uploads 目录权限';
         return false;
     }
-    cms_file_guard_dir($dirAbs);
+    CMS_file_guard_dir($dirAbs);
 
     $name = '';
     $abs  = '';
@@ -217,7 +217,7 @@ function cms_file_upload($file, &$err = '')
  * @param string $v
  * @return string
  */
-function cms_file_clean($v)
+function CMS_file_clean($v)
 {
     $v = trim((string) $v);
     if ($v === '') {
@@ -245,7 +245,7 @@ function cms_file_clean($v)
  * @param string $path 库里的路径，兼容 /content/uploads/files/... 等写法
  * @return bool
  */
-function cms_file_delete($path)
+function CMS_file_delete($path)
 {
     $rel = upload_rel($path);
     if ($rel === '' || strpos($rel, 'files/') !== 0) {

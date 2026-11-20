@@ -21,10 +21,10 @@ if (!defined('CMS_TAG_NS')) {
 return array(
     'name'    => 'year',
     'desc'    => '当前年份',
-    'compile' => 'cms_tag_single_year',
+    'compile' => 'CMS_tag_single_year',
 );
 
-function cms_tag_single_year($ctx)
+function CMS_tag_single_year($ctx)
 {
     return '<?php echo date("Y"); ?>';
 }

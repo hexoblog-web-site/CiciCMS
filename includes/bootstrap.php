@@ -25,7 +25,7 @@ define('CMS_DATA', CMS_CONTENT . '/data');
 /** 插件目录：content/plugins/<id>/，每个插件一个文件夹，升级不覆盖 */
 define('CMS_PLUGINS', CMS_CONTENT . '/plugins');
 
-define('CMS_VERSION', '2.3.0');
+define('CMS_VERSION', '2.3.1');
 
 if (!is_file(CMS_ROOT . '/config.php')) {
     $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
@@ -52,7 +52,7 @@ if (!is_file(CMS_ROOT . '/config.php')) {
  *
  * @return array 实际搬动的目录名
  */
-function cms_migrate_dirs()
+function CMS_migrate_dirs()
 {
     $moves = array(
         'templates' => CMS_THEMES,
@@ -104,7 +104,7 @@ function cms_migrate_dirs()
     return $done;
 }
 
-cms_migrate_dirs();
+CMS_migrate_dirs();
 
 require CMS_ROOT . '/config.php';
 require CMS_INC . '/db.php';
@@ -132,13 +132,13 @@ if (!defined('CMS_DEBUG')) {
 date_default_timezone_set(setting('timezone', 'Asia/Shanghai'));
 
 // 数据库结构自动升级（有锁文件时只做一次文件检查）
-cms_upgrade();
+CMS_upgrade();
 
 /*
  * 插件加载必须在数据库就绪之后：插件开关存在 config 表里。
  * 停用的插件不会被 include，性能与安全上都不留负担。
  */
-cms_plugin_load();
+CMS_plugin_load();
 
 error_reporting(E_ALL);
 ini_set('display_errors', CMS_DEBUG ? '1' : '0');
@@ -162,14 +162,14 @@ set_exception_handler(function ($ex) {
 });
 
 /*
- * 会话改为按需启动（cms_session_start）。
+ * 会话改为按需启动（CMS_session_start）。
  * 静态站的前台请求根本用不到 session，原来的写法让每个访客都在服务器上
  * 留下一个 session 文件——虚拟主机上 inode 很快就被这些空文件吃满。
  * 后台、登录、CSRF、flash 会在用到时自行启动。
  */
 
-if (!isset($GLOBALS['cms_static_mode'])) {
-    $GLOBALS['cms_static_mode'] = false;
+if (!isset($GLOBALS['CMS_static_mode'])) {
+    $GLOBALS['CMS_static_mode'] = false;
 }
 
 /*
@@ -190,8 +190,8 @@ ob_start(function ($html) {
     if (stripos($html, '</body>') === false) {
         return $html;
     }
-    if (!empty($GLOBALS['cms_no_plugin_output'])) {
+    if (!empty($GLOBALS['CMS_no_plugin_output'])) {
         return $html;
     }
-    return cms_finalize_html($html, 'dynamic');
+    return CMS_finalize_html($html, 'dynamic');
 });

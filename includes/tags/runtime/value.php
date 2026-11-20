@@ -14,43 +14,43 @@ if (!defined('CMS_TAG_NS')) {
 }
 
 
-function cms_scope()
+function CMS_scope()
 {
-    return isset($GLOBALS['__cms_scope']) && is_array($GLOBALS['__cms_scope'])
-        ? $GLOBALS['__cms_scope']
+    return isset($GLOBALS['__CMS_scope']) && is_array($GLOBALS['__CMS_scope'])
+        ? $GLOBALS['__CMS_scope']
         : array();
 }
 
-function cms_loop_push($row, $i = 0)
+function CMS_loop_push($row, $i = 0)
 {
-    if (!isset($GLOBALS['__cms_loop']) || !is_array($GLOBALS['__cms_loop'])) {
-        $GLOBALS['__cms_loop'] = array();
+    if (!isset($GLOBALS['__CMS_loop']) || !is_array($GLOBALS['__CMS_loop'])) {
+        $GLOBALS['__CMS_loop'] = array();
     }
-    $row = cms_row_expand($row);
+    $row = CMS_row_expand($row);
     if (is_array($row)) {
         $row['index'] = (int) $i + 1;
     }
-    $GLOBALS['__cms_loop'][] = $row;
+    $GLOBALS['__CMS_loop'][] = $row;
 }
 
-function cms_loop_pop()
+function CMS_loop_pop()
 {
-    if (!empty($GLOBALS['__cms_loop'])) {
-        array_pop($GLOBALS['__cms_loop']);
+    if (!empty($GLOBALS['__CMS_loop'])) {
+        array_pop($GLOBALS['__CMS_loop']);
     }
 }
 
-function cms_loop_top()
+function CMS_loop_top()
 {
-    if (empty($GLOBALS['__cms_loop'])) {
+    if (empty($GLOBALS['__CMS_loop'])) {
         return null;
     }
-    $n = count($GLOBALS['__cms_loop']);
-    return $GLOBALS['__cms_loop'][$n - 1];
+    $n = count($GLOBALS['__CMS_loop']);
+    return $GLOBALS['__CMS_loop'][$n - 1];
 }
 
 /** 给数据行补上模板常用的虚拟字段与兼容别名 */
-function cms_row_expand($row)
+function CMS_row_expand($row)
 {
     if (!is_array($row)) {
         return $row;
@@ -105,8 +105,8 @@ function cms_row_expand($row)
             $row['flag_list'] = array();
             $row['flag_all_list'] = array();
             if (!empty($row['flag'])) {
-                $flagMap = cms_flag_map();
-                $pubMap = cms_flag_public_map();
+                $flagMap = CMS_flag_map();
+                $pubMap = CMS_flag_public_map();
                 foreach (explode(',', $row['flag']) as $f) {
                     $f = trim($f);
                     if ($f === '') {
@@ -188,7 +188,7 @@ function cms_row_expand($row)
  * 标签取值：{cici:site.name} / {cici:post.title} / {cici:item.url}
  * 找不到返回 null，绝不报错。
  */
-function cms_raw($path)
+function CMS_raw($path)
 {
     $path = trim((string) $path);
     if ($path === '') {
@@ -202,7 +202,7 @@ function cms_raw($path)
 
     // 循环项：item / row 指向栈顶；post 在没有 $post 时也回退到栈顶
     if ($root === 'item' || $root === 'row') {
-        $it = cms_loop_top();
+        $it = CMS_loop_top();
         if ($it !== null) {
             $val = $it;
             $found = true;
@@ -210,7 +210,7 @@ function cms_raw($path)
     }
 
     if (!$found) {
-        $scope = cms_scope();
+        $scope = CMS_scope();
         if (array_key_exists($root, $scope)) {
             $val = $scope[$root];
             $found = true;
@@ -218,7 +218,7 @@ function cms_raw($path)
     }
 
     if (!$found && ($root === 'post' || $root === 'page')) {
-        $it = cms_loop_top();
+        $it = CMS_loop_top();
         if ($it !== null) {
             $val = $it;
             $found = true;
@@ -229,7 +229,7 @@ function cms_raw($path)
         return null;
     }
 
-    $val = cms_row_expand($val);
+    $val = CMS_row_expand($val);
 
     foreach ($parts as $k) {
         if (is_array($val) && array_key_exists($k, $val)) {
@@ -244,12 +244,12 @@ function cms_raw($path)
 }
 
 /** 标签取值统一转成字符串，数组/对象一律当空 */
-function cms_val($path)
+function CMS_val($path)
 {
-    return cms_val_str(cms_raw($path));
+    return CMS_val_str(CMS_raw($path));
 }
 
-function cms_val_str($val)
+function CMS_val_str($val)
 {
     if (is_bool($val)) {
         return $val ? '1' : '';
@@ -261,9 +261,9 @@ function cms_val_str($val)
 }
 
 /** {cici:each} 用：取出数组，标量元素自动包装 */
-function cms_tag_array($path)
+function CMS_tag_array($path)
 {
-    $val = cms_raw($path);
+    $val = CMS_raw($path);
     if (!is_array($val)) {
         return array();
     }

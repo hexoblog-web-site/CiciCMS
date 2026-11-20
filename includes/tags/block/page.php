@@ -14,9 +14,9 @@ if (!defined('CMS_TAG_NS')) {
     exit;
 }
 
-function cms_tag_block_page($attrRaw, $body)
+function CMS_tag_block_page($attrRaw, $body)
 {
-    return cms_tag_block_list($attrRaw, $body, 'page');
+    return CMS_tag_block_list($attrRaw, $body, 'page');
 }
 
 return array(
@@ -24,6 +24,6 @@ return array(
     'desc'    => '单页列表',
     'block'   => true,
     'auto'    => true,
-    'compile' => 'cms_tag_block_page',
+    'compile' => 'CMS_tag_block_page',
     'inline'  => '',
 );

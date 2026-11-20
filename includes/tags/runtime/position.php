@@ -15,11 +15,11 @@ if (!defined('CMS_TAG_NS')) {
 
 
 /** 面包屑数据 */
-function cms_tag_position($o = array())
+function CMS_tag_position($o = array())
 {
     $o     = is_array($o) ? $o : array();
     $home  = isset($o['home']) ? (string) $o['home'] : '首页';
-    $scope = cms_scope();
+    $scope = CMS_scope();
 
     $items   = array();
     $items[] = array('name' => $home, 'title' => $home, 'url' => u_home(), 'current' => 0);
@@ -78,7 +78,7 @@ function cms_tag_position($o = array())
 }
 
 /** 面包屑默认 HTML（{cici:position} 空标签时使用） */
-function cms_tag_position_html($items, $sep = '/')
+function CMS_tag_position_html($items, $sep = '/')
 {
     if (empty($items)) {
         return '';

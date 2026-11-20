@@ -2,7 +2,7 @@
 /**
  * 后台图片上传接口（编辑器插图、媒体信息共用）
  *
- * 只做一件事：收图 → 交给 Cms_Image_Uploader → 返回 JSON。
+ * 只做一件事：收图 → 交给 CMS_Image_Uploader → 返回 JSON。
  * 权限与 CSRF 都必须在进入业务前过一遍：这是唯一能从后台往服务器写文件的口子。
  *
  * 请求：POST admin/upload.php
@@ -25,7 +25,7 @@ header('X-Content-Type-Options: nosniff');
 /**
  * 输出并结束
  */
-function cms_upload_json($ok, $data = array())
+function CMS_upload_json($ok, $data = array())
 {
     $body = array('ok' => (bool) $ok);
     $body += (array) $data;
@@ -36,13 +36,13 @@ function cms_upload_json($ok, $data = array())
 if (strtoupper((string) (isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : '')) !== 'POST') {
     http_response_code(405);
     header('Allow: POST');
-    cms_upload_json(false, array('msg' => '只接受 POST 请求'));
+    CMS_upload_json(false, array('msg' => '只接受 POST 请求'));
 }
 
 /* 会话过期时不要跳登录页，前端拿到 401 会提示刷新 */
 if (!auth_check()) {
     http_response_code(401);
-    cms_upload_json(false, array('msg' => '登录已过期，请刷新页面后重试'));
+    CMS_upload_json(false, array('msg' => '登录已过期，请刷新页面后重试'));
 }
 
 /* 上传体积超过 post_max_size 时 PHP 会丢掉整个 POST，连 token 都收不到，
@@ -50,25 +50,25 @@ if (!auth_check()) {
 $contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int) $_SERVER['CONTENT_LENGTH'] : 0;
 if (empty($_POST) && empty($_FILES) && $contentLength > 0) {
     http_response_code(413);
-    cms_upload_json(false, array('msg' => '文件超过服务器 post_max_size 限制（当前 ' . ini_get('post_max_size') . '），请调大后重试或换小一点的图片'));
+    CMS_upload_json(false, array('msg' => '文件超过服务器 post_max_size 限制（当前 ' . ini_get('post_max_size') . '），请调大后重试或换小一点的图片'));
 }
 
 $token = isset($_POST['_token']) ? (string) $_POST['_token'] : '';
 if ($token === '' || empty($_SESSION['_csrf']) || !hash_equals((string) $_SESSION['_csrf'], $token)) {
     http_response_code(403);
-    cms_upload_json(false, array('msg' => '安全校验失败，请刷新页面后重试'));
+    CMS_upload_json(false, array('msg' => '安全校验失败，请刷新页面后重试'));
 }
 
 $mode = isset($_POST['mode']) ? (string) $_POST['mode'] : 'file';
 
 if ($mode === 'attach') {
     /* 文章附件：文档 / 压缩包 / 小软件，规则见 includes/fileupload.php */
-    $r = cms_file_upload(isset($_FILES['file']) ? $_FILES['file'] : null, $err);
+    $r = CMS_file_upload(isset($_FILES['file']) ? $_FILES['file'] : null, $err);
     if (!$r) {
-        cms_upload_json(false, array('msg' => $err !== '' ? $err : '上传失败'));
+        CMS_upload_json(false, array('msg' => $err !== '' ? $err : '上传失败'));
     }
     log_msg('attach upload ok: ' . $r['path']);
-    cms_upload_json(true, array(
+    CMS_upload_json(true, array(
         'url'   => $r['url'],
         'path'  => $r['path'],
         'name'  => $r['name'],
@@ -80,18 +80,18 @@ if ($mode === 'attach') {
 
 if ($mode === 'url') {
     $url = isset($_POST['url']) ? trim((string) $_POST['url']) : '';
-    $r   = cms_upload_remote($url, $err);
+    $r   = CMS_upload_remote($url, $err);
 } else {
-    $r = cms_upload_image(isset($_FILES['file']) ? $_FILES['file'] : null, $err);
+    $r = CMS_upload_image(isset($_FILES['file']) ? $_FILES['file'] : null, $err);
 }
 
 if (!$r) {
-    cms_upload_json(false, array('msg' => $err !== '' ? $err : '上传失败'));
+    CMS_upload_json(false, array('msg' => $err !== '' ? $err : '上传失败'));
 }
 
 log_msg('upload ok: ' . $r['path'] . ' (' . $mode . ')');
 
-cms_upload_json(true, array(
+CMS_upload_json(true, array(
     'url'    => $r['url'],
     'path'   => $r['path'],
     'name'   => $r['name'],

@@ -18,16 +18,16 @@ if (!defined('CMS_TAG_NS')) {
  * 标签云。$o 可以是 limit 数字，也可以是数组：
  * limit / sort(count|name|rand) / current(只看当前文章标签)
  */
-function cms_tag_taglist($o = array())
+function CMS_tag_taglist($o = array())
 {
     if (!is_array($o)) {
         $o = array('limit' => $o);
     }
-    $limit = cms_tag_int(isset($o['limit']) ? $o['limit'] : 50, 50, 1, 200);
+    $limit = CMS_tag_int(isset($o['limit']) ? $o['limit'] : 50, 50, 1, 200);
     $sort  = strtolower((string) (isset($o['sort']) ? $o['sort'] : 'count'));
 
     if (!empty($o['current'])) {
-        $scope = cms_scope();
+        $scope = CMS_scope();
         $post  = isset($scope['post']) ? $scope['post'] : null;
         $out   = array();
         if (is_array($post) && !empty($post['tags'])) {

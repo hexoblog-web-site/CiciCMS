@@ -2,22 +2,22 @@
 /**
  * 图片上传（系统能力的薄封装）
  *
- * 真正的校验、命名、落盘、登记都在 includes/uploader.php 的 Cms_Image_Uploader 里。
+ * 真正的校验、命名、落盘、登记都在 includes/uploader.php 的 CMS_Image_Uploader 里。
  * 这里保留函数式接口，是为了让媒体信息、栏目横幅这些老调用点不必改；新代码可以直接用类。
  *
  * 不做界面，也不做权限判断，调用方必须先确认是管理员。
  */
 
 /** 允许的图片后缀 */
-function cms_upload_exts()
+function CMS_upload_exts()
 {
-    return Cms_Image_Uploader::exts();
+    return CMS_Image_Uploader::exts();
 }
 
 /** 单文件上限（字节）。与后台提示、php.ini 的 upload_max_filesize 保持同一口径。 */
-function cms_upload_max_bytes()
+function CMS_upload_max_bytes()
 {
-    return Cms_Image_Uploader::maxBytes();
+    return CMS_Image_Uploader::maxBytes();
 }
 
 /**
@@ -28,9 +28,9 @@ function cms_upload_max_bytes()
  * @param bool   $register 是否登记到 attachment 表（媒体信息里能看见）
  * @return array|false     成功返回 path/rel/url/name/mime/size/width/height
  */
-function cms_upload_image($file, &$err = '', $register = true)
+function CMS_upload_image($file, &$err = '', $register = true)
 {
-    $up = new Cms_Image_Uploader($register);
+    $up = new CMS_Image_Uploader($register);
     $r  = $up->receive($file);
     $err = $r ? '' : $up->error();
     return $r;
@@ -44,9 +44,9 @@ function cms_upload_image($file, &$err = '', $register = true)
  * @param bool   $register
  * @return array|false
  */
-function cms_upload_remote($url, &$err = '', $register = true)
+function CMS_upload_remote($url, &$err = '', $register = true)
 {
-    $up = new Cms_Image_Uploader($register);
+    $up = new CMS_Image_Uploader($register);
     $r  = $up->fromUrl($url);
     $err = $r ? '' : $up->error();
     return $r;
@@ -60,7 +60,7 @@ function cms_upload_remote($url, &$err = '', $register = true)
  * @param string $v 用户输入：上传返回的路径 / 媒体信息复制的完整地址 / 外链
  * @return string
  */
-function cms_banner_clean($v)
+function CMS_banner_clean($v)
 {
     $v = trim((string) $v);
     if ($v === '') {
@@ -97,7 +97,7 @@ function cms_banner_clean($v)
  * @param string $path 库里的路径，兼容 content/uploads/... 与 uploads/...
  * @return bool
  */
-function cms_upload_delete($path)
+function CMS_upload_delete($path)
 {
     $rel = upload_rel($path);
     if ($rel === '') {

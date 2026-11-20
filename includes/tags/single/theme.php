@@ -21,10 +21,10 @@ if (!defined('CMS_TAG_NS')) {
 return array(
     'name'    => 'theme',
     'desc'    => '当前主题目录地址',
-    'compile' => 'cms_tag_single_theme',
+    'compile' => 'CMS_tag_single_theme',
 );
 
-function cms_tag_single_theme($ctx)
+function CMS_tag_single_theme($ctx)
 {
     return '<?php echo e(theme_url()); ?>';
 }

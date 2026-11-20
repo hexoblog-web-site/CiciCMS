@@ -21,7 +21,7 @@ if (!defined('CMS_TAG_NS')) {
  * subday limit offset order orderby orderway
  * titlelen infolen col exclude
  */
-function cms_tag_rows($q)
+function CMS_tag_rows($q)
 {
     $q      = is_array($q) ? $q : array();
     $type   = strtolower(trim((string) (isset($q['type']) ? $q['type'] : 'article')));
@@ -34,18 +34,18 @@ function cms_tag_rows($q)
         $offset = max(0, (int) $seg[0]);
         $limit  = (int) $seg[1];
     }
-    $limit = cms_tag_int($limit, 10, 1, 200);
+    $limit = CMS_tag_int($limit, 10, 1, 200);
 
     if ($type === 'category' || $type === 'cat') {
-        return cms_tag_query_cats($q, $limit, $offset);
+        return CMS_tag_query_cats($q, $limit, $offset);
     }
     if ($type === 'tag' || $type === 'tags') {
-        return cms_tag_taglist(array('limit' => $limit));
+        return CMS_tag_taglist(array('limit' => $limit));
     }
     if ($type === 'page' || $type === 'single') {
         $rows = all('SELECT * FROM {p}page WHERE status = 1 ORDER BY sort ASC, id ASC LIMIT ' . (int) $limit . ' OFFSET ' . (int) $offset);
         $rows = empty($rows) ? array() : $rows;
-        return cms_tag_rows_post($rows, $q);
+        return CMS_tag_rows_post($rows, $q);
     }
 
     // ---------- 文章 ----------
@@ -53,13 +53,13 @@ function cms_tag_rows($q)
     $params = array();
 
     if (!empty($q['current'])) {
-        $scope = cms_scope();
+        $scope = CMS_scope();
         $cid   = isset($scope['current_cat_id']) ? (int) $scope['current_cat_id'] : 0;
         $where[]  = 'a.cat_id = ?';
         $params[] = $cid > 0 ? $cid : -1;
     }
     if (!empty($q['catid'])) {
-        $ids = cms_tag_id_list($q['catid']);
+        $ids = CMS_tag_id_list($q['catid']);
         if (!empty($ids)) {
             $where[] = 'a.cat_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
             foreach ($ids as $id) {
@@ -68,7 +68,7 @@ function cms_tag_rows($q)
         }
     }
     if (!empty($q['notcatid'])) {
-        $ids = cms_tag_id_list($q['notcatid']);
+        $ids = CMS_tag_id_list($q['notcatid']);
         if (!empty($ids)) {
             $where[] = 'a.cat_id NOT IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
             foreach ($ids as $id) {
@@ -96,7 +96,7 @@ function cms_tag_rows($q)
         $params[] = (int) $q['exclude'];
     }
     if (!empty($q['notid'])) {
-        $ids = cms_tag_id_list($q['notid']);
+        $ids = CMS_tag_id_list($q['notid']);
         if (!empty($ids)) {
             $where[] = 'a.id NOT IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
             foreach ($ids as $id) {
@@ -111,7 +111,7 @@ function cms_tag_rows($q)
 
     // 推荐位：flag="c" 或 "c,h"（任一命中）
     if (!empty($q['flag'])) {
-        $flags = cms_tag_flag_list($q['flag']);
+        $flags = CMS_tag_flag_list($q['flag']);
         if (!empty($flags)) {
             $or = array();
             foreach ($flags as $f) {
@@ -122,7 +122,7 @@ function cms_tag_rows($q)
         }
     }
     if (!empty($q['noflag'])) {
-        $flags = cms_tag_flag_list($q['noflag']);
+        $flags = CMS_tag_flag_list($q['noflag']);
         foreach ($flags as $f) {
             $where[]  = 'NOT FIND_IN_SET(?, a.flag)';
             $params[] = $f;
@@ -132,7 +132,7 @@ function cms_tag_rows($q)
     // idlist：指定 ID，并按给定顺序输出
     $idlist = array();
     if (!empty($q['idlist'])) {
-        $idlist = cms_tag_id_list($q['idlist']);
+        $idlist = CMS_tag_id_list($q['idlist']);
         if (!empty($idlist)) {
             $where[] = 'a.id IN (' . implode(',', array_fill(0, count($idlist), '?')) . ')';
             foreach ($idlist as $id) {
@@ -141,7 +141,7 @@ function cms_tag_rows($q)
         }
     }
 
-    $order = cms_tag_order_sql($q);
+    $order = CMS_tag_order_sql($q);
 
     $sql = 'SELECT a.*, c.name AS cat_name, c.dirname AS cat_dir
             FROM {p}article a
@@ -154,13 +154,13 @@ function cms_tag_rows($q)
     $rows = empty($rows) ? array() : $rows;
 
     if (!empty($idlist)) {
-        $rows = cms_tag_sort_by_ids($rows, $idlist);
+        $rows = CMS_tag_sort_by_ids($rows, $idlist);
     }
-    return cms_tag_rows_post($rows, $q);
+    return CMS_tag_rows_post($rows, $q);
 }
 
 /** 排序 SQL：兼容 order 与 orderby/orderway 两套写法 */
-function cms_tag_order_sql($q)
+function CMS_tag_order_sql($q)
 {
     $way = isset($q['orderway']) ? strtolower((string) $q['orderway']) : '';
     $way = $way === 'asc' ? 'ASC' : 'DESC';
@@ -224,7 +224,7 @@ function cms_tag_order_sql($q)
 }
 
 /** 逗号串 → 正整数数组 */
-function cms_tag_id_list($v)
+function CMS_tag_id_list($v)
 {
     $out = array();
     foreach (explode(',', (string) $v) as $s) {
@@ -237,9 +237,9 @@ function cms_tag_id_list($v)
 }
 
 /** 推荐位串 → 合法 flag 数组 */
-function cms_tag_flag_list($v)
+function CMS_tag_flag_list($v)
 {
-    $map = cms_flag_map();
+    $map = CMS_flag_map();
     $out = array();
     foreach (explode(',', (string) $v) as $s) {
         $s = strtolower(trim($s));
@@ -251,7 +251,7 @@ function cms_tag_flag_list($v)
 }
 
 /** 按给定 ID 顺序重排 */
-function cms_tag_sort_by_ids($rows, $ids)
+function CMS_tag_sort_by_ids($rows, $ids)
 {
     $map = array();
     foreach ($rows as $r) {
@@ -267,17 +267,17 @@ function cms_tag_sort_by_ids($rows, $ids)
 }
 
 /** 分类列表查询 */
-function cms_tag_query_cats($q, $limit, $offset)
+function CMS_tag_query_cats($q, $limit, $offset)
 {
     $cats = fe_cats();
     $cur  = 0;
     if (!empty($q['current'])) {
-        $scope = cms_scope();
+        $scope = CMS_scope();
         $cur   = isset($scope['current_cat_id']) ? (int) $scope['current_cat_id'] : 0;
     }
     $ids = array();
     if (!empty($q['catid'])) {
-        $ids = cms_tag_id_list($q['catid']);
+        $ids = CMS_tag_id_list($q['catid']);
     }
     if (!empty($q['current']) && empty($ids)) {
         $ids = array($cur);
@@ -292,7 +292,7 @@ function cms_tag_query_cats($q, $limit, $offset)
         if ($dir !== '' && $c['dirname'] !== $dir) {
             continue;
         }
-        $row = cms_row_expand($c);
+        $row = CMS_row_expand($c);
         $counts = fe_cat_counts();
         $row['count'] = isset($counts[(int) $c['id']]) ? $counts[(int) $c['id']] : 0;
         $row['active'] = ((int) $c['id'] === $cur) ? 1 : 0;
@@ -303,7 +303,7 @@ function cms_tag_query_cats($q, $limit, $offset)
 }
 
 /** 查询结果后处理：标题/摘要截断、多列序号、虚拟字段 */
-function cms_tag_rows_post($rows, $q)
+function CMS_tag_rows_post($rows, $q)
 {
     if (empty($rows)) {
         return array();
@@ -315,20 +315,20 @@ function cms_tag_rows_post($rows, $q)
     $out = array();
     $i   = 0;
     foreach ($rows as $r) {
-        $r = cms_row_expand($r);
+        $r = CMS_row_expand($r);
 
         if ($titlelen > 0 && isset($r['title'])) {
             if (!isset($r['fulltitle'])) {
                 $r['fulltitle'] = $r['title'];
             }
             $r['shorttitle'] = $r['title'];
-            $r['title']      = cms_substr($r['title'], $titlelen);
+            $r['title']      = CMS_substr($r['title'], $titlelen);
         }
         if ($infolen > 0 && isset($r['summary'])) {
             if (!isset($r['fullsummary'])) {
                 $r['fullsummary'] = $r['summary'];
             }
-            $r['summary']     = cms_substr($r['summary'], $infolen);
+            $r['summary']     = CMS_substr($r['summary'], $infolen);
             $r['description'] = $r['summary'];
         }
         if ($col > 0) {

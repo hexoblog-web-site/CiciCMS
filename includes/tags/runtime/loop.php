@@ -18,7 +18,7 @@ if (!defined('CMS_TAG_NS')) {
  * 白名单表自由循环：{cici:loop table="article" where="status=1" order="id desc"}
  * where 只接受「字段 运算符 值」用逗号分隔，字段名强校验，值全部参数化。
  */
-function cms_tag_loop_rows($o = array())
+function CMS_tag_loop_rows($o = array())
 {
     $o     = is_array($o) ? $o : array();
     $allow = array('article', 'category', 'page', 'flink', 'attachment');
@@ -26,7 +26,7 @@ function cms_tag_loop_rows($o = array())
     if (!in_array($table, $allow, true)) {
         return array();
     }
-    $limit  = cms_tag_int(isset($o['limit']) ? $o['limit'] : 10, 10, 1, 200);
+    $limit  = CMS_tag_int(isset($o['limit']) ? $o['limit'] : 10, 10, 1, 200);
     $offset = max(0, (int) (isset($o['offset']) ? $o['offset'] : 0));
 
     $w      = array();

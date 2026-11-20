@@ -69,7 +69,7 @@ require CMS_INC . '/tags/context.php';
 
 /* ── 运行期：编译出来的 PHP 会直接调用这些函数 ─────────── */
 
-foreach (glob(CMS_INC . '/tags/runtime/*.php') as $__cms_tag_rt) {
-    require_once $__cms_tag_rt;
+foreach (glob(CMS_INC . '/tags/runtime/*.php') as $__CMS_tag_rt) {
+    require_once $__CMS_tag_rt;
 }
-unset($__cms_tag_rt);
+unset($__CMS_tag_rt);

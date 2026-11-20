@@ -19,6 +19,6 @@ return array(
     'desc'    => '下一篇',
     'block'   => true,
     'auto'    => true,
-    'compile' => 'cms_tag_block_next',
-    'inline'  => 'cms_tag_inline_prevnext',
+    'compile' => 'CMS_tag_block_next',
+    'inline'  => 'CMS_tag_inline_prevnext',
 );

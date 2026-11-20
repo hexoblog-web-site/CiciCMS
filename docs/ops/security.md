@@ -88,11 +88,11 @@ location ~ ^/install/ { deny all; }
 
 攻击者填一个自己的公网地址 → 返回 `302 Location: http://127.0.0.1:8080` → 服务器自动跟过去。等于把一个"探测内网 / 读云元数据"的能力送到了对方手上。
 
-**修复**：改为手动跟随，**每一跳都重新调 `cms_url_public_check()`**，最多 4 跳。
+**修复**：改为手动跟随，**每一跳都重新调 `CMS_url_public_check()`**，最多 4 跳。
 
 | 文件 | 改动 |
 | --- | --- |
-| `includes/functions.php` | 新增 `cms_url_public_check()` |
+| `includes/functions.php` | 新增 `CMS_url_public_check()` |
 | `includes/uploader.php` | `fromUrl()` 改手动跟跳；新增 `fetchOnce()` / `absoluteUrl()` |
 | `content/plugins/hexo-import/remote.php` | 同样处理（`hexo_img_fetch()` / `hexo_img_absolute()`） |
 

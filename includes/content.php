@@ -279,7 +279,7 @@ function render_content_clean($src)
     $flush();
 
     // 插件可在此改写正文（自动内链、图片懒加载、代码块增强等）
-    return (string) cms_apply_filters('content_html', $out, $src);
+    return (string) CMS_apply_filters('content_html', $out, $src);
 }
 
 /**
